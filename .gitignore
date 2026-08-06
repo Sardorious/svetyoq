@@ -1,0 +1,40 @@
+# --- Sirlar ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# --- Node / frontend ---
+node_modules/
+web/dist/
+web/.vite/
+*.log
+
+# --- Ma'lumotlar ---
+*.db
+*.sqlite3
+data/raw/
+data/tmp/
+*.osm.pbf
+*.geojson.tmp
+
+# --- Muhit ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
