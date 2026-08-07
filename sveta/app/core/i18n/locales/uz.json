@@ -14,12 +14,23 @@
   "bot.location.request": "Joylashuvingizni yuboring — xabarni to'g'ri hududga bog'lash uchun kerak.",
   "bot.location.button": "📍 Joylashuvni yuborish",
   "bot.location.invalid": "Joylashuv qabul qilinmadi. Iltimos, qayta urinib ko'ring.",
+  "bot.help": "«⚡ Svet yo'q» yoki «💡 Svet keldi» tugmasini bosing va joylashuvingizni yuboring. Xabaringiz yaqin atrofdagi boshqa xabarlar bilan solishtiriladi.",
+  "bot.map.link": "Xarita: {url}",
+  "bot.map.unavailable": "Xarita hali ochilmagan — u yopiq sinov tugagach ishga tushadi.",
+  "bot.subscriptions.soon": "Obunalar hali tayyor emas. Ular ishga tushganda xabar beramiz.",
+  "bot.unknown": "Tushunmadim. Quyidagi tugmalardan birini tanlang.",
 
   "report.accepted.confirmed": "Sizning hududingizda ommaviy uzilish. ~{count} ta xabar. Boshlanishi: {started_at}",
   "report.accepted.pending": "Yaqin atrofdan yana {count} ta xabar keldi. Tasdiqlash uchun ma'lumot yig'ilmoqda.",
   "report.accepted.no_outage_covered": "Yaqin atrofdan boshqa xabar yo'q. Ehtimol, muammo faqat sizda.",
   "report.accepted.not_enough_data": "Bu hudud bo'yicha ma'lumot yetarli emas.",
   "report.restored.accepted": "Rahmat! «Svet keldi» xabari qabul qilindi.",
+  "report.duplicate": "Bu xabar allaqachon qabul qilingan.",
+
+  "area.confirmed": "Bu hududda ommaviy uzilish qayd etilgan. ~{count} ta xabar.",
+  "area.pending": "Bu hududda uzilish haqida xabarlar bor. Tasdiqlash uchun ma'lumot yig'ilmoqda.",
+  "area.no_outage": "Bu hududda ommaviy uzilish qayd etilmagan.",
+  "area.not_enough_data": "Bu hudud bo'yicha ma'lumot yetarli emas.",
 
   "outage.confidence.checking": "Tekshirilmoqda",
   "outage.confidence.likely": "Ehtimol, ommaviy uzilish",
@@ -34,6 +45,7 @@
   "error.not_found": "Topilmadi.",
   "error.validation": "Ma'lumot noto'g'ri.",
   "error.out_of_region": "Bu nuqta xizmat ko'rsatilayotgan hududdan tashqarida.",
+  "error.region_not_configured": "Hudud hali sozlanmagan. Biroz o'tib qayta urinib ko'ring.",
   "error.rate_limited": "Juda tez-tez xabar yuborilmoqda. Biroz kuting.",
   "error.forbidden": "Ruxsat yo'q.",
   "error.illegal_transition": "Bu hodisa ustida bunday amal bajarib bo'lmaydi."

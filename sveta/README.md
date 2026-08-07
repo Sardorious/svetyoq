@@ -23,6 +23,37 @@ pytest -q
 ruff check app tools tests alembic
 ```
 
+## Bot (E3)
+
+```bash
+# Lokal: polling — ommaviy HTTPS manzil kerak emas
+TELEGRAM_BOT_TOKEN=... TELEGRAM_MODE=polling python -m app.bot
+# yoki
+docker compose --profile bot up
+```
+
+Prodda bot alohida protsess emas: `TELEGRAM_MODE=webhook` bo'lganda u
+`app.main` ichiga ulanadi va `TELEGRAM_WEBHOOK_PATH` da update qabul qiladi
+(`05` §6.3). Webhook `TELEGRAM_WEBHOOK_SECRET` siz **ishlamaydi** — sir
+sozlanmagan bo'lsa endpoint hamma so'rovni `403` bilan rad etadi.
+
+Ikkala rejim bir vaqtda ishlamaydi: polling `delete_webhook` chaqiradi.
+
+## Asboblar
+
+```bash
+# Hudud chegaralarini OSM dan olish (`05` §5)
+python -m tools.import_boundaries survey --region samarkand
+
+# Retrospektiv qayta hisoblash (E6, `05` §9.2) — standart rejim quruq yurish
+python -m tools.recluster --region samarkand --from 2026-08-01 --to 2026-08-08
+python -m tools.recluster --region samarkand --from 2026-08-01 --to 2026-08-08 --apply
+```
+
+`recluster` xabarlarga tegmaydi: u faqat oynadagi **hodisalarni** o'chirib,
+o'sha xabarlardan qaytadan yig'adi. Bildirishnoma yuborilgan hodisa bo'lsa
+asbob ishlamaydi (`exit 2`).
+
 ## Tuzilma
 
 | Katalog | Mas'uliyat |

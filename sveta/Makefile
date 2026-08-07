@@ -1,4 +1,4 @@
-.PHONY: install lint test up down migrate revision fmt
+.PHONY: install lint test up down migrate revision fmt bot
 
 install:
 	pip install -e ".[dev]"
@@ -16,6 +16,10 @@ test:
 
 up:
 	docker compose up --build -d
+
+# Bot polling rejimida (lokal). Prodda webhook — `05` §6.3.
+bot:
+	python -m app.bot
 
 down:
 	docker compose down

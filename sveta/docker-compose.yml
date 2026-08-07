@@ -54,5 +54,20 @@ services:
         condition: service_completed_successfully
     profiles: ["jobs"]
 
+  # Bot polling rejimida (E3). Prodda bot `api` protsessi ichida webhook
+  # bilan ishlaydi (`05` §6.3), shuning uchun bu xizmat alohida profilda:
+  # ikkalasi bir vaqtda ishga tushsa Telegram update larni bo'lib berardi.
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
+      TELEGRAM_MODE: polling
+    command: ["python", "-m", "app.bot"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["bot"]
+
 volumes:
   pgdata:

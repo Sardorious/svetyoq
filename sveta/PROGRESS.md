@@ -12,9 +12,9 @@
 
 | | |
 |---|---|
-| **Joriy epic** | E2 + E5 + E5b **lokal tozalandi**: `ruff check` yashil, `pytest -m "not requires_db"` — **249 o'tdi, 0 yiqildi**. Keyingi ish: `.\push.ps1` → CI (PostGIS bilan 14 ta `requires_db` testi), keyin **E3 (bot)** yoki **E6 (`recluster.py`)** |
-| **Oxirgi run** | 2026-08-07 (sandbox tiklandi, lint + testlar birinchi marta lokal ishladi) |
-| **Bloklangan** | ✅ **INFRA-1 yopildi** — sandbox 22-runda tiklandi. Qolgan yagona tekshirilmagan qatlam — PostGIS so'rovlari (`requires_db`), ular faqat CI da ishlaydi (sandboxda root yo'q, Postgres o'rnatib bo'lmaydi) |
+| **Joriy epic** | **E7 va E6 yozildi**: `app/clustering/lookup.py` (so'rov paytidagi hudud verdikti, `05` §4.6) va `tools/recluster.py` (retrospektiv qayta hisoblash, `05` §9.2). `ruff check` yashil, `pytest -m "not requires_db"` — **323 o'tdi, 0 yiqildi** (+24). Keyingi ish: `.\push.ps1` → CI (33 ta `requires_db` testi), keyin **E8 (admin-panel)** yoki **E9 (veb-xarita)** |
+| **Oxirgi run** | 2026-08-07 (E7 + E6; sandbox ishladi, lint va bazasiz testlar lokal yashil) |
+| **Bloklangan** | ✅ **INFRA-1 yopildi**. Tekshirilmagan qatlamlar: (1) PostGIS so'rovlari — faqat CI da; (2) **haqiqiy Telegram bilan aloqa** — sandboxda tarmoq yo'q, botni odam `python -m app.bot` bilan bir marta ishga tushirib ko'rishi kerak |
 
 ---
 
@@ -24,12 +24,12 @@
 |---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, migratsiya, CI | ✅ | FastAPI + Alembic + Compose + CI; 33 test o'tdi |
 | E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | Sxema (11 jadval) + `0002` migratsiya + geo-quvur + `import_boundaries.py`. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI yashil bo'lgandan keyin |
-| E3 | Bot: `/start`, til, geolokatsiya, xabar qabul | ⬜ | |
-| E4 | i18n karkasi (UZ/RU) | 🔄 | Karkas + kataloglar tayyor (`app/core/i18n`); bot matnlari E3 da |
+| E3 | Bot: `/start`, til, geolokatsiya, xabar qabul | 🔄 | `05` §6: menyu, til, geolokatsiya, `app/reports/intake.py` (idempotentlik + rate limit), javob verdiktlari, webhook (`secret_token`) va polling. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI va **haqiqiy Telegram runi** dan keyin |
+| E4 | i18n karkasi (UZ/RU) | ✅ | Karkas + kataloglar; E3 ning barcha matni katalogdan (`bot.*`, `report.*`, `error.*`), qattiq kodlangan satr yo'q |
 | E5 | Klasterlash: inkremental biriktirish, statuslar | 🔄 | `05` §4: geometriya, mustaqillik, status mashinasi, `assign`/`evaluate`, `evaluate_outages` vazifasi. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI yashil bo'lgandan keyin |
 | E5b | Tasdiqlash va masshtab logikasi | 🔄 | `06`: manba og'irliklari, `W`, `N_req`, `confidence`, masshtab narvoni, qamrov to'sig'i, `0003` migratsiya. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI yashil bo'lgandan keyin |
-| E6 | Retrospektiv qayta hisoblash (`recluster.py`) | ⬜ | |
-| E7 | «Ma'lumot yetarli emas» verdikti | ⬜ | `05` §4.6 |
+| E6 | Retrospektiv qayta hisoblash (`recluster.py`) | 🔄 | `tools/recluster.py`: oynadagi hodisalarni o'chirib, xabarlardan `(created_at, id)` tartibida qaytadan yig'adi; standart rejim — quruq yurish (tranzaksiya rollback); bildirishnomali hodisa bo'lsa bloklanadi; `fingerprint` — `05` §9.2 regressiyasi. ✅ ga o'tishi CI dan keyin |
+| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py`: `decide` (toza funksiya), `coverage`, `area_status`; `repository.find_open_at`; `area.*` i18n kalitlari; tugmasiz yuborilgan geolokatsiya endi xabar emas, **so'rov**. ✅ ga o'tishi CI dan keyin |
 | E8 | Admin-panel: moderatsiya, rollar, audit | ⬜ | |
 | E9 | Veb-xarita (snapshot, MapLibre) | ⬜ | |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | Inson ishi |
@@ -53,7 +53,8 @@ Belgilar: ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklanga
 | Blok | Kerak | Holat |
 |---|---|---|
 | INFRA-1 | Sandbox 21 run ketma-ket `useradd failed` bilan yiqilgan edi | ✅ **Yopildi** (2026-08-07, 22-run). Sandbox tiklandi, lint va testlar ishladi. Sabab tasdiqlanmadi (disk tozalanishi yoki Cowork qayta ishga tushishi) — qaytalansa `cleanup-sessions.ps1` birinchi qadam |
-| E0-b | Telegram bot token (@BotFather) | ✅ `sveta/.env` da (`TELEGRAM_BOT_TOKEN`). E3 ochiq |
+| E0-b | Telegram bot token (@BotFather) | ✅ `sveta/.env` da (`TELEGRAM_BOT_TOKEN`). E3 kodi yozildi |
+| E3-a | Botni haqiqiy Telegram bilan bir marta sinash (`python -m app.bot`) | ⬜ Sandboxda tashqi tarmoq yo'q — bu qadam faqat odamdan |
 | E0-c | Geokoder tanlovi va kaliti | ⬜ E13 gacha |
 | E0-d | Tuman poligonlari manbasi (OSM dan olinadi) | 🔄 Asbob tayyor (`tools/import_boundaries.py`), Overpass so'rovini siz ishga tushirasiz |
 | E0-e | Huquqiy xulosa (H-8) | ⬜ E12 gacha |
@@ -70,6 +71,8 @@ Belgilar: ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklanga
 
 | Sana/vaqt | Epic | Nima qilindi | Keyingi qadam |
 |---|---|---|---|
+| 2026-08-07 | E7 | «ma'lumot yetarli emas» verdikti: so'rov paytidagi hudud holati va retrospektiv qayta hisoblash asbobi (E6) | `.\push.ps1` → CI (33 ta `requires_db`), keyin E8 (admin-panel) yoki E9 (veb-xarita) |
+| 2026-08-07 | E3 | bot: `/start`, til tanlash, menyu, geolokatsiya va xabar qabul | `.\push.ps1` → CI (22 ta `requires_db`), keyin botni haqiqiy token bilan bir marta ishga tushirib ko'rish, so'ng E6 (`recluster.py`) yoki E7 |
 | 2026-08-07 | INFRA | eskirgan `.git/index.lock` (0 bayt, 21 soat) o'chirildi; `push.ps1` ga ikkita himoya qo'shildi — eskirgan lock ni avtomatik olib tashlash va commit yiqilganda rebase/push ni davom ettirmaslik | `.\push.ps1` ni qayta ishga tushirish |
 | 2026-08-07 | INFRA | `push.ps1` parser xatosi tuzatildi: `.ps1` fayllar BOM siz UTF-8 edi, Windows PowerShell 5.1 ularni CP1251 deb o'qib `—` ni satr yopuvchi `”` ga aylantirardi. Uchala skriptga UTF-8 BOM qo'shildi | `.\push.ps1` ni qayta ishga tushirish |
 | 2026-08-07 | E5b | sandbox tiklandi; E2+E5+E5b birinchi marta lokal tekshirildi: `ruff` yashil (3 ta `ASYNC240` tuzatildi), `pytest -m "not requires_db"` 249/249 o'tdi (h3 4.x qirra uzunligi bo'yicha 1 test chegarasi kengaytirildi), `alembic upgrade head --sql` offline ishladi, 48 modul import qilindi | `.\push.ps1` → CI (PostGIS bilan `requires_db` 14 test), keyin E3 (bot) yoki E6 (`recluster.py`) |
@@ -114,8 +117,19 @@ Belgilar: ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklanga
 - **`UP017` ruff qoidasi o'chirildi.** `datetime.UTC` faqat 3.11+ da bor; `timezone.utc` ishlatiladi, shunda kod eski interpretatorda ham ishga tushadi. Sabab `pyproject.toml` da izohlangan.
 - **Klasterlash parametrlari konfiguratsiyaga chiqarildi** (`CLUSTER_*`, `REPORTER_*`, `.env.example` da). Qiymatlar `05` §4.2 dagi BASELINE-TAS bilan bir xil va test bilan qulflangan (`tests/test_config.py`).
 - **E2 uchun ADR-07 kerak bo'ladi.** `import_boundaries.py` `admin_level` 4..10 diapazonini so'raydi va sanaydi — yakuniy tanlov sizniki (`05` §5.2).
-- **Webhook vs polling (E3).** `05` §6.3 webhook ni belgilaydi, lekin webhook uchun ommaviy HTTPS manzil kerak (hosting hali yo'q). Yechim: lokal ishlab chiqishda `polling`, prodda `webhook` — ikkalasi bitta konfiguratsiya kaliti bilan (`TELEGRAM_MODE=polling|webhook`). Bu spetsifikatsiyaga zid emas, uni to'ldiradi.
-- **`TELEGRAM_WEBHOOK_SECRET`** hali yaratilmagan — webhook rejimiga o'tishdan oldin tasodifiy satr qo'yish kerak.
+- **Webhook vs polling (E3).** `05` §6.3 webhook ni belgilaydi, lekin webhook uchun ommaviy HTTPS manzil kerak (hosting hali yo'q). Yechim: lokal ishlab chiqishda `polling`, prodda `webhook` — ikkalasi bitta konfiguratsiya kaliti bilan (`TELEGRAM_MODE=polling|webhook`). Bu spetsifikatsiyaga zid emas, uni to'ldiradi. **E3 da bajarildi**: polling `python -m app.bot`, webhook esa `app.main` ichida.
+- **`TELEGRAM_WEBHOOK_SECRET`** hali yaratilmagan — webhook rejimiga o'tishdan oldin tasodifiy satr qo'yish kerak. **Endi bu bloklovchi:** sir bo'sh bo'lsa webhook endpointi hamma so'rovni `403` qiladi (ataylab).
+- **👤 Botni bir marta haqiqiy token bilan sinash kerak.** `python -m app.bot`
+  (yoki `docker compose --profile bot up`) → Telegramda `/start` → til →
+  «⚡ Svet yo'q» → geolokatsiya. Sandboxda tashqi tarmoq yo'q, shuning uchun
+  bu yagona tekshirilmagan qatlam. Baza ham kerak (`alembic upgrade head`) va
+  `regions` da `samarkand` qatori bo'lishi shart — aks holda bot
+  `error.region_not_configured` javobini beradi.
+- **`🗺 Xarita` tugmasi manzilsiz.** `MAP_PUBLIC_URL` bo'sh bo'lsa bot «xarita
+  hali ochilmagan» deydi. E9 dan keyin qiymat qo'yiladi.
+- **Obuna tugmasi E13 gacha «hali tayyor emas» deydi.** Uni menyudan olib
+  tashlash ham mumkin edi; ko'rinib turgani mahsulot yo'nalishini ko'rsatadi
+  deb qoldirildi. **Savol:** yopiq bosqichda (E10) tugma ko'rinsinmi?
 
 - ~~**Takrorlanuvchi behuda run (2026-08-07).**~~ Yigirma bitta run `useradd
   failed` bilan tugagandi; 22-runda sandbox tiklandi. Task ni pauza qilish
@@ -248,3 +262,104 @@ qoldirildi (prodda fon vazifasi doim ishlashi kerak).
   qoplaydi, ikkita deyarli bir xil yuklovchi xatoga moyil edi.
 - **`evaluate_status` ning tasdiqlash sababi nomi o'zgardi**: `min_reporters` →
   `confirm_condition` (endi shart `06` §4.3 dan keladi). Test yangilandi.
+
+### E3 runida yuzaga kelganlar (2026-08-07)
+
+- **Yolg'iz hodisa «tasdiqlash kutilmoqda» javobini bermaydi.** `05` §6.2 ning
+  ikkinchi qatori «yaqin atrofdan yana N ta xabar keldi» deydi, lekin har
+  birinchi xabar o'zi hodisani `pending` holatda yaratadi — ya'ni so'zma-so'z
+  o'qilsa birinchi xabar beruvchiga «yana 0 ta xabar keldi» yozilardi. Shuning
+  uchun qaror **boshqalarning xabarlari soniga** bog'landi: `others = 0` bo'lsa
+  javob uchinchi/to'rtinchi qatorga tushadi. Test bilan qulflangan
+  (`test_lonely_pending_outage_is_not_pending_verdict`).
+- **Qamrov o'lchovi E7 dan oldin ishlatildi.** `05` §6.2 ning to'rtinchi qatori
+  («ma'lumot yetarli emas») bot javobida **hozir** kerak, verdiktning o'zi esa
+  `05` §4.6 va E7 da. Yechim: mavjud o'lchov (`active_users_in_cell` +
+  `COVERAGE_*`) shu yerda chaqiriladi; E7 uni rasmiylashtirganda bot chaqiruvi
+  o'sha funksiyaga ko'chiriladi.
+- **`app/reports/intake.py` qo'shildi.** Bot `reports`/`users` jadvallariga
+  tegmaydi (`05` §1): foydalanuvchi upserti, `tg_update_id` bo'yicha
+  idempotentlik, rate limit va `weight` ni qotirish shu modulda. Bot faqat
+  neytral qiymat uzatadi, shuning uchun `app.reports` `app.geo` ni ham,
+  `app.bot` ni ham import qilmaydi.
+- **Rate limit faqat `outage` ga.** `05` §6.3 «10 daqiqada 1 `outage` xabari»
+  deydi. «Svet keldi» cheklanmaydi: uni kechiktirish hodisani ortiqcha ochiq
+  ushlab turardi (autoclose 120 daqiqa).
+- **aiogram Router fabrika orqali yig'iladi.** Modul darajasidagi yagona
+  `Router` obyekti ikkinchi `Dispatcher` yaratilishi bilanoq
+  `Router is already attached` bilan yiqiladi — bu lokal tekshiruvda
+  aniqlandi. `handlers.build_router()` har chaqiruvda yangi router qaytaradi;
+  regressiya testi bor (`test_second_dispatcher_can_be_created`).
+- **Webhook sir sozlanmagan bo'lsa yopiq.** `TELEGRAM_WEBHOOK_SECRET` bo'sh
+  bo'lsa endpoint hamma so'rovni `403` qiladi (`hmac.compare_digest`).
+  «Sir yo'q → tekshirmaymiz» varianti ochiq endpoint degani bo'lardi.
+  Handler ichidagi xato esa baribir `200` qaytaradi: `200` dan boshqa javob
+  Telegram uchun «qayta yubor» signali.
+- **Uchta yangi konfiguratsiya kaliti** (`05` da yo'q, lekin ularsiz javob
+  noto'g'ri ko'rinardi): `DISPLAY_TIMEZONE` (javobdagi `HH:MM` UTC da
+  ko'rsatilmasligi uchun; vaqt `05` §7.3 bo'yicha 5 daqiqagacha pastga
+  yaxlitlanadi), `MAP_PUBLIC_URL` (🗺 tugmasi, E9 gacha bo'sh),
+  `TELEGRAM_WEBHOOK_PATH`.
+- **`docker-compose` ga `bot` xizmati `profiles: ["bot"]` bilan qo'shildi.**
+  Polling va webhook bir vaqtda ishlamaydi (polling `delete_webhook` chaqiradi),
+  shuning uchun standart profilga chiqarilmadi.
+- **Haqiqiy Telegram bilan aloqa tekshirilmagan.** Sandboxda tashqi tarmoq
+  yo'q; `getUpdates`/`setWebhook` chaqiruvlari faqat odam ishga tushirganda
+  sinaladi.
+
+### E7 + E6 runida yuzaga kelganlar (2026-08-07)
+
+**E7 — «ma'lumot yetarli emas» (`05` §4.6)**
+
+- **Verdikt `app/clustering/lookup.py` ga joylashtirildi**, chunki `05` §4.6
+  klasterlash bo'limida. Qaror — toza funksiya (`decide`), bazaga tegadigan
+  qism `area_status`. Botning `_coverage_ok` i endi shu moduldagi
+  `coverage()` ni chaqiradi: «yetarli qamrov» ta'rifi ikki joyda ikki xil
+  bo'lib ketmasligi uchun.
+- **Yangi i18n oilasi `area.*`.** `report.accepted.*` javob **o'z
+  xabaringizga** beriladi («muammo faqat sizda»), `area.*` esa hudud
+  haqidagi savolga («uzilish qayd etilmagan» — `05` §4.6 so'zi). Ikkalasini
+  bitta kalitga yig'ish javobni birida noto'g'ri qilardi.
+- **`find_open_at` `find_candidate` dan farq qiladi** va uchala farq ham
+  ataylab: vaqt oynasi yo'q (statusning o'zi ochiqlikni bildiradi), qatlam
+  filtri yo'q (rasmiy e'lon ham ko'rsatiladi — `06` §3 aralashtirmaslik
+  qoidasi *biriktirishga* tegishli), tartib avval `confirmed` (yaqinroqdagi
+  tasdiqlanmagan hodisa uzoqroqdagi tasdiqlanganini yashirmasligi kerak).
+- **Tugmasiz yuborilgan geolokatsiya endi xabar yaratmaydi.** Ilgari FSM
+  holatidan qat'i nazar `kind='outage'` deb yozilardi — ya'ni tasodifan
+  yuborilgan joylashuv «svet yo'q» xabariga aylanardi. Endi u `05` §4.6
+  so'rovi (o'qish amali, rate limit yo'q). **Savol:** menyuga alohida
+  «📍 Hududimda nima bo'lyapti?» tugmasi qo'shilsinmi (`05` §6.1 menyusida
+  bunday band yo'q, shuning uchun qo'shilmadi)?
+- **`area_status` ning UI kirish nuqtasi hozircha bitta** — tugmasiz
+  geolokatsiya. Xarita/API kirish nuqtasi E9/E15 da o'sha funksiyani
+  chaqiradi.
+
+**E6 — `tools/recluster.py` (`05` §9.2)**
+
+- **Asbob onlayn algoritmni takrorlaydi, o'zinikini yozmaydi**: xabarlar
+  `clustering.assign` ga qaytadan beriladi. Aks holda «qayta hisoblash»
+  boshqa mahsulotni o'lchagan bo'lardi. Test buni qulflaydi
+  (`test_recluster_reproduces_the_online_result`).
+- **Standart rejim — quruq yurish.** Hammasi haqiqatan hisoblanadi, lekin
+  tranzaksiya oxirida `rollback`. `--apply` bo'lsa `commit`. Shuning uchun
+  «nima bo'lardi?» savoliga taxmin emas, natija bilan javob beriladi.
+- **Xabarlar hech qachon o'chirilmaydi** — faqat `outage_id` uziladi va
+  oynadagi hodisalar o'chiriladi. Xabar — birlamchi ma'lumot.
+- **Bildirishnomali hodisa qayta hisoblashni bloklaydi** (`exit 2`).
+  `notifications.outage_id` — `NOT NULL` FK, lekin asosiy sabab boshqa:
+  foydalanuvchi ko'rgan xabarnomani tarixdan o'chirib bo'lmaydi. Guard
+  `app/notifications/queries.py` orqali (modul chegarasi).
+- **Barmoq izi `uuid` ni o'z ichiga olmaydi** — u har yurishda yangi
+  bo'ladi. Hashlanadigan narsa: `started_at`, status, markaz (7 xona),
+  radius, `confidence`, masshtab, `weighted_score`.
+- **`--to` paytida oxirgi qayta baholash bajariladi**, ya'ni jim qolgan
+  hodisalar `autoclose` bo'yicha yopiladi — onlaynda buni fon vazifasi
+  qiladi. Shusiz qayta hisoblangan tarix onlayn tarixdan farq qilardi.
+- **Koordinata `COALESCE(geom_exact, geom_public)`.** 90 kundan eski davr
+  qo'polroq qayta hisoblanadi (`05` §3.2) — ataylab qilingan maxfiylik
+  almashuvi. **Savol:** eski davr uchun ogohlantirish chiqarilsinmi
+  (masalan «oynaning N% i faqat jitterlangan nuqta bilan hisoblandi»)?
+- **`delete_outages` faqat shu asbobdan chaqiriladi.** Kundalik ishda
+  hodisa o'chirilmaydi (`05` §4.3: `merged` — alohida status, o'chirish
+  emas), shuning uchun funksiya nomida ham, izohida ham bu qayd etilgan.

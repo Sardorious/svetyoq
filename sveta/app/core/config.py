@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = ""
     telegram_webhook_url: str = ""
     telegram_mode: Literal["polling", "webhook"] = "polling"
+    # Webhook yo'li — `TELEGRAM_WEBHOOK_URL` ning yo'l qismi bilan mos bo'lishi kerak.
+    telegram_webhook_path: str = "/telegram/webhook"
+
+    # --- Interfeys ---
+    # Foydalanuvchiga vaqt mintaqa zonasida ko'rsatiladi (`05` §6.2 «Boshlanishi:
+    # HH:MM»). UTC ko'rsatish javobni tushunarsiz qilardi.
+    display_timezone: str = "Asia/Tashkent"
+    # `🗺 Xarita` tugmasi shu manzilga olib boradi. E9 gacha bo'sh bo'lishi mumkin.
+    map_public_url: str = ""
 
     # --- Geo ---
     h3_resolution: int = 9

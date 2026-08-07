@@ -82,6 +82,107 @@ async def count_attached(
     return int((await session.execute(stmt)).scalar_one())
 
 
+@dataclass(frozen=True)
+class ReplayRow:
+    """Retrospektiv qayta hisoblash uchun bitta xabar (E6, `05` §9.2).
+
+    Neytral tuzilma: `tools/recluster.py` uni `clustering.ReportRef` ga
+    o'giradi. `app.reports` `app.clustering` ni import qilmaydi.
+    """
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    kind: str
+    lat: float
+    lon: float
+    region_id: uuid.UUID
+    district_id: uuid.UUID | None
+    mahalla_id: uuid.UUID | None
+    created_at: datetime
+    source_code: str
+
+
+async def reports_for_replay(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    until: datetime,
+) -> list[ReplayRow]:
+    """Oynadagi xabarlar, **qat'iy determinik tartibda** (E6).
+
+    Tartib `(created_at, id)`: faqat vaqt bo'yicha saralash bir soniyada
+    kelgan ikki xabarni har safar boshqa ketma-ketlikda berardi va
+    inkremental markaz ham har safar boshqacha chiqardi — `05` §9.2 dagi
+    regressiya sinovi aynan shuni ushlaydi.
+
+    Koordinata `geom_exact`, u yo'q bo'lsa `geom_public` (`05` §3.2 bo'yicha
+    aniq nuqta 90 kundan keyin `NULL` ga o'tadi) — ya'ni eski davr qo'polroq
+    qayta hisoblanadi. Bu ataylab qilingan maxfiylik almashuvi.
+    """
+    lat, lon = _position(func.coalesce(Report.geom_exact, Report.geom_public))
+    stmt = (
+        select(
+            Report.id,
+            Report.user_id,
+            Report.kind,
+            lat,
+            lon,
+            Report.region_id,
+            Report.district_id,
+            Report.mahalla_id,
+            Report.created_at,
+            Report.source_code,
+        )
+        .where(
+            Report.region_id == region_id,
+            Report.created_at >= since,
+            Report.created_at < until,
+        )
+        .order_by(Report.created_at.asc(), Report.id.asc())
+    )
+    return [
+        ReplayRow(
+            id=r[0],
+            user_id=r[1],
+            kind=r[2],
+            lat=float(r[3]),
+            lon=float(r[4]),
+            region_id=r[5],
+            district_id=r[6],
+            mahalla_id=r[7],
+            created_at=r[8],
+            source_code=r[9],
+        )
+        for r in (await session.execute(stmt)).all()
+    ]
+
+
+async def detach_window(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    until: datetime,
+) -> int:
+    """Oynadagi xabarlarning hodisaga bog'lanishini uzadi (E6).
+
+    Xabarlarning o'zi **o'chirilmaydi** — ular birlamchi ma'lumot. Qayta
+    hisoblash faqat ulardan yig'ilgan xulosani (hodisalarni) qayta quradi.
+    """
+    result = await session.execute(
+        update(Report)
+        .where(
+            Report.region_id == region_id,
+            Report.created_at >= since,
+            Report.created_at < until,
+            Report.outage_id.is_not(None),
+        )
+        .values(outage_id=None)
+    )
+    return int(result.rowcount or 0)
+
+
 async def eligible_reporter_points(
     session: AsyncSession,
     outage_id: uuid.UUID,

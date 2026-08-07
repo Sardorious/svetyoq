@@ -12,34 +12,54 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-**2026-08-07** — ✅ **Sandbox TIKLANDI va E2+E5+E5b birinchi marta lokal
-tekshirildi.** 21 rundan keyin bloklanish yechildi:
+**2026-08-07** — 🔄 **E7 va E6 yozildi.** Sandbox birinchi urinishda ishladi.
 
-- `ruff check app tools tests alembic` → **All checks passed**
-  (3 ta `ASYNC240` tuzatildi — `tools/import_boundaries.py` da fayl I/O
-  async funksiyadan sinxron yordamchilarga chiqarildi);
-- `pytest -q -m "not requires_db"` → **249 passed**, 14 deselected
-  (h3 4.x qirra uzunligi bo'yicha 1 test chegarasi kengaytirildi);
-- `alembic upgrade head --sql` offline toza ishladi; 48 modul import qilindi.
+- **E7** (`05` §4.6) — `app/clustering/lookup.py`: so'rov paytidagi hudud
+  verdikti (`decide` toza funksiya, `coverage`, `area_status`),
+  `repository.find_open_at`, yangi `area.*` i18n oilasi. Bot `_coverage_ok`
+  endi shu moduldan foydalanadi. **Nozik defekt tuzatildi:** tugmasiz
+  yuborilgan geolokatsiya jimgina «svet yo'q» xabariga aylanardi — endi u
+  o'qish amali (hudud so'rovi), rate limit sarflanmaydi.
+- **E6** (`05` §9.2) — `tools/recluster.py`: oynadagi hodisalarni o'chirib,
+  xabarlardan `(created_at, id)` tartibida `clustering.assign` bilan
+  qaytadan yig'adi. Standart rejim — **quruq yurish** (tranzaksiya
+  rollback), yozish uchun `--apply`. Bildirishnomali hodisa bo'lsa bloklaydi
+  (`exit 2`). `fingerprint()` — determinizm regressiyasi.
+- `ruff` yashil, `pytest -m "not requires_db"` → **323 passed** (+24),
+  60 modul import, `alembic upgrade head --sql` toza (migratsiya yo'q).
 
-Batafsili [09-sessiya faylida](09_sandbox_tiklandi_6773453c.md).
+Batafsili [11-sessiya faylida](11_E7_E6_recluster_844c5fca.md).
 
-**Keyingi qadam — odam:** `.\push.ps1`. Repoda hali hech narsa commit
-qilinmagan, ya'ni bu **birinchi CI runi** bo'ladi va u PostGIS `16-3.4` bilan
-14 ta `requires_db` testini ishga tushiradi — `ST_BuildArea`,
-`ST_DWithin(geography)` va `0001..0003` migratsiyalarining yagona haqiqiy
-tekshiruvi. Sandboxda root yo'q, shuning uchun Postgres u yerda o'rnatilmaydi.
+> **Venv haqida.** Eski `/tmp/venv` sessiyalar orasida saqlanmaydi va
+> `Permission denied` beradi. Tuzatishga urinmang — yangi yo'lda
+> (`/tmp/venvN`) yangi venv yarating: `uv venv --python 3.11` +
+> `uv pip install -e ".[dev]"`.
 
-**Keyingi sessiyada:** CI qizil bo'lsa — tuzatish; yashil bo'lsa —
-E2/E5/E5b ni ✅ qilib, **E3 (bot, token bor)** yoki **E6 (`recluster.py`)**.
+**CI holatini ko'rib bo'lmadi** — `web_fetch` faqat suhbatda uchragan
+manzillarni ochadi, GitHub Actions API si ro'yxatda yo'q. Agar oldingi CI
+qizil bo'lsa, uni keyingi run tuzatadi.
 
-> **Sandbox yiqilsa nima qilish kerak (yangilangan qoida).** 08-fayldagi
-> «darhol to'xta» tartibi 21 marta ishladi, lekin 22-runda sandbox o'z-o'zidan
-> tiklandi. Ya'ni yiqilish **vaqtinchalik** bo'lishi mumkin: ikki urinishdan
-> keyin to'xtang va hujjatni yangilang, lekin keyingi runda **albatta qayta
-> urinib ko'ring** — kod yozishdan oldin emas, birinchi ish sifatida.
+**Keyingi qadam — odam:**
 
-Odamdan kutilayotgan qarorlar (o'zgarmadi):
+1. `.\push.ps1` → CI (endi **33 ta** `requires_db` testi);
+2. Botni **bir marta haqiqiy token bilan** ishga tushirish:
+   `python -m app.bot` → Telegramda `/start` → til → «⚡ Svet yo'q» →
+   geolokatsiya. Baza ko'tarilgan va `regions` da `samarkand` qatori bo'lishi
+   shart, aks holda bot `error.region_not_configured` javobini beradi.
+   Sandboxda tashqi tarmoq yo'q, shuning uchun bu yagona tekshirilmagan
+   qatlam.
+
+**Keyingi sessiyada:** **E8** (admin-panel: moderatsiya, rollar, audit).
+E9 (veb-xarita) ham mumkin, lekin u ADR-08 (tayl manbasi litsenziyasi)
+qaroriga bog'liq — shuning uchun E8 xavfsizroq.
+
+> **Sandbox yiqilsa nima qilish kerak.** 08-fayldagi «darhol to'xta» tartibi
+> 21 marta ishladi, lekin 22-runda sandbox o'z-o'zidan tiklandi va shundan
+> beri barqaror. Ya'ni yiqilish **vaqtinchalik** bo'lishi mumkin: ikki
+> urinishdan keyin to'xtang va hujjatni yangilang, lekin keyingi runda
+> **albatta qayta urinib ko'ring** — birinchi ish sifatida.
+
+Odamdan kutilayotgan qarorlar:
 
 1. `python -m tools.import_boundaries survey --region samarkand` ni ishga
    tushirib `admin_level` ni tanlash (ADR-07);
@@ -49,8 +69,15 @@ Odamdan kutilayotgan qarorlar (o'zgarmadi):
 3. E5b ning to'rtta qarori (`reports.weight` nima qotiriladi, qamrov to'sig'i
    narvonmi, rasmiy hodisaning `confidence` i, `reports.source` olib
    tashlansinmi) — 06-sessiya faylining 3-jadvalida;
-4. **Yangi:** `05` §3.1 dagi «r9 ≈ 174 m» h3 3.x qiymati — ≈200 m ga
-   to'g'rilansinmi?
+4. `05` §3.1 dagi «r9 ≈ 174 m» h3 3.x qiymati — ≈200 m ga to'g'rilansinmi?
+5. **E3:** `TELEGRAM_WEBHOOK_SECRET` ni yaratish (webhook rejimi
+   usiz `403` beradi) va obuna tugmasi E13 gacha menyuda tursinmi.
+6. **Yangi (E7):** menyuga «📍 Hududimda nima bo'lyapti?» tugmasi
+   qo'shilsinmi? Hozircha hudud so'rovi faqat tugmasiz yuborilgan
+   geolokatsiya orqali ishlaydi (`05` §6.1 menyusida bunday band yo'q).
+7. **Yangi (E6):** `recluster` 90 kundan eski davrni jitterlangan nuqta
+   bilan hisoblaydi (`geom_exact` `NULL` ga o'tgan) — hisobotda bu haqda
+   ogohlantirish chiqarilsinmi?
 
 ---
 
@@ -65,6 +92,8 @@ Odamdan kutilayotgan qarorlar (o'zgarmadi):
 | 05 | [statik_review](05_statik_review_bce701b0.md) | `local_bce701b0` | Sandbox 3-marta yiqildi → E2+E5 kodini qo'lda review (lint/nom/import/i18n/migratsiya/ssenariy hisobi) | Defekt topilmadi; ⛔ `cleanup-sessions.ps1` kerak |
 | 06 | [E5b_tasdiqlash](06_E5b_tasdiqlash_61b5622e.md) | `local_61b5622e` | E5b — `06`: manba og'irliklari, `W`/`N_req`, `confidence`, masshtab narvoni, qamrov to'sig'i, `0003` migratsiya | 🔄 E5b, sandboxsiz yozildi, CI kutilmoqda |
 | 09 | [sandbox_tiklandi](09_sandbox_tiklandi_6773453c.md) | `local_6773453c` | Sandbox tiklandi → E2+E5+E5b birinchi marta lokal lint va test; `ASYNC240`×3 va h3 4.x qirra uzunligi tuzatildi | ✅ 249 test, ruff yashil; CI kutilmoqda |
+| 10 | [E3_bot](10_E3_bot_93a1e3b6.md) | `local_93a1e3b6` | E3 — bot: `/start`, til, menyu, geolokatsiya, xabar qabul, `05` §6.2 verdiktlari, webhook+polling, `reports/intake.py`; aiogram Router defekti tuzatildi | 🔄 E3, ✅ E4; 299 test, ruff yashil |
+| 11 | [E7_E6_recluster](11_E7_E6_recluster_844c5fca.md) | `local_844c5fca` | E7 — `05` §4.6 hudud verdikti (`clustering/lookup.py`, `area.*` i18n, tugmasiz geolokatsiya endi so'rov); E6 — `tools/recluster.py` (quruq yurish, determinizm izi, bildirishnoma guardi) | 🔄 E7, 🔄 E6; 323 test, ruff yashil |
 | 08 | [sandbox_6-marta](08_sandbox_6-marta_d9cd1a43.md) | `local_d9cd1a43`, `local_e91b2267`, `local_44e07f35`, `local_0d1cefc6`, `local_f17f103a`, `local_1f44d4db`, `local_882408c6`, `local_997e4202`, `local_8fbf2da1`, `local_04dc5274`, `local_7a425a6b`, `local_561e818c`, `local_d31b110b`, `local_1741b615`, `local_0bfbc3cc`, `local_6773453c` | Sandbox 6-…21-marta yiqildi → ish to'xtatildi; task ni pauza qilish taklifi (7-…21-run alohida fayl yaratmadi, shu faylni yangiladi) | ⛔ INFRA-1 kutilmoqda |
 | 90 | [infra_sessiya_xotirasi](90_infra_sessiya_xotirasi_94739a47.md) | `local_94739a47` | C diskdagi sessiya papkalari to'planishi | Bu papka shundan kelib chiqqan |
 
@@ -75,7 +104,7 @@ Odamdan kutilayotgan qarorlar (o'zgarmadi):
 
 ## Nima saqlanmaydi
 
-Cowork da jami 60 ta sessiya bor. Ularning aksariyati **boshqa loyihalarga**
+Cowork da jami 104 ta sessiya bor (2026-08-07). Ularning aksariyati **boshqa loyihalarga**
 tegishli va bu yerga ko'chirilmaydi:
 
 | Nomi | Nechta | Loyiha |
