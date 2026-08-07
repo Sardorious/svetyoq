@@ -100,6 +100,10 @@ class ReplayRow:
     mahalla_id: uuid.UUID | None
     created_at: datetime
     source_code: str
+    #: `geom_exact` hali mavjudmi. `False` — nuqta jitterlangan
+    #: (`05` §3.2, 90 kundan keyin `NULL`), ya'ni qayta hisoblash shu xabar
+    #: uchun qo'polroq. Asbob buni hisobotda ogohlantirish sifatida chiqaradi.
+    has_exact: bool = True
 
 
 async def reports_for_replay(
@@ -133,6 +137,7 @@ async def reports_for_replay(
             Report.mahalla_id,
             Report.created_at,
             Report.source_code,
+            Report.geom_exact.is_not(None),
         )
         .where(
             Report.region_id == region_id,
@@ -153,6 +158,7 @@ async def reports_for_replay(
             mahalla_id=r[7],
             created_at=r[8],
             source_code=r[9],
+            has_exact=bool(r[10]),
         )
         for r in (await session.execute(stmt)).all()
     ]

@@ -86,6 +86,12 @@ class Settings(BaseSettings):
     coverage_window_days: int = 30
     coverage_min_active_users: int = 5
 
+    # --- Admin-panel (E8) ---
+    # `nom:rol:token` uchliklari, vergul bilan. Rollar: viewer|moderator|admin.
+    # Bo'sh bo'lsa admin endpointlari hamma so'rovga `403` beradi — xuddi
+    # webhook sirining yo'qligidagidek (`05` §6.3).
+    admin_tokens: str = ""
+
     api_prefix: str = Field(default="/api/v1")
 
     @field_validator("log_level")

@@ -50,9 +50,17 @@ yaratildi (`uv python install 3.11`, `uv pip install -e ".[dev]"`).
    xabariga aylanardi (FSM holati tekshirilmasdi). Bu ma'lumotni buzuvchi
    nozik defekt edi; endi javob — `05` §4.6 verdikti, rate limit sarflanmaydi.
 
-**Ochiq savol odamga:** menyuga alohida «📍 Hududimda nima bo'lyapti?»
-tugmasi qo'shilsinmi? `05` §6.1 menyusida bunday band yo'q, shuning uchun
-qo'shilmadi.
+**Odam qarori (run oxirida, «kerak, ha»):** tugma **qo'shildi**.
+
+- `Action.AREA` + `bot.menu.area` («📍 Hududimda nima bo'lyapti?» /
+  «📍 Что в моём районе?»), menyuda **alohida qatorda**: qolgan ikkita
+  tugma yozadi, bu faqat o'qiydi — yonma-yon qo'yish ularni adashtirardi;
+- geolokatsiya so'rovi matni ham ochiq aytadi:
+  `bot.location.request_area` — «bu xabar sifatida yozilmaydi»;
+- FSM da yangi `flow` kaliti (`report` / `query`). Ilgari yo'l `kind`
+  ning bor-yo'qligiga qarab tanlanardi — bu ishlardi, lekin nozik edi;
+  endi belgi aniq. `flow != report` bo'lgan har qanday geolokatsiya
+  (tugmasiz, tasodifiy, eski holat) so'rovga tushadi.
 
 ### E6 — `tools/recluster.py` (`05` §9.2, `06` §12.13)
 
@@ -87,6 +95,11 @@ xabarlar (o'zgarmaydi)
    `weighted_score`.
 6. **Koordinata `COALESCE(geom_exact, geom_public)`** — 90 kundan eski davr
    qo'polroq hisoblanadi (`05` §3.2). Ataylab qilingan maxfiylik almashuvi.
+   **Odam qarori (run oxirida, «kerak, ha»):** bu jimgina o'tmaydi —
+   `ReplayRow.has_exact`, hisobotda `degraded_reports` va `degraded_ratio`,
+   `stderr` da matnli ogohlantirish («N ta xabar (M%) faqat jitterlangan
+   nuqta bilan hisoblandi»). Sababi: shusiz natija onlayn tarixdan farq
+   qilardi va farqning sababi hisobotda ko'rinmasdi.
 
 ---
 
@@ -95,7 +108,7 @@ xabarlar (o'zgarmaydi)
 | Nima | Natija |
 |---|---|
 | `ruff check .` | All checks passed |
-| `pytest -q -m "not requires_db"` | **323 passed**, 33 deselected (E3 dan +24) |
+| `pytest -q -m "not requires_db"` | **330 passed**, 33 deselected (E3 dan +31) |
 | Barcha modullar importi | 60 ta (`app/**` + ikkala asbob) |
 | `alembic upgrade head --sql` | toza (migratsiya qo'shilmadi — E6/E7 sxemaga tegmaydi) |
 | `python -m tools.recluster --help` | ishlaydi |

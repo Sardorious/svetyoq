@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import OutOfRegionError
+from app.core.errors import OutOfRegionError, ValidationError
 from app.geo.bbox import is_plausible, is_within_region
 from app.geo.h3_cells import cell_of
 from app.geo.jitter import public_point
@@ -60,9 +60,30 @@ def _point(lat: float, lon: float):
     return func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
 
 
+class RegionNotConfiguredError(ValidationError):
+    """`regions` da faol mintaqa yo'q — hudud importi qilinmagan (`05` §5).
+
+    E3 da bu klass `app.bot.service` da edi; E8 da admin API ga ham kerak
+    bo'ldi va API ning bot ni import qilishi modul chegarasini buzardi
+    (`05` §1). Xatoning o'zi geo-konfiguratsiya haqida, shuning uchun u shu
+    modulga ko'chirildi.
+    """
+
+    code = "region_not_configured"
+    message_key = "error.region_not_configured"
+
+
 async def find_region(session: AsyncSession, code: str) -> Region | None:
     result = await session.execute(select(Region).where(Region.code == code))
     return result.scalar_one_or_none()
+
+
+async def require_region(session: AsyncSession, code: str) -> Region:
+    """Mintaqa topilmasa — `RegionNotConfiguredError`."""
+    region = await find_region(session, code)
+    if region is None:
+        raise RegionNotConfiguredError(region=code)
+    return region
 
 
 async def find_district_id(

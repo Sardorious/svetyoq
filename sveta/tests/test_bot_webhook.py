@@ -144,5 +144,5 @@ def test_second_dispatcher_can_be_created() -> None:
 def test_router_registers_every_menu_action() -> None:
     """Har bir menyu bandi handlerga ulangan (`05` §6.1)."""
     router = build_bot_router()
-    assert len(router.message.handlers) == 8  # 2 buyruq + 4 tugma + lokatsiya + fallback
+    assert len(router.message.handlers) == 9  # 2 buyruq + 5 tugma + lokatsiya + fallback
     assert len(router.callback_query.handlers) == 1

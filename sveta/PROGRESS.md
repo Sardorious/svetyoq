@@ -12,8 +12,8 @@
 
 | | |
 |---|---|
-| **Joriy epic** | **E7 va E6 yozildi**: `app/clustering/lookup.py` (so'rov paytidagi hudud verdikti, `05` §4.6) va `tools/recluster.py` (retrospektiv qayta hisoblash, `05` §9.2). `ruff check` yashil, `pytest -m "not requires_db"` — **323 o'tdi, 0 yiqildi** (+24). Keyingi ish: `.\push.ps1` → CI (33 ta `requires_db` testi), keyin **E8 (admin-panel)** yoki **E9 (veb-xarita)** |
-| **Oxirgi run** | 2026-08-07 (E7 + E6; sandbox ishladi, lint va bazasiz testlar lokal yashil) |
+| **Joriy epic** | **E8 yozildi**: admin-panel — `app/admin/{roles,auth,audit,service}.py`, `app/reports/moderation.py`, `clustering.service.moderate`, `repository.list_rows` (moderatsiya navbati), `app/api/v1/admin.py` (8 endpoint, `X-Admin-Token`). `ruff check` yashil, `pytest -m "not requires_db"` — **381 o'tdi, 0 yiqildi** (+51), `requires_db` 50 ta. Yangi migratsiya yo'q (`audit_log` `0002` da). Keyingi ish: `.\push.ps1` → CI, keyin **E9 (veb-xarita)** |
+| **Oxirgi run** | 2026-08-07 (E8; sandbox ishladi, lint va bazasiz testlar lokal yashil) |
 | **Bloklangan** | ✅ **INFRA-1 yopildi**. Tekshirilmagan qatlamlar: (1) PostGIS so'rovlari — faqat CI da; (2) **haqiqiy Telegram bilan aloqa** — sandboxda tarmoq yo'q, botni odam `python -m app.bot` bilan bir marta ishga tushirib ko'rishi kerak |
 
 ---
@@ -29,8 +29,8 @@
 | E5 | Klasterlash: inkremental biriktirish, statuslar | 🔄 | `05` §4: geometriya, mustaqillik, status mashinasi, `assign`/`evaluate`, `evaluate_outages` vazifasi. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI yashil bo'lgandan keyin |
 | E5b | Tasdiqlash va masshtab logikasi | 🔄 | `06`: manba og'irliklari, `W`, `N_req`, `confidence`, masshtab narvoni, qamrov to'sig'i, `0003` migratsiya. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI yashil bo'lgandan keyin |
 | E6 | Retrospektiv qayta hisoblash (`recluster.py`) | 🔄 | `tools/recluster.py`: oynadagi hodisalarni o'chirib, xabarlardan `(created_at, id)` tartibida qaytadan yig'adi; standart rejim — quruq yurish (tranzaksiya rollback); bildirishnomali hodisa bo'lsa bloklanadi; `fingerprint` — `05` §9.2 regressiyasi. ✅ ga o'tishi CI dan keyin |
-| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py`: `decide` (toza funksiya), `coverage`, `area_status`; `repository.find_open_at`; `area.*` i18n kalitlari; tugmasiz yuborilgan geolokatsiya endi xabar emas, **so'rov**. ✅ ga o'tishi CI dan keyin |
-| E8 | Admin-panel: moderatsiya, rollar, audit | ⬜ | |
+| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py`: `decide` (toza funksiya), `coverage`, `area_status`; `repository.find_open_at`; `area.*` i18n kalitlari; menyuda «📍 Hududimda nima bo'lyapti?» tugmasi (FSM `flow=report\|query`); tugmasiz yuborilgan geolokatsiya endi xabar emas, **so'rov**. ✅ ga o'tishi CI dan keyin |
+| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `05` §2.5 + §4.4: rollar (`viewer`/`moderator`/`admin`) va ruxsat matritsasi, `ADMIN_TOKENS` (`nom:rol:token`, `X-Admin-Token`), `audit_log` ga `before`/`after`, `moderate()` — faqat `rejected` va `merged`, moderatsiya navbati (`needs_review` = `radius_m >= max_radius`), `users.is_blocked`/`trust_score`. Lint + bazasiz testlar lokal yashil; ✅ ga o'tishi CI dan keyin |
 | E9 | Veb-xarita (snapshot, MapLibre) | ⬜ | |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | Inson ishi |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | E10 dan keyin |
@@ -58,6 +58,7 @@ Belgilar: ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklanga
 | E0-c | Geokoder tanlovi va kaliti | ⬜ E13 gacha |
 | E0-d | Tuman poligonlari manbasi (OSM dan olinadi) | 🔄 Asbob tayyor (`tools/import_boundaries.py`), Overpass so'rovini siz ishga tushirasiz |
 | E0-e | Huquqiy xulosa (H-8) | ⬜ E12 gacha |
+| E8-a | `ADMIN_TOKENS` ni to'ldirish (`nom:rol:token`, token ≥ 24 belgi) | ⬜ Usiz admin-panel hamma so'rovga `403` beradi (ataylab). Kod tayyor |
 | E10-a | Mahalla aktivi bilan kelishuv | ⬜ **Eng qattiq cheklov** |
 | ADR-06 | Geokoder | ⬜ |
 | ADR-07 | `admin_level` qiymati | ⬜ `python -m tools.import_boundaries survey --region samarkand` ishga tushiring va darajani tanlang |
@@ -71,6 +72,7 @@ Belgilar: ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklanga
 
 | Sana/vaqt | Epic | Nima qilindi | Keyingi qadam |
 |---|---|---|---|
+| 2026-08-07 | E8 | admin-panel: rollar va ruxsat matritsasi, token autentifikatsiyasi, audit jurnali, moderatsiya amallari va navbati | `.\push.ps1` → CI (50 ta `requires_db`), keyin E9 (veb-xarita) |
 | 2026-08-07 | E7 | «ma'lumot yetarli emas» verdikti: so'rov paytidagi hudud holati va retrospektiv qayta hisoblash asbobi (E6) | `.\push.ps1` → CI (33 ta `requires_db`), keyin E8 (admin-panel) yoki E9 (veb-xarita) |
 | 2026-08-07 | E3 | bot: `/start`, til tanlash, menyu, geolokatsiya va xabar qabul | `.\push.ps1` → CI (22 ta `requires_db`), keyin botni haqiqiy token bilan bir marta ishga tushirib ko'rish, so'ng E6 (`recluster.py`) yoki E7 |
 | 2026-08-07 | INFRA | eskirgan `.git/index.lock` (0 bayt, 21 soat) o'chirildi; `push.ps1` ga ikkita himoya qo'shildi — eskirgan lock ni avtomatik olib tashlash va commit yiqilganda rebase/push ni davom ettirmaslik | `.\push.ps1` ni qayta ishga tushirish |
@@ -328,12 +330,18 @@ qoldirildi (prodda fon vazifasi doim ishlashi kerak).
 - **Tugmasiz yuborilgan geolokatsiya endi xabar yaratmaydi.** Ilgari FSM
   holatidan qat'i nazar `kind='outage'` deb yozilardi — ya'ni tasodifan
   yuborilgan joylashuv «svet yo'q» xabariga aylanardi. Endi u `05` §4.6
-  so'rovi (o'qish amali, rate limit yo'q). **Savol:** menyuga alohida
-  «📍 Hududimda nima bo'lyapti?» tugmasi qo'shilsinmi (`05` §6.1 menyusida
-  bunday band yo'q, shuning uchun qo'shilmadi)?
-- **`area_status` ning UI kirish nuqtasi hozircha bitta** — tugmasiz
-  geolokatsiya. Xarita/API kirish nuqtasi E9/E15 da o'sha funksiyani
-  chaqiradi.
+  so'rovi (o'qish amali, rate limit yo'q).
+- **✅ Odam qarori: menyuga «📍 Hududimda nima bo'lyapti?» tugmasi
+  qo'shildi** (`Action.AREA`, `bot.menu.area`). U `05` §6.1 ro'yxatida
+  yo'q edi, lekin §4.6 verdiktiga kirish nuqtasi kerak. Tugma **alohida
+  qatorda**: qolgan ikkitasi yozadi, bu faqat o'qiydi. Geolokatsiya
+  so'rovining matni ham buni ochiq aytadi (`bot.location.request_area` —
+  «xabar sifatida yozilmaydi»). FSM da endi `flow` kaliti bor
+  (`report`/`query`), ya'ni yo'l tanlash `kind` ning bor-yo'qligiga emas,
+  aniq belgiga tayanadi.
+- **`area_status` ning UI kirish nuqtasi** — menyu tugmasi va tugmasiz
+  yuborilgan geolokatsiya. Xarita/API kirish nuqtasi E9/E15 da o'sha
+  funksiyani chaqiradi.
 
 **E6 — `tools/recluster.py` (`05` §9.2)**
 
@@ -358,8 +366,49 @@ qoldirildi (prodda fon vazifasi doim ishlashi kerak).
   qiladi. Shusiz qayta hisoblangan tarix onlayn tarixdan farq qilardi.
 - **Koordinata `COALESCE(geom_exact, geom_public)`.** 90 kundan eski davr
   qo'polroq qayta hisoblanadi (`05` §3.2) — ataylab qilingan maxfiylik
-  almashuvi. **Savol:** eski davr uchun ogohlantirish chiqarilsinmi
-  (masalan «oynaning N% i faqat jitterlangan nuqta bilan hisoblandi»)?
+  almashuvi. **✅ Odam qarori: ogohlantirish chiqariladi.** `ReplayRow`
+  endi `has_exact` ni oladi, hisobotda `degraded_reports` va
+  `degraded_ratio` bor, `stderr` ga esa matnli ogohlantirish yoziladi
+  («N ta xabar (M%) faqat jitterlangan nuqta bilan hisoblandi»). Jimgina
+  o'tkazib yuborish eng xavfli variant bo'lardi: natija onlayn tarixdan
+  farq qilardi va sababi hisobotda ko'rinmasdi.
 - **`delete_outages` faqat shu asbobdan chaqiriladi.** Kundalik ishda
   hodisa o'chirilmaydi (`05` §4.3: `merged` — alohida status, o'chirish
   emas), shuning uchun funksiya nomida ham, izohida ham bu qayd etilgan.
+
+### E8 runida yuzaga kelganlar (2026-08-07)
+
+- **Admin autentifikatsiyasi — muhitdagi tokenlar.** `05` da admin uchun
+  akkaunt sxemasi yo'q (`users` — bot foydalanuvchilari, §2.2). Format
+  `ADMIN_TOKENS=nom:rol:token`, sarlavha `X-Admin-Token`, taqqoslash
+  `hmac.compare_digest`. `audit_log.actor_id` nomdan `uuid5` bilan olinadi —
+  barqaror, lekin sirdan hech narsa qoldirmaydi. **Savol:** haqiqiy akkaunt
+  tizimi (parol/OAuth) qaysi epicda kerak bo'ladi — E12 dan keyinmi?
+- **Sozlanmagan panel yopiq.** `ADMIN_TOKENS` bo'sh bo'lsa hamma so'rov
+  `403` — xuddi `TELEGRAM_WEBHOOK_SECRET` dagidek (`05` §6.3).
+- **Moderator faqat `rejected` va `merged` qo'ya oladi** (`05` §4.4
+  diagrammasidagi moderator strelkalari). `confirmed`/`resolved` dalildan
+  kelib chiqadi (`06` §4.3, §8); ularni qo'lda qo'yish tasdiqlash logikasini
+  chetlab o'tardi.
+- **Birlashtirishda xabarlar ko'chirilmaydi.** `merged` da faqat `status` va
+  `merged_into` yoziladi. Xabarlarni maqsad hodisaga ko'chirish uning
+  geometriyasi va `W` sini qayta hisoblashni talab qilardi — buni `05` ham,
+  `06` ham ta'riflamaydi. **Savol:** ko'chirilsinmi?
+- **Birlashtirish zanjiri taqiqlangan.** `merged` hodisaga birlashtirib
+  bo'lmaydi (tsikl xavfi), o'ziga va boshqa mintaqaga ham.
+- **Alohida moderatsiya navbati jadvali yaratilmadi.** `05` §4.2
+  «`max_radius` dan kattasi — moderatorga» qoidasi endi so'rov filtri
+  (`needs_review=true` → `radius_m >= cluster_max_radius_m`). Denormalizatsiya
+  qilingan navbat `outages` dan ajralib ketardi.
+- **`user_id` admin API da chiqadi, `tg_id` va `geom_exact` — yo'q.**
+  `05` §7.3 ro'yxati ommaviy API haqida; bloklashni identifikatorsiz bajarib
+  bo'lmaydi. Regressiya OpenAPI sxemasi bo'yicha test bilan qulflandi.
+- **`trust_score` — `admin` roli.** U `06` §2.3 dagi `user_factor` orqali
+  tasdiqlash og'irligiga ta'sir qiladi, ya'ni ma'lumot sifatiga aralashuv.
+- **`RegionNotConfiguredError` `app.geo.pipeline` ga ko'chdi** (avval
+  `app.bot.service` da edi): admin API ga ham kerak, API ning bot ni import
+  qilishi esa `05` §1 ni buzardi. `app.bot.service` da nom qayta eksport
+  qilinadi.
+- **`log.warning(..., extra={"name": ...})` `KeyError` beradi** — `name`
+  `LogRecord` ning band maydoni. Kalit `actor` ga o'zgartirildi (test ushladi).
+- **Yangi migratsiya yo'q.** `audit_log` `0002` da allaqachon bor.

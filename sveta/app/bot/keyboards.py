@@ -28,6 +28,8 @@ class Action(StrEnum):
 
     OUTAGE = "outage"
     RESTORED = "restored"
+    #: `05` §4.6 — hudud holatini **so'rash** (xabar yozilmaydi).
+    AREA = "area"
     MAP = "map"
     SUBSCRIPTIONS = "subscriptions"
     LANGUAGE = "language"
@@ -37,6 +39,7 @@ class Action(StrEnum):
 MENU_KEYS: dict[Action, str] = {
     Action.OUTAGE: "bot.menu.outage",
     Action.RESTORED: "bot.menu.restored",
+    Action.AREA: "bot.menu.area",
     Action.MAP: "bot.menu.map",
     Action.SUBSCRIPTIONS: "bot.menu.subscriptions",
     Action.LANGUAGE: "bot.menu.language",
@@ -61,13 +64,20 @@ def action_of(text: str | None) -> Action | None:
 
 
 def main_menu(lang: str | None = None) -> ReplyKeyboardMarkup:
-    """`05` §6.1 dagi asosiy menyu."""
+    """`05` §6.1 dagi asosiy menyu + hudud so'rovi (E7).
+
+    «Hududimda nima bo'lyapti?» `05` §6.1 ro'yxatida yo'q, lekin `05` §4.6
+    verdikti so'rov paytida hisoblanadi va unga kirish nuqtasi kerak edi.
+    U **alohida qatorda**: qolgan ikkita xabar tugmasi yozadi, bu esa faqat
+    o'qiydi — yonma-yon qo'yish ikkalasini adashtirardi.
+    """
     return ReplyKeyboardMarkup(
         keyboard=[
             [
                 KeyboardButton(text=t(MENU_KEYS[Action.OUTAGE], lang)),
                 KeyboardButton(text=t(MENU_KEYS[Action.RESTORED], lang)),
             ],
+            [KeyboardButton(text=t(MENU_KEYS[Action.AREA], lang))],
             [
                 KeyboardButton(text=t(MENU_KEYS[Action.MAP], lang)),
                 KeyboardButton(text=t(MENU_KEYS[Action.SUBSCRIPTIONS], lang)),

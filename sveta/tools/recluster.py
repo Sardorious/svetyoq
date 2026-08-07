@@ -73,13 +73,37 @@ class Result:
     deleted_outages: int
     created_outages: int
     unassigned: int
+    #: `geom_exact` i `NULL` ga o'tgan xabarlar (`05` §3.2) — ular uchun
+    #: qayta hisoblash jitterlangan nuqta bilan, ya'ni qo'polroq bajarildi.
+    degraded_reports: int
     fingerprint: str
     applied: bool
+
+    @property
+    def degraded_ratio(self) -> float:
+        return self.degraded_reports / self.reports if self.reports else 0.0
+
+    @property
+    def warning(self) -> str | None:
+        """Aniqligi pasaygan davr haqida ogohlantirish.
+
+        Jimgina o'tkazib yuborish eng xavfli variant bo'lardi: natija
+        onlayn tarixdan farq qiladi va sababi hisobotda ko'rinmasdi.
+        """
+        if not self.degraded_reports:
+            return None
+        return (
+            f"diqqat: {self.degraded_reports} ta xabar ({self.degraded_ratio:.0%}) "
+            "faqat jitterlangan nuqta bilan hisoblandi — `geom_exact` 90 kundan "
+            "keyin NULL ga o'tadi (05 §3.2). Bu davrda markaz va radius qo'polroq."
+        )
 
     def as_dict(self) -> dict[str, object]:
         data = asdict(self)
         data["since"] = self.since.isoformat()
         data["until"] = self.until.isoformat()
+        data["degraded_ratio"] = round(self.degraded_ratio, 4)
+        data["warning"] = self.warning
         return data
 
 
@@ -201,6 +225,7 @@ async def recluster(
         deleted_outages=deleted,
         created_outages=len(created),
         unassigned=unassigned,
+        degraded_reports=sum(1 for r in rows if not r.has_exact),
         fingerprint=fingerprint(rows_out),
         applied=applied,
     )
@@ -237,6 +262,8 @@ async def cmd_recluster(args: argparse.Namespace) -> int:
         return EXIT_BLOCKED
 
     print(json.dumps(result.as_dict(), ensure_ascii=False, indent=2))
+    if result.warning:
+        print(f"\n{result.warning}", file=sys.stderr)
     if not args.apply:
         print("\nQuruq yurish — hech narsa yozilmadi. Yozish uchun `--apply`.")
     return EXIT_OK

@@ -47,6 +47,11 @@ ROUTER_NAME = "sveta"
 #: FSM ma'lumotidagi kalit: foydalanuvchi qaysi tugmani bosgan.
 KIND_KEY = "kind"
 
+#: Geolokatsiya nima uchun so'ralgan: xabar yozish yoki hudud so'rovi (E7).
+FLOW_KEY = "flow"
+FLOW_REPORT = "report"
+FLOW_QUERY = "query"
+
 
 class ReportFlow(StatesGroup):
     waiting_location = State()
@@ -124,8 +129,24 @@ async def on_report_button(message: Message, state: FSMContext) -> None:
         lang = await service.user_language(session, _tg_id(message))
 
     await state.set_state(ReportFlow.waiting_location)
-    await state.update_data(**{KIND_KEY: kind})
+    await state.update_data(**{FLOW_KEY: FLOW_REPORT, KIND_KEY: kind})
     await message.answer(t("bot.location.request", lang), reply_markup=location_request(lang))
+
+
+async def on_area_button(message: Message, state: FSMContext) -> None:
+    """«Hududimda nima bo'lyapti?» → geolokatsiya so'raladi (E7, `05` §4.6).
+
+    Xabar yozilmaydi, shuning uchun so'rov matni ham buni ochiq aytadi:
+    foydalanuvchi geolokatsiya berishdan oldin nima bo'lishini bilishi kerak.
+    """
+    async with session_scope() as session:
+        lang = await service.user_language(session, _tg_id(message))
+
+    await state.set_state(ReportFlow.waiting_location)
+    await state.update_data(**{FLOW_KEY: FLOW_QUERY})
+    await message.answer(
+        t("bot.location.request_area", lang), reply_markup=location_request(lang)
+    )
 
 
 async def on_map(message: Message) -> None:
@@ -159,8 +180,9 @@ async def on_location(
     qoldiriladi (`05` §6.3) — aiogram ularni `edited_message` sifatida
     beradi, bu handler esa faqat `message` ga ulangan.
 
-    **Tugma bosilmagan bo'lsa xabar yozilmaydi** (E7): geolokatsiya tasodifan
-    ham yuborilishi mumkin, uni jimgina «svet yo'q» xabariga aylantirish
+    **Xabar faqat xabar tugmasidan keyin yoziladi** (E7). Geolokatsiya
+    «Hududimda nima bo'lyapti?» tugmasidan keyin ham, tasodifan ham
+    kelishi mumkin; ikkalasini jimgina «svet yo'q» xabariga aylantirish
     ma'lumotni buzardi. Bunday nuqtaga `05` §4.6 dagi hudud verdikti
     qaytariladi — o'qish amali, rate limit va idempotentlik kerak emas.
     """
@@ -168,11 +190,12 @@ async def on_location(
     data = await state.get_data()
     update_id = event_update.update_id if event_update is not None else None
 
-    if KIND_KEY not in data:
+    if data.get(FLOW_KEY) != FLOW_REPORT:
+        await state.clear()
         await _answer_area_status(message, lat=location.latitude, lon=location.longitude)
         return
 
-    kind = data[KIND_KEY]
+    kind = data.get(KIND_KEY, KIND_OUTAGE)
 
     async with session_scope() as session:
         lang = await service.user_language(session, _tg_id(message))
@@ -234,6 +257,7 @@ def build_router() -> Router:
     )
     router.message.register(on_language_button, _action_in(Action.LANGUAGE))
     router.message.register(on_report_button, _action_in(Action.OUTAGE, Action.RESTORED))
+    router.message.register(on_area_button, _action_in(Action.AREA))
     router.message.register(on_map, _action_in(Action.MAP))
     router.message.register(on_subscriptions, _action_in(Action.SUBSCRIPTIONS))
     router.message.register(on_location, F.location)

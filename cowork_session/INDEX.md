@@ -12,28 +12,37 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-**2026-08-07** — 🔄 **E7 va E6 yozildi.** Sandbox birinchi urinishda ishladi.
+**2026-08-07** — 🔄 **E8 (admin-panel) yozildi.** Sandbox ishladi.
 
-- **E7** (`05` §4.6) — `app/clustering/lookup.py`: so'rov paytidagi hudud
-  verdikti (`decide` toza funksiya, `coverage`, `area_status`),
-  `repository.find_open_at`, yangi `area.*` i18n oilasi. Bot `_coverage_ok`
-  endi shu moduldan foydalanadi. **Nozik defekt tuzatildi:** tugmasiz
-  yuborilgan geolokatsiya jimgina «svet yo'q» xabariga aylanardi — endi u
-  o'qish amali (hudud so'rovi), rate limit sarflanmaydi.
-- **E6** (`05` §9.2) — `tools/recluster.py`: oynadagi hodisalarni o'chirib,
-  xabarlardan `(created_at, id)` tartibida `clustering.assign` bilan
-  qaytadan yig'adi. Standart rejim — **quruq yurish** (tranzaksiya
-  rollback), yozish uchun `--apply`. Bildirishnomali hodisa bo'lsa bloklaydi
-  (`exit 2`). `fingerprint()` — determinizm regressiyasi.
-- `ruff` yashil, `pytest -m "not requires_db"` → **323 passed** (+24),
-  60 modul import, `alembic upgrade head --sql` toza (migratsiya yo'q).
+- **Rollar** — `app/admin/roles.py`: `viewer` (o'qish), `moderator`
+  (rad etish, birlashtirish, bloklash), `admin` (+ `trust_score`, audit).
+  Matritsa test bilan qulflangan.
+- **Kirish** — `app/admin/auth.py`: `ADMIN_TOKENS=nom:rol:token`,
+  `X-Admin-Token` sarlavhasi, `hmac.compare_digest`. Aktor identifikatori
+  nomdan `uuid5` (token bazada ham, logda ham yo'q). **Sozlanmagan bo'lsa
+  hamma so'rov `403`** — webhook siridagi qaror.
+- **Amallar** — `app/admin/service.py`: har biri ruxsat → o'zgarish
+  (egasi bo'lgan modulda, `05` §1) → `audit_log` ga `before`/`after`.
+  Moderator faqat `rejected` va `merged` qo'ya oladi; `confirmed`/`resolved`
+  dalildan kelib chiqadi (`06`).
+- **Navbat** — `05` §4.2 dagi «`max_radius` dan kattasi moderatorga» endi
+  so'rov filtri (`needs_review=true`), alohida jadval emas.
+- 8 ta endpoint `/api/v1/admin/...` ostida. `geom_exact` va `tg_id`
+  hech qanday sxemada yo'q — OpenAPI bo'yicha regressiya testi bor.
+- `ruff` yashil, `pytest -m "not requires_db"` → **381 passed** (+51),
+  `requires_db` **50 ta** (+17), yangi migratsiya yo'q (`audit_log` `0002` da).
 
-Batafsili [11-sessiya faylida](11_E7_E6_recluster_844c5fca.md).
+Batafsili [12-sessiya faylida](12_E8_admin_fb04c670.md).
 
-> **Venv haqida.** Eski `/tmp/venv` sessiyalar orasida saqlanmaydi va
-> `Permission denied` beradi. Tuzatishga urinmang — yangi yo'lda
-> (`/tmp/venvN`) yangi venv yarating: `uv venv --python 3.11` +
-> `uv pip install -e ".[dev]"`.
+> **Venv haqida.** Eski venv sessiyalar orasida saqlanmaydi va
+> `Permission denied` beradi. Tuzatishga urinmang — yangi yo'lda yangi venv
+> yarating. **2026-08-07 da `/sessions` 100% to'lgan edi**, shuning uchun
+> cache ham `/tmp` ga olinadi:
+>
+> ```bash
+> export HOME=/tmp/homme8 UV_CACHE_DIR=/tmp/uvcache8 XDG_DATA_HOME=/tmp/homme8/share
+> uv venv --python 3.11 /tmp/venv8 && uv pip install -e ".[dev]"
+> ```
 
 **CI holatini ko'rib bo'lmadi** — `web_fetch` faqat suhbatda uchragan
 manzillarni ochadi, GitHub Actions API si ro'yxatda yo'q. Agar oldingi CI
@@ -41,7 +50,7 @@ qizil bo'lsa, uni keyingi run tuzatadi.
 
 **Keyingi qadam — odam:**
 
-1. `.\push.ps1` → CI (endi **33 ta** `requires_db` testi);
+1. `.\push.ps1` → CI (endi **50 ta** `requires_db` testi);
 2. Botni **bir marta haqiqiy token bilan** ishga tushirish:
    `python -m app.bot` → Telegramda `/start` → til → «⚡ Svet yo'q» →
    geolokatsiya. Baza ko'tarilgan va `regions` da `samarkand` qatori bo'lishi
@@ -49,9 +58,9 @@ qizil bo'lsa, uni keyingi run tuzatadi.
    Sandboxda tashqi tarmoq yo'q, shuning uchun bu yagona tekshirilmagan
    qatlam.
 
-**Keyingi sessiyada:** **E8** (admin-panel: moderatsiya, rollar, audit).
-E9 (veb-xarita) ham mumkin, lekin u ADR-08 (tayl manbasi litsenziyasi)
-qaroriga bog'liq — shuning uchun E8 xavfsizroq.
+**Keyingi sessiyada:** **E9** (veb-xarita: `map_snapshot`, `GET /api/v1/map`,
+MapLibre). Backend qismi ADR-08 (tayl manbasi litsenziyasi) siz ham
+yoziladi — qaror faqat frontend taylini tanlaydi.
 
 > **Sandbox yiqilsa nima qilish kerak.** 08-fayldagi «darhol to'xta» tartibi
 > 21 marta ishladi, lekin 22-runda sandbox o'z-o'zidan tiklandi va shundan
@@ -72,12 +81,15 @@ Odamdan kutilayotgan qarorlar:
 4. `05` §3.1 dagi «r9 ≈ 174 m» h3 3.x qiymati — ≈200 m ga to'g'rilansinmi?
 5. **E3:** `TELEGRAM_WEBHOOK_SECRET` ni yaratish (webhook rejimi
    usiz `403` beradi) va obuna tugmasi E13 gacha menyuda tursinmi.
-6. **Yangi (E7):** menyuga «📍 Hududimda nima bo'lyapti?» tugmasi
-   qo'shilsinmi? Hozircha hudud so'rovi faqat tugmasiz yuborilgan
-   geolokatsiya orqali ishlaydi (`05` §6.1 menyusida bunday band yo'q).
-7. **Yangi (E6):** `recluster` 90 kundan eski davrni jitterlangan nuqta
-   bilan hisoblaydi (`geom_exact` `NULL` ga o'tgan) — hisobotda bu haqda
-   ogohlantirish chiqarilsinmi?
+6. **E8:** `ADMIN_TOKENS` ni to'ldirish (`nom:rol:token`) — usiz admin-panel
+   hamma so'rovga `403` beradi; va birlashtirishda xabarlar maqsad hodisaga
+   ko'chirilsinmi (hozir ko'chirilmaydi).
+7. ~~**(E7)** menyuga «📍 Hududimda nima bo'lyapti?» tugmasi qo'shilsinmi?~~
+   ✅ **Ha** (2026-08-07). Qo'shildi: alohida qatorda, `bot.menu.area`,
+   FSM da `flow=query`.
+8. ~~**(E6)** `recluster` eski davrni jitterlangan nuqta bilan hisoblashi
+   haqida ogohlantirish chiqarilsinmi?~~ ✅ **Ha** (2026-08-07). Hisobotda
+   `degraded_reports`/`degraded_ratio`, `stderr` da matnli ogohlantirish.
 
 ---
 
@@ -94,6 +106,7 @@ Odamdan kutilayotgan qarorlar:
 | 09 | [sandbox_tiklandi](09_sandbox_tiklandi_6773453c.md) | `local_6773453c` | Sandbox tiklandi → E2+E5+E5b birinchi marta lokal lint va test; `ASYNC240`×3 va h3 4.x qirra uzunligi tuzatildi | ✅ 249 test, ruff yashil; CI kutilmoqda |
 | 10 | [E3_bot](10_E3_bot_93a1e3b6.md) | `local_93a1e3b6` | E3 — bot: `/start`, til, menyu, geolokatsiya, xabar qabul, `05` §6.2 verdiktlari, webhook+polling, `reports/intake.py`; aiogram Router defekti tuzatildi | 🔄 E3, ✅ E4; 299 test, ruff yashil |
 | 11 | [E7_E6_recluster](11_E7_E6_recluster_844c5fca.md) | `local_844c5fca` | E7 — `05` §4.6 hudud verdikti (`clustering/lookup.py`, `area.*` i18n, tugmasiz geolokatsiya endi so'rov); E6 — `tools/recluster.py` (quruq yurish, determinizm izi, bildirishnoma guardi) | 🔄 E7, 🔄 E6; 323 test, ruff yashil |
+| 12 | [E8_admin](12_E8_admin_fb04c670.md) | `local_fb04c670` | E8 — admin-panel: rollar va ruxsat matritsasi, `ADMIN_TOKENS` autentifikatsiyasi, `audit_log` ga `before`/`after`, `clustering.moderate` (`rejected`/`merged`), moderatsiya navbati filtri, 8 ta `/admin` endpoint | 🔄 E8; 381 test (+51), ruff yashil |
 | 08 | [sandbox_6-marta](08_sandbox_6-marta_d9cd1a43.md) | `local_d9cd1a43`, `local_e91b2267`, `local_44e07f35`, `local_0d1cefc6`, `local_f17f103a`, `local_1f44d4db`, `local_882408c6`, `local_997e4202`, `local_8fbf2da1`, `local_04dc5274`, `local_7a425a6b`, `local_561e818c`, `local_d31b110b`, `local_1741b615`, `local_0bfbc3cc`, `local_6773453c` | Sandbox 6-…21-marta yiqildi → ish to'xtatildi; task ni pauza qilish taklifi (7-…21-run alohida fayl yaratmadi, shu faylni yangiladi) | ⛔ INFRA-1 kutilmoqda |
 | 90 | [infra_sessiya_xotirasi](90_infra_sessiya_xotirasi_94739a47.md) | `local_94739a47` | C diskdagi sessiya papkalari to'planishi | Bu papka shundan kelib chiqqan |
 

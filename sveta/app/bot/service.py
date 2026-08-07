@@ -34,7 +34,6 @@ from app.clustering import lookup
 from app.clustering import repository as cluster_repo
 from app.clustering import service as clustering
 from app.core.config import settings
-from app.core.errors import ValidationError
 from app.core.i18n import t
 from app.core.logging import get_logger
 from app.geo import pipeline as geo
@@ -49,11 +48,10 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class RegionNotConfiguredError(ValidationError):
-    """`regions` da faol mintaqa yo'q — hudud importi qilinmagan (`05` §5)."""
-
-    code = "region_not_configured"
-    message_key = "error.region_not_configured"
+#: Xatoning ta'rifi `app.geo.pipeline` da (E8 da admin API ga ham kerak
+#: bo'ldi). Bu yerda nom qayta eksport qilinadi — mavjud import yo'llari
+#: buzilmasligi uchun.
+RegionNotConfiguredError = geo.RegionNotConfiguredError
 
 
 @dataclass(frozen=True)

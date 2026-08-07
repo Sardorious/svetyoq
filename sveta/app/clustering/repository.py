@@ -168,6 +168,118 @@ async def find_open_at(
     )
 
 
+@dataclass(frozen=True)
+class OutageRow:
+    """Moderatsiya navbati uchun to'liqroq kesim (E8).
+
+    `geom_exact` bu yerda ham yo'q — u hech qanday o'qish yo'lida chiqmaydi
+    (`05` §7.3). Hodisa markazi esa foydalanuvchining uyi emas, balki
+    biriktirilgan xabarlarning **siljitilgan** nuqtalari o'rtachasi.
+    """
+
+    id: uuid.UUID
+    status: str
+    layer: str
+    scale: str
+    lat: float
+    lon: float
+    radius_m: int
+    confidence: int
+    weighted_score: float
+    distinct_users: int
+    independent_reporters: int
+    region_id: uuid.UUID
+    district_id: uuid.UUID | None
+    mahalla_id: uuid.UUID | None
+    merged_into: uuid.UUID | None
+    started_at: datetime
+    last_report_at: datetime
+
+
+def _outage_row_columns():
+    lat, lon = _lat_lon(Outage.centroid)
+    return (
+        Outage.id,
+        Outage.status,
+        Outage.layer,
+        Outage.scale,
+        lat,
+        lon,
+        Outage.radius_m,
+        Outage.confidence,
+        Outage.weighted_score,
+        Outage.distinct_users,
+        Outage.independent_reporters,
+        Outage.region_id,
+        Outage.district_id,
+        Outage.mahalla_id,
+        Outage.merged_into,
+        Outage.started_at,
+        Outage.last_report_at,
+    )
+
+
+def _to_outage_row(row) -> OutageRow:
+    return OutageRow(
+        id=row[0],
+        status=row[1],
+        layer=row[2],
+        scale=row[3],
+        lat=float(row[4]),
+        lon=float(row[5]),
+        radius_m=int(row[6]),
+        confidence=int(row[7]),
+        weighted_score=float(row[8]),
+        distinct_users=int(row[9]),
+        independent_reporters=int(row[10]),
+        region_id=row[11],
+        district_id=row[12],
+        mahalla_id=row[13],
+        merged_into=row[14],
+        started_at=row[15],
+        last_report_at=row[16],
+    )
+
+
+async def read_row(session: AsyncSession, outage_id: uuid.UUID) -> OutageRow | None:
+    """Bitta hodisa — moderatsiya ko'rinishida."""
+    stmt = select(*_outage_row_columns()).where(Outage.id == outage_id)
+    row = (await session.execute(stmt)).first()
+    return None if row is None else _to_outage_row(row)
+
+
+async def list_rows(
+    session: AsyncSession,
+    *,
+    statuses: Sequence[str] | None = None,
+    region_id: uuid.UUID | None = None,
+    min_radius_m: int | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[OutageRow]:
+    """Moderatsiya navbati (E8).
+
+    `min_radius_m` — `05` §4.2 dagi «`max_radius` dan kattasi moderatorga»
+    qoidasining o'qish tomoni. E5 da radius `max_radius` da kesiladi va
+    ogohlantirish loglanadi; navbat aynan shu chegaradagi hodisalarni
+    ko'rsatadi. Alohida «moderatsiya navbati» jadvali yaratilmadi: holat
+    `outages` da allaqachon bor, ikkinchi nusxa esa eskirardi.
+
+    Tartib — yangi hodisa tepada: smena boshlagan moderator birinchi
+    navbatda hozir sodir bo'layotganini ko'radi.
+    """
+    stmt = select(*_outage_row_columns())
+    if statuses:
+        stmt = stmt.where(Outage.status.in_(list(statuses)))
+    if region_id is not None:
+        stmt = stmt.where(Outage.region_id == region_id)
+    if min_radius_m is not None:
+        stmt = stmt.where(Outage.radius_m >= min_radius_m)
+    stmt = stmt.order_by(Outage.started_at.desc(), Outage.id.desc()).limit(limit).offset(offset)
+    rows = (await session.execute(stmt)).all()
+    return [_to_outage_row(row) for row in rows]
+
+
 async def create_outage(
     session: AsyncSession,
     *,

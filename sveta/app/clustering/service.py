@@ -50,6 +50,7 @@ from app.clustering.status import (
     is_open,
 )
 from app.core.config import settings
+from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.geo import queries as geo_q
 from app.reports import queries as reports_q
@@ -392,6 +393,115 @@ async def evaluate(
 
     await session.execute(update(Outage).where(Outage.id == outage_id).values(**values))
     return decision
+
+
+#: Moderator qo'li bilan qo'yiladigan statuslar (`05` §4.4 diagrammasi).
+#: `confirmed`/`resolved` bu ro'yxatda **yo'q**: ular dalildan kelib chiqadi
+#: (`evaluate`), qo'lda qo'yilishi tasdiqlash logikasini chetlab o'tardi.
+MODERATOR_TARGETS: frozenset[OutageStatus] = frozenset(
+    {OutageStatus.REJECTED, OutageStatus.MERGED}
+)
+
+
+class NotModeratableError(ValidationError):
+    """Moderator qo'ya olmaydigan status (`05` §4.4)."""
+
+    code = "not_moderatable"
+    message_key = "error.not_moderatable"
+
+
+class MergeTargetError(ValidationError):
+    """`merged_into` yaroqsiz."""
+
+    code = "merge_target_invalid"
+    message_key = "error.merge_target_invalid"
+
+
+@dataclass(frozen=True)
+class ModerationChange:
+    """Auditga tushadigan o'zgarish kesimi (`05` §2.5)."""
+
+    outage_id: uuid.UUID
+    before: dict[str, object]
+    after: dict[str, object]
+
+
+async def moderate(
+    session: AsyncSession,
+    outage_id: uuid.UUID,
+    *,
+    target: OutageStatus | str,
+    merged_into: uuid.UUID | None = None,
+    now: datetime | None = None,
+) -> ModerationChange:
+    """Moderator qarorini qo'llaydi (E8, `05` §4.4).
+
+    Modul chegarasi: `outages` ustidagi yozuv shu yerda qoladi;
+    `app.admin` faqat chaqiradi va natijani auditga yozadi (`05` §1).
+
+    Qarorlar:
+
+    * **Faqat `rejected` va `merged`.** Qolgan o'tishlar dalilga bog'liq
+      (`evaluate`), qo'lda qo'yilishi `06` ni chetlab o'tardi.
+    * **Xabarlar ko'chirilmaydi.** `merged` da `reports.outage_id`
+      tegilmaydi: xabar — birlamchi ma'lumot, uni ko'chirish maqsad
+      hodisaning geometriyasi va `W` sini qayta hisoblashni talab qilardi,
+      buni esa `05` ham, `06` ham ta'riflamaydi. «Ochiq savollar» ga yozildi.
+    * **Zanjir yasalmaydi:** `merged` hodisaga birlashtirib bo'lmaydi, aks
+      holda `merged_into` bo'yicha yurish tsiklga tushishi mumkin edi.
+    """
+    moment = now or _utcnow()
+    try:
+        wanted = OutageStatus(str(target))
+    except ValueError as exc:
+        raise NotModeratableError(target=str(target)) from exc
+    if wanted not in MODERATOR_TARGETS:
+        raise NotModeratableError(target=str(wanted))
+
+    row = await repo.read_row(session, outage_id)
+    if row is None:
+        raise NotFoundError(outage_id=str(outage_id))
+
+    assert_transition(row.status, str(wanted))
+
+    values: dict[str, object] = {"status": str(wanted), "updated_at": moment}
+    if wanted is OutageStatus.MERGED:
+        values["merged_into"] = await _merge_target(session, row, merged_into)
+    elif merged_into is not None:
+        raise MergeTargetError(reason="not_applicable")
+
+    await session.execute(update(Outage).where(Outage.id == outage_id).values(**values))
+    log.info(
+        "cluster.moderated",
+        extra={
+            "outage_id": str(outage_id),
+            "from": row.status,
+            "to": str(wanted),
+            "merged_into": str(merged_into) if merged_into else None,
+        },
+    )
+    return ModerationChange(
+        outage_id=outage_id,
+        before={"status": row.status, "merged_into": row.merged_into},
+        after={"status": str(wanted), "merged_into": values.get("merged_into")},
+    )
+
+
+async def _merge_target(
+    session: AsyncSession, row: repo.OutageRow, merged_into: uuid.UUID | None
+) -> uuid.UUID:
+    if merged_into is None:
+        raise MergeTargetError(reason="missing")
+    if merged_into == row.id:
+        raise MergeTargetError(reason="self")
+    target_row = await repo.read_row(session, merged_into)
+    if target_row is None:
+        raise MergeTargetError(reason="not_found")
+    if target_row.region_id != row.region_id:
+        raise MergeTargetError(reason="other_region")
+    if target_row.status == str(OutageStatus.MERGED):
+        raise MergeTargetError(reason="already_merged")
+    return merged_into
 
 
 async def evaluate_open(session: AsyncSession, *, now: datetime | None = None) -> int:

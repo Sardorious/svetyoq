@@ -8,10 +8,12 @@
   "bot.menu.title": "Nima qilamiz?",
   "bot.menu.outage": "⚡ Svet yo'q",
   "bot.menu.restored": "💡 Svet keldi",
+  "bot.menu.area": "📍 Hududimda nima bo'lyapti?",
   "bot.menu.map": "🗺 Xarita",
   "bot.menu.subscriptions": "🔔 Obunalarim",
   "bot.menu.language": "⚙️ Til",
   "bot.location.request": "Joylashuvingizni yuboring — xabarni to'g'ri hududga bog'lash uchun kerak.",
+  "bot.location.request_area": "Joylashuvingizni yuboring — hududingizdagi holatni ko'rsataman. Bu xabar sifatida yozilmaydi.",
   "bot.location.button": "📍 Joylashuvni yuborish",
   "bot.location.invalid": "Joylashuv qabul qilinmadi. Iltimos, qayta urinib ko'ring.",
   "bot.help": "«⚡ Svet yo'q» yoki «💡 Svet keldi» tugmasini bosing va joylashuvingizni yuboring. Xabaringiz yaqin atrofdagi boshqa xabarlar bilan solishtiriladi.",
@@ -48,5 +50,8 @@
   "error.region_not_configured": "Hudud hali sozlanmagan. Biroz o'tib qayta urinib ko'ring.",
   "error.rate_limited": "Juda tez-tez xabar yuborilmoqda. Biroz kuting.",
   "error.forbidden": "Ruxsat yo'q.",
-  "error.illegal_transition": "Bu hodisa ustida bunday amal bajarib bo'lmaydi."
+  "error.illegal_transition": "Bu hodisa ustida bunday amal bajarib bo'lmaydi.",
+  "error.not_moderatable": "Moderator bu statusni qo'lda qo'ya olmaydi.",
+  "error.merge_target_invalid": "Birlashtiriladigan hodisa yaroqsiz.",
+  "error.trust_score_out_of_range": "Ishonch bali 0 dan 100 gacha bo'lishi kerak."
 }

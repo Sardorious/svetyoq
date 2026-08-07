@@ -61,6 +61,42 @@ def test_empty_window_has_its_own_fingerprint() -> None:
     assert recluster.fingerprint([]) != recluster.fingerprint([row()])
 
 
+def result(reports: int, degraded: int) -> recluster.Result:
+    return recluster.Result(
+        region_code="samarkand",
+        since=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        until=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        reports=reports,
+        detached=reports,
+        deleted_outages=1,
+        created_outages=1,
+        unassigned=0,
+        degraded_reports=degraded,
+        fingerprint="x" * 32,
+        applied=False,
+    )
+
+
+def test_no_warning_when_every_point_is_exact() -> None:
+    assert result(10, 0).warning is None
+    assert result(0, 0).degraded_ratio == 0.0
+
+
+def test_degraded_window_warns_with_a_share() -> None:
+    """`geom_exact` `NULL` ga o'tgan davr jimgina o'tkazib yuborilmaydi."""
+    r = result(10, 4)
+    assert r.degraded_ratio == pytest.approx(0.4)
+    assert "40%" in r.warning
+    assert "4 ta xabar" in r.warning
+
+
+def test_warning_reaches_the_report() -> None:
+    data = result(10, 4).as_dict()
+    assert data["degraded_reports"] == 4
+    assert data["degraded_ratio"] == 0.4
+    assert data["warning"]
+
+
 def test_parser_requires_a_window() -> None:
     with pytest.raises(SystemExit):
         recluster.build_parser().parse_args(["--region", "samarkand"])

@@ -39,6 +39,34 @@ sozlanmagan bo'lsa endpoint hamma so'rovni `403` bilan rad etadi.
 
 Ikkala rejim bir vaqtda ishlamaydi: polling `delete_webhook` chaqiradi.
 
+## Admin-panel (E8)
+
+Moderator amallari `/api/v1/admin/...` ostida. Kirish — `X-Admin-Token`
+sarlavhasi; tokenlar `ADMIN_TOKENS` da `nom:rol:token` ko'rinishida:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+ADMIN_TOKENS=aziz:moderator:<token>,nilufar:admin:<token>
+```
+
+| Rol | Nima qila oladi |
+|---|---|
+| `viewer` | navbat va hodisa tafsilotini o'qish |
+| `moderator` | + `rejected`, `merged`, foydalanuvchini bloklash |
+| `admin` | + `trust_score`, audit jurnali |
+
+```bash
+curl -H "X-Admin-Token: $T" 'http://localhost:8000/api/v1/admin/outages?needs_review=true'
+curl -X POST -H "X-Admin-Token: $T" -H 'Content-Type: application/json' \
+     -d '{"reason":"takroriy"}' \
+     http://localhost:8000/api/v1/admin/outages/<id>/reject
+```
+
+`ADMIN_TOKENS` bo'sh bo'lsa **hamma so'rov `403`** — xuddi webhook siridagidek.
+Moderator faqat `rejected` va `merged` qo'ya oladi: `confirmed`/`resolved`
+dalildan kelib chiqadi (`06`). Har bir amal `audit_log` ga `before`/`after`
+bilan tushadi (`05` §2.5).
+
 ## Asboblar
 
 ```bash
@@ -66,7 +94,7 @@ asbob ishlamaydi (`exit 2`).
 | `app/notifications` | obuna, outbox, yuborish |
 | `app/bot` | aiogram handlerlar |
 | `app/api` | FastAPI routerlar |
-| `app/admin` | moderatsiya |
+| `app/admin` | moderatsiya: rollar, tokenlar, audit |
 | `app/jobs` | fon vazifalari |
 
 **Modul chegarasi qat'iy:** bir modul boshqasining jadvaliga to'g'ridan-to'g'ri

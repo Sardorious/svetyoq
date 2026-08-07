@@ -89,7 +89,8 @@ def patched(monkeypatch):
     return calls
 
 
-async def test_location_without_button_is_a_read_only_query(patched) -> None:
+async def test_accidental_location_is_a_read_only_query(patched) -> None:
+    """Holatsiz kelgan geolokatsiya — so'rov, xabar emas."""
     message = FakeMessage(location=FakeLocation(39.6547, 66.9597), from_user=FakeUser())
     state = FakeState(data={})
 
@@ -100,9 +101,23 @@ async def test_location_without_button_is_a_read_only_query(patched) -> None:
     assert message.answers[0] == "hudud javobi"
 
 
-async def test_location_after_button_creates_a_report(patched) -> None:
+async def test_area_button_leads_to_a_query(patched) -> None:
+    """«Hududimda nima bo'lyapti?» → geolokatsiya → so'rov (E7)."""
     message = FakeMessage(location=FakeLocation(39.6547, 66.9597), from_user=FakeUser())
-    state = FakeState(data={handlers.KIND_KEY: "outage"})
+    state = FakeState(data={handlers.FLOW_KEY: handlers.FLOW_QUERY})
+
+    await handlers.on_location(message, state)
+
+    assert patched["submit"] == []
+    assert patched["area"][0]["tg_id"] == 42
+    assert state.cleared is True
+
+
+async def test_location_after_report_button_creates_a_report(patched) -> None:
+    message = FakeMessage(location=FakeLocation(39.6547, 66.9597), from_user=FakeUser())
+    state = FakeState(
+        data={handlers.FLOW_KEY: handlers.FLOW_REPORT, handlers.KIND_KEY: "outage"}
+    )
 
     await handlers.on_location(message, state)
 
@@ -110,3 +125,14 @@ async def test_location_after_button_creates_a_report(patched) -> None:
     assert patched["submit"][0]["kind"] == "outage"
     assert message.answers[0] == "xabar javobi"
     assert state.cleared is True
+
+
+async def test_restored_button_keeps_its_kind(patched) -> None:
+    message = FakeMessage(location=FakeLocation(39.6547, 66.9597), from_user=FakeUser())
+    state = FakeState(
+        data={handlers.FLOW_KEY: handlers.FLOW_REPORT, handlers.KIND_KEY: "restored"}
+    )
+
+    await handlers.on_location(message, state)
+
+    assert patched["submit"][0]["kind"] == "restored"

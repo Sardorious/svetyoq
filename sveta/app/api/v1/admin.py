@@ -1,0 +1,274 @@
+"""Admin-panel endpointlari (E8).
+
+`05` §7.2 ommaviy endpointlarni sanaydi; admin ular ro'yxatida yo'q, lekin
+§1 `api/` ni «public + admin» deb belgilaydi va §2.5 audit jadvalini
+beradi. Shuning uchun bu yerdagi yo'llar `/admin/...` prefiksi ostida.
+
+**Maxfiylik chegarasi.** `geom_exact` hech qanday javobda chiqmaydi
+(`05` §7.3) — moderator ham ko'rmaydi. `tg_id` ham chiqmaydi. `user_id`
+esa chiqadi: usiz bloklash amalini bajarib bo'lmaydi, va §7.3 ro'yxati
+**ommaviy** API haqida (ochiq xaritada foydalanuvchini deanonimlashtirish
+riski). Admin API tokensiz umuman javob bermaydi.
+
+Javoblar matn emas, **kod va raqam** qaytaradi (`status`, `scale`, ...);
+tarjima interfeys tomonida bo'ladi — shuning uchun bu yerda qattiq
+kodlangan foydalanuvchi matni yo'q (`04` §6).
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
+
+from app.admin import audit, service
+from app.admin.roles import Permission
+from app.api.deps import AdminActor, DbSession
+from app.clustering import repository as outages_repo
+from app.clustering.status import OPEN_STATUSES
+from app.core.config import settings
+from app.core.errors import NotFoundError
+from app.geo import pipeline as geo
+from app.reports import moderation as users_mod
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+_OPEN = tuple(sorted(str(s) for s in OPEN_STATUSES))
+
+
+class OutageOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    layer: str
+    scale: str
+    lat: float
+    lon: float
+    radius_m: int
+    confidence: int
+    weighted_score: float
+    distinct_users: int
+    independent_reporters: int
+    region_id: uuid.UUID
+    district_id: uuid.UUID | None
+    mahalla_id: uuid.UUID | None
+    merged_into: uuid.UUID | None
+    started_at: datetime
+    last_report_at: datetime
+    #: `05` §4.2 — radius `max_radius` ga yetgan hodisa moderator ko'rigini
+    #: talab qiladi. Bayroq javobda hisoblanadi, bazada saqlanmaydi.
+    needs_review: bool
+
+
+def _outage_out(row: outages_repo.OutageRow) -> OutageOut:
+    return OutageOut(
+        id=row.id,
+        status=row.status,
+        layer=row.layer,
+        scale=row.scale,
+        lat=row.lat,
+        lon=row.lon,
+        radius_m=row.radius_m,
+        confidence=row.confidence,
+        weighted_score=row.weighted_score,
+        distinct_users=row.distinct_users,
+        independent_reporters=row.independent_reporters,
+        region_id=row.region_id,
+        district_id=row.district_id,
+        mahalla_id=row.mahalla_id,
+        merged_into=row.merged_into,
+        started_at=row.started_at,
+        last_report_at=row.last_report_at,
+        needs_review=row.radius_m >= settings.cluster_max_radius_m,
+    )
+
+
+class UserOut(BaseModel):
+    """`tg_id` ataylab yo'q (`05` §7.3)."""
+
+    id: uuid.UUID
+    language: str
+    region_id: uuid.UUID | None
+    trust_score: int
+    is_blocked: bool
+    created_at: datetime
+    report_count: int
+
+
+class AuditOut(BaseModel):
+    id: int
+    actor_id: uuid.UUID | None
+    actor_role: str
+    action: str
+    object_id: uuid.UUID | None
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
+    created_at: datetime
+
+
+class ChangeOut(BaseModel):
+    """Amal natijasi — `before`/`after`, xuddi auditdagidek."""
+
+    object_id: uuid.UUID
+    before: dict[str, Any]
+    after: dict[str, Any]
+
+
+class RejectIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class MergeIn(BaseModel):
+    merged_into: uuid.UUID
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class BlockIn(BaseModel):
+    blocked: bool
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class TrustIn(BaseModel):
+    score: int = Field(ge=users_mod.TRUST_MIN, le=users_mod.TRUST_MAX)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+@router.get("/outages", response_model=list[OutageOut])
+async def list_outages(
+    actor: AdminActor,
+    session: DbSession,
+    status: Annotated[list[str] | None, Query()] = None,
+    region: str | None = None,
+    needs_review: bool = False,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[OutageOut]:
+    """Moderatsiya navbati.
+
+    Standart filtr — ochiq hodisalar (`pending`, `confirmed`): yopilgan
+    hodisa ustidan qaror qabul qilinmaydi (`05` §4.4 yakuniy statuslari).
+    `needs_review=true` esa `05` §4.2 dagi «`max_radius` dan kattasi
+    moderatorga» qoidasini qo'llaydi.
+    """
+    actor.require(Permission.OUTAGE_READ)
+    region_id = None
+    if region is not None:
+        region_id = (await geo.require_region(session, region)).id
+    rows = await outages_repo.list_rows(
+        session,
+        statuses=tuple(status) if status else _OPEN,
+        region_id=region_id,
+        min_radius_m=settings.cluster_max_radius_m if needs_review else None,
+        limit=limit,
+        offset=offset,
+    )
+    return [_outage_out(row) for row in rows]
+
+
+@router.get("/outages/{outage_id}", response_model=OutageOut)
+async def get_outage(actor: AdminActor, session: DbSession, outage_id: uuid.UUID) -> OutageOut:
+    actor.require(Permission.OUTAGE_READ)
+    row = await outages_repo.read_row(session, outage_id)
+    if row is None:
+        raise NotFoundError(outage_id=str(outage_id))
+    return _outage_out(row)
+
+
+@router.post("/outages/{outage_id}/reject", response_model=ChangeOut)
+async def reject_outage(
+    actor: AdminActor, session: DbSession, outage_id: uuid.UUID, body: RejectIn
+) -> ChangeOut:
+    change = await service.reject_outage(
+        session, actor=actor, outage_id=outage_id, reason=body.reason
+    )
+    await session.commit()
+    return ChangeOut(object_id=outage_id, before=_plain(change.before), after=_plain(change.after))
+
+
+@router.post("/outages/{outage_id}/merge", response_model=ChangeOut)
+async def merge_outage(
+    actor: AdminActor, session: DbSession, outage_id: uuid.UUID, body: MergeIn
+) -> ChangeOut:
+    change = await service.merge_outage(
+        session,
+        actor=actor,
+        outage_id=outage_id,
+        merged_into=body.merged_into,
+        reason=body.reason,
+    )
+    await session.commit()
+    return ChangeOut(object_id=outage_id, before=_plain(change.before), after=_plain(change.after))
+
+
+@router.get("/users/{user_id}", response_model=UserOut)
+async def get_user(actor: AdminActor, session: DbSession, user_id: uuid.UUID) -> UserOut:
+    # Foydalanuvchi kartasi bloklash qarori uchun ochiladi, shuning uchun
+    # ruxsat ham o'shanikidan olinadi — `viewer` uni ko'rmaydi.
+    actor.require(Permission.USER_BLOCK)
+    row = await users_mod.read_user(session, user_id)
+    if row is None:
+        raise NotFoundError(user_id=str(user_id))
+    return UserOut(
+        id=row.id,
+        language=row.language,
+        region_id=row.region_id,
+        trust_score=row.trust_score,
+        is_blocked=row.is_blocked,
+        created_at=row.created_at,
+        report_count=row.report_count,
+    )
+
+
+@router.post("/users/{user_id}/block", response_model=ChangeOut)
+async def block_user(
+    actor: AdminActor, session: DbSession, user_id: uuid.UUID, body: BlockIn
+) -> ChangeOut:
+    change = await service.set_user_blocked(
+        session, actor=actor, user_id=user_id, blocked=body.blocked, reason=body.reason
+    )
+    await session.commit()
+    return ChangeOut(object_id=user_id, before=_plain(change.before), after=_plain(change.after))
+
+
+@router.post("/users/{user_id}/trust", response_model=ChangeOut)
+async def set_trust(
+    actor: AdminActor, session: DbSession, user_id: uuid.UUID, body: TrustIn
+) -> ChangeOut:
+    change = await service.set_user_trust_score(
+        session, actor=actor, user_id=user_id, score=body.score, reason=body.reason
+    )
+    await session.commit()
+    return ChangeOut(object_id=user_id, before=_plain(change.before), after=_plain(change.after))
+
+
+@router.get("/audit", response_model=list[AuditOut])
+async def read_audit(
+    actor: AdminActor,
+    session: DbSession,
+    action: str | None = None,
+    object_id: uuid.UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[AuditOut]:
+    """Audit jurnali (`05` §2.5). Faqat `admin` roli."""
+    actor.require(Permission.AUDIT_READ)
+    entries = await audit.recent(session, limit=limit, action=action, object_id=object_id)
+    return [
+        AuditOut(
+            id=e.id,
+            actor_id=e.actor_id,
+            actor_role=e.actor_role,
+            action=e.action,
+            object_id=e.object_id,
+            before=e.before,
+            after=e.after,
+            created_at=e.created_at,
+        )
+        for e in entries
+    ]
+
+
+def _plain(payload: dict[str, object]) -> dict[str, Any]:
+    """`uuid`/`datetime` ni JSON ga tushadigan ko'rinishga o'giradi."""
+    return audit.jsonable(payload)

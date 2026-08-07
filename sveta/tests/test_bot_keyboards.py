@@ -18,10 +18,20 @@ from app.core.i18n import SUPPORTED_LANGUAGES, t
 
 
 @pytest.mark.parametrize("lang", SUPPORTED_LANGUAGES)
-def test_menu_contains_all_five_items(lang: str) -> None:
-    """`05` §6.1 — beshta band."""
+def test_menu_contains_every_item(lang: str) -> None:
+    """`05` §6.1 ning beshta bandi + hudud so'rovi (E7, `05` §4.6)."""
     labels = {b.text for row in main_menu(lang).keyboard for b in row}
     assert labels == {t(key, lang) for key in MENU_KEYS.values()}
+    assert len(labels) == 6
+
+
+@pytest.mark.parametrize("lang", SUPPORTED_LANGUAGES)
+def test_area_button_is_on_its_own_row(lang: str) -> None:
+    """O'qish tugmasi yozish tugmalari bilan yonma-yon turmaydi."""
+    rows = main_menu(lang).keyboard
+    area = t(MENU_KEYS[Action.AREA], lang)
+    row = next(r for r in rows if any(b.text == area for b in r))
+    assert len(row) == 1
 
 
 @pytest.mark.parametrize("lang", SUPPORTED_LANGUAGES)
