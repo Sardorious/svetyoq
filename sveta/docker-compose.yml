@@ -1,0 +1,58 @@
+name: sveta
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sveta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sveta}
+      POSTGRES_DB: ${POSTGRES_DB:-sveta}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sveta} -d ${POSTGRES_DB:-sveta}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Fon vazifalari — bir xil kod bazasi, alohida konteyner (05 §1).
+  # E5 dan keyin yoqiladi.
+  jobs:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
+    command: ["python", "-m", "app.jobs.runner"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["jobs"]
+
+volumes:
+  pgdata:

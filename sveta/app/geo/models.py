@@ -1,0 +1,196 @@
+"""Hudud va chegara modellari (`05` §2.1).
+
+Bu jadvallarga faqat `app.geo` moduli to'g'ridan-to'g'ri murojaat qiladi
+(`05` §1). Boshqa modullar `app.geo` funksiyalari orqali ishlaydi.
+
+**Chegara versiyalash qoidasi.** Chegara o'zgarganda eski qator `valid_to`
+bilan yopiladi, yangisi qo'shiladi. Eski qator hech qachon o'chirilmaydi va
+tahrirlanmaydi — aks holda tarixiy statistika siljiydi.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Any
+
+from geoalchemy2 import Geography, Geometry
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base, UUIDPrimaryKeyMixin
+
+# Spatial indekslar aniq e'lon qilinadi (GeoAlchemy2 avtomatik yaratmasin) —
+# shunda migratsiya va model bir xil nomlarni ishlatadi.
+_POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
+_MULTIPOLYGON = Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False)
+
+
+class Region(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "regions"
+
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    name_uz: Mapped[str] = mapped_column(Text, nullable=False)
+    name_ru: Mapped[str] = mapped_column(Text, nullable=False)
+    default_language: Mapped[str] = mapped_column(Text, nullable=False, server_default="uz")
+    center = mapped_column(_POINT, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+
+class District(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "districts"
+    __table_args__ = (
+        Index("ix_districts_geom", "geom", postgresql_using="gist"),
+        # Joriy (yopilmagan) chegaralar bo'yicha qidiruv — `05` §2.1.
+        Index(
+            "ix_districts_region_id_current",
+            "region_id",
+            postgresql_where=text("valid_to IS NULL"),
+        ),
+    )
+
+    region_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("regions.id"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    name_uz: Mapped[str] = mapped_column(Text, nullable=False)
+    name_ru: Mapped[str] = mapped_column(Text, nullable=False)
+    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    license: Mapped[str] = mapped_column(Text, nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Mahalla(UUIDPrimaryKeyMixin, Base):
+    """E17 gacha bo'sh qoladi, lekin sxema boshidan mavjud (`05` §2.1)."""
+
+    __tablename__ = "mahallas"
+    __table_args__ = (Index("ix_mahallas_geom", "geom", postgresql_using="gist"),)
+
+    district_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("districts.id"), nullable=False
+    )
+    name_uz: Mapped[str] = mapped_column(Text, nullable=False)
+    name_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
+    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class BoundaryStaging(UUIDPrimaryKeyMixin, Base):
+    """Import staging (`05` §5.1).
+
+    Overpass dan kelgan poligonlar avval shu yerga tushadi, sifat tekshiruvi
+    (`05` §5.3) shu jadval ustida bajariladi va faqat undan keyin `districts`
+    ga ko'chiriladi. Xom OSM tegleri `raw_tags` da qoladi — nom to'liqligini
+    qo'lda to'ldirish uchun kerak.
+    """
+
+    __tablename__ = "boundary_staging"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "source_ref", name="uq_boundary_staging_batch_id_source_ref"),
+        Index("ix_boundary_staging_geom", "geom", postgresql_using="gist"),
+    )
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    region_code: Mapped[str] = mapped_column(Text, nullable=False)
+    admin_level: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False, server_default="osm")
+    source_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    license: Mapped[str] = mapped_column(Text, nullable=False, server_default="ODbL")
+    name_uz: Mapped[str | None] = mapped_column(Text, nullable=True)
+    name_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_tags: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    is_valid_geom: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    # Maydon m² da — viloyat darajasida `integer` chegarasidan oshishi mumkin.
+    area_m2: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="staged")
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+#: `territory_stats.territory_level` (`06` §3).
+TERRITORY_LEVELS: tuple[str, ...] = ("district", "mahalla")
+
+# `data_quality` qiymatlari ataylab bu yerda takrorlanmaydi — yagona manba
+# `app.clustering.scale.DATA_QUALITIES` (`06` §3.2). Ikki joyda qo'lda
+# yozilgan ro'yxat vaqt o'tishi bilan ajralib ketardi.
+
+
+class TerritoryStats(Base):
+    """Hudud statistikasi (`06` §3) — adaptiv chegaralar uchun.
+
+    `territory_id` — `districts` yoki `mahallas` ning `id` si, shuning uchun
+    **FK yo'q**: bitta ustun ikki jadvalga ishora qila olmaydi. Daraja
+    `territory_level` da saqlanadi va yozuvchi tomon to'g'riligini kafolatlaydi.
+
+    `population` `NULL` bo'lishi mumkin — mahalla darajasida aholi soni
+    deyarli mavjud emas (`06` §3.1). Bunday holatda `data_quality` `estimated`
+    yoki `unknown` bo'ladi va masshtab da'vosi cheklanadi (`06` §3.2, §5.4).
+    """
+
+    __tablename__ = "territory_stats"
+    __table_args__ = (Index("ix_territory_stats_territory_level", "territory_level"),)
+
+    territory_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    territory_level: Mapped[str] = mapped_column(Text, nullable=False)
+    population: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    households: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    area_km2: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    populated_cells: Mapped[int] = mapped_column(Integer, nullable=False)
+    active_users_30d: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    data_quality: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RegionConfig(Base):
+    """Mintaqa kesimidagi sozlanadigan parametrlar (`06` §9).
+
+    **Nima uchun bazada, koddagi konstanta emas.** `06` §9: hech bir qiymat
+    empirik asosga ega emas, ular E11 da haqiqiy ma'lumotda sozlanadi. Har
+    sozlash uchun deploy qilish mumkin emas.
+
+    Standart qiymatlar `app.clustering.params.DEFAULTS` da — ular konstanta
+    emas, yangi mintaqa uchun bootstrap qiymati. Bazadagi qator har doim
+    ustun turadi.
+    """
+
+    __tablename__ = "region_config"
+
+    region_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("regions.id"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    # `jsonb` — son, satr yoki obyekt bo'lishi mumkin (`06` §9 da sonlar).
+    value: Mapped[Any] = mapped_column(JSONB, nullable=False)

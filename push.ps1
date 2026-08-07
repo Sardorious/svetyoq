@@ -1,4 +1,4 @@
-# push.ps1 — o'zgarishlarni GitHub ga yuborish
+﻿# push.ps1 — o'zgarishlarni GitHub ga yuborish
 # Ishlatish:
 #   .\push.ps1                      -> commit xabari PROGRESS.md dan olinadi
 #   .\push.ps1 "o'z xabarim"        -> qo'lda xabar
@@ -29,6 +29,20 @@ if (-not (Test-GitOk)) {
 }
 if (-not (Test-Path ".git")) {
     Write-Host "XATO: git sozlanmagan. Avval .\setup-git.ps1 ni ishga tushiring." -ForegroundColor Red; exit 1
+}
+
+# 0b. eskirgan index.lock — yiqilgan git jarayonidan qoladi va hamma narsani bloklaydi
+$lock = ".git\index.lock"
+if (Test-Path $lock) {
+    $lockAge = (Get-Date) - (Get-Item $lock).LastWriteTime
+    if ($lockAge.TotalMinutes -gt 10) {
+        Write-Host ("[!] Eskirgan .git\index.lock topildi ({0:N0} daqiqa oldin yaratilgan) - o'chirilmoqda." -f $lockAge.TotalMinutes) -ForegroundColor Yellow
+        Remove-Item $lock -Force
+    } else {
+        Write-Host "XATO: .git\index.lock mavjud va yangi. Boshqa git jarayoni ishlayotgan bo'lishi mumkin." -ForegroundColor Red
+        Write-Host "Barcha git/editor oynalarini yoping va qayta urinib ko'ring." -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # 1. o'zgarish bormi
@@ -81,7 +95,18 @@ if ($DryRun) {
 if (Test-GitOk) {
     Write-Host "[+] commit yaratildi" -ForegroundColor Green
 } else {
-    Write-Host "[!] commit yaratilmadi" -ForegroundColor Yellow
+    # commit yiqilgani ikki xil bo'ladi: (a) commit qiladigan narsa yo'q edi -
+    # bu normal, davom etamiz; (b) haqiqiy xato - o'zgarishlar joyida qoldi,
+    # bunda rebase/push ni davom ettirish mantiqsiz va chalg'ituvchi.
+    $left = @(& git status --porcelain)
+    if ($left.Count -eq 0) {
+        Write-Host "[=] commit qilinadigan yangi narsa yo'q" -ForegroundColor DarkGray
+    } else {
+        Write-Host ""
+        Write-Host "XATO: commit yaratilmadi, o'zgarishlar joyida qoldi." -ForegroundColor Red
+        Write-Host "Sababini ko'rish uchun:  git commit -m `"$Message`"" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # 4. remote bilan sinxronlash (faqat origin/main mavjud bo'lsa)

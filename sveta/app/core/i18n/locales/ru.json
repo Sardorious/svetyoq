@@ -1,0 +1,40 @@
+{
+  "app.name": "Sveta.Net",
+  "app.disclaimer": "Это не официальный источник. Данные основаны на сообщениях пользователей.",
+
+  "bot.start.greeting": "Здравствуйте! Это Sveta.Net. Вместе сообщаем об отключениях электричества в вашем районе.",
+  "bot.start.choose_language": "Tilni tanlang / Выберите язык",
+  "bot.language.changed": "Язык изменён.",
+  "bot.menu.title": "Что делаем?",
+  "bot.menu.outage": "⚡ Нет света",
+  "bot.menu.restored": "💡 Свет появился",
+  "bot.menu.map": "🗺 Карта",
+  "bot.menu.subscriptions": "🔔 Мои подписки",
+  "bot.menu.language": "⚙️ Язык",
+  "bot.location.request": "Отправьте вашу геолокацию — она нужна, чтобы привязать сообщение к району.",
+  "bot.location.button": "📍 Отправить геолокацию",
+  "bot.location.invalid": "Геолокация не принята. Пожалуйста, попробуйте ещё раз.",
+
+  "report.accepted.confirmed": "В вашем районе массовое отключение. ~{count} сообщений. Начало: {started_at}",
+  "report.accepted.pending": "Рядом поступило ещё {count} сообщений. Собираем данные для подтверждения.",
+  "report.accepted.no_outage_covered": "Других сообщений поблизости нет. Возможно, проблема только у вас.",
+  "report.accepted.not_enough_data": "По этому району недостаточно данных.",
+  "report.restored.accepted": "Спасибо! Сообщение «свет появился» принято.",
+
+  "outage.confidence.checking": "Проверяется",
+  "outage.confidence.likely": "Возможно, массовое отключение",
+  "outage.confidence.confirmed": "Подтверждённое отключение",
+  "outage.confidence.multi_source": "Подтверждено · несколько источников",
+  "outage.scale.local": "Одна улица или несколько домов",
+  "outage.scale.mahalla": "Отключение на уровне махалли",
+  "outage.scale.district": "Массовое отключение в масштабе района",
+  "outage.scale.capped": "Масштаб не определён — низкий охват по этому району.",
+
+  "error.internal": "Техническая неполадка. Попробуйте немного позже.",
+  "error.not_found": "Не найдено.",
+  "error.validation": "Некорректные данные.",
+  "error.out_of_region": "Эта точка вне обслуживаемого региона.",
+  "error.rate_limited": "Слишком частая отправка. Немного подождите.",
+  "error.forbidden": "Нет доступа.",
+  "error.illegal_transition": "С этим событием такое действие невозможно."
+}

@@ -1,0 +1,40 @@
+{
+  "app.name": "Sveta.Net",
+  "app.disclaimer": "Bu rasmiy manba emas. Ma'lumot foydalanuvchilar xabarlari asosida.",
+
+  "bot.start.greeting": "Assalomu alaykum! Bu — Sveta.Net. Hududingizdagi elektr uzilishlari haqida birgalikda xabar beramiz.",
+  "bot.start.choose_language": "Tilni tanlang / Выберите язык",
+  "bot.language.changed": "Til o'zgartirildi.",
+  "bot.menu.title": "Nima qilamiz?",
+  "bot.menu.outage": "⚡ Svet yo'q",
+  "bot.menu.restored": "💡 Svet keldi",
+  "bot.menu.map": "🗺 Xarita",
+  "bot.menu.subscriptions": "🔔 Obunalarim",
+  "bot.menu.language": "⚙️ Til",
+  "bot.location.request": "Joylashuvingizni yuboring — xabarni to'g'ri hududga bog'lash uchun kerak.",
+  "bot.location.button": "📍 Joylashuvni yuborish",
+  "bot.location.invalid": "Joylashuv qabul qilinmadi. Iltimos, qayta urinib ko'ring.",
+
+  "report.accepted.confirmed": "Sizning hududingizda ommaviy uzilish. ~{count} ta xabar. Boshlanishi: {started_at}",
+  "report.accepted.pending": "Yaqin atrofdan yana {count} ta xabar keldi. Tasdiqlash uchun ma'lumot yig'ilmoqda.",
+  "report.accepted.no_outage_covered": "Yaqin atrofdan boshqa xabar yo'q. Ehtimol, muammo faqat sizda.",
+  "report.accepted.not_enough_data": "Bu hudud bo'yicha ma'lumot yetarli emas.",
+  "report.restored.accepted": "Rahmat! «Svet keldi» xabari qabul qilindi.",
+
+  "outage.confidence.checking": "Tekshirilmoqda",
+  "outage.confidence.likely": "Ehtimol, ommaviy uzilish",
+  "outage.confidence.confirmed": "Tasdiqlangan uzilish",
+  "outage.confidence.multi_source": "Tasdiqlangan · ko'p manba",
+  "outage.scale.local": "Bitta ko'cha yoki bir necha uy",
+  "outage.scale.mahalla": "Mahalla darajasidagi uzilish",
+  "outage.scale.district": "Tuman miqyosidagi ommaviy uzilish",
+  "outage.scale.capped": "Masshtabi aniqlanmagan — bu hudud bo'yicha qamrov past.",
+
+  "error.internal": "Texnik nosozlik. Biroz o'tib qayta urinib ko'ring.",
+  "error.not_found": "Topilmadi.",
+  "error.validation": "Ma'lumot noto'g'ri.",
+  "error.out_of_region": "Bu nuqta xizmat ko'rsatilayotgan hududdan tashqarida.",
+  "error.rate_limited": "Juda tez-tez xabar yuborilmoqda. Biroz kuting.",
+  "error.forbidden": "Ruxsat yo'q.",
+  "error.illegal_transition": "Bu hodisa ustida bunday amal bajarib bo'lmaydi."
+}

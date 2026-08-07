@@ -1,4 +1,4 @@
-# setup-git.ps1 — bir martalik sozlash
+﻿# setup-git.ps1 — bir martalik sozlash
 # Ishga tushirish: PowerShell da shu papkada  ->  .\setup-git.ps1
 
 # git stderr ga yozganda PowerShell uni "xato" deb hisoblamasin
