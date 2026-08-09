@@ -18,19 +18,21 @@ kodlangan foydalanuvchi matni yo'q (`04` §6).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from app.admin import audit, service
+from app.admin import audit, digest_service, service
+from app.admin import digest as digest_mod
 from app.admin.roles import Permission
 from app.api.deps import AdminActor, DbSession
+from app.api.openapi import NOT_FOUND
 from app.clustering import repository as outages_repo
 from app.clustering.status import OPEN_STATUSES
 from app.core.config import settings
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.geo import pipeline as geo
 from app.reports import moderation as users_mod
 
@@ -167,8 +169,17 @@ async def list_outages(
     return [_outage_out(row) for row in rows]
 
 
-@router.get("/outages/{outage_id}", response_model=OutageOut)
-async def get_outage(actor: AdminActor, session: DbSession, outage_id: uuid.UUID) -> OutageOut:
+@router.get(
+    "/outages/{outage_id}",
+    response_model=OutageOut,
+    summary="Bitta hodisaning moderator ko'rinishi",
+    responses={404: NOT_FOUND},
+)
+# Nom `admin_` bilan boshlanadi: `operationId` funksiya nomidan yasaladi
+# va ommaviy `get_outage` bilan to'qnashardi (generator jimgina buzilardi).
+async def admin_get_outage(
+    actor: AdminActor, session: DbSession, outage_id: uuid.UUID
+) -> OutageOut:
     actor.require(Permission.OUTAGE_READ)
     row = await outages_repo.read_row(session, outage_id)
     if row is None:
@@ -202,7 +213,7 @@ async def merge_outage(
     return ChangeOut(object_id=outage_id, before=_plain(change.before), after=_plain(change.after))
 
 
-@router.get("/users/{user_id}", response_model=UserOut)
+@router.get("/users/{user_id}", response_model=UserOut, responses={404: NOT_FOUND})
 async def get_user(actor: AdminActor, session: DbSession, user_id: uuid.UUID) -> UserOut:
     # Foydalanuvchi kartasi bloklash qarori uchun ochiladi, shuning uchun
     # ruxsat ham o'shanikidan olinadi — `viewer` uni ko'rmaydi.
@@ -241,6 +252,58 @@ async def set_trust(
     )
     await session.commit()
     return ChangeOut(object_id=user_id, before=_plain(change.before), after=_plain(change.after))
+
+
+class DigestOut(BaseModel):
+    """Kunlik hisobot (`05` §8). Faqat sonlar — identifikator ham, koordinata ham yo'q."""
+
+    region: str
+    date: date
+    stored: bool
+    payload: dict[str, Any]
+
+
+@router.get(
+    "/digest",
+    response_model=DigestOut,
+    summary="Moderator uchun kunlik hisobot",
+    responses={404: NOT_FOUND},
+)
+async def get_digest(
+    actor: AdminActor,
+    session: DbSession,
+    region: str | None = None,
+    day: Annotated[date | None, Query(alias="date")] = None,
+) -> DigestOut:
+    """Saqlangan hisobotni beradi; yo'q bo'lsa — o'sha kunni joyida hisoblaydi.
+
+    Joyida hisoblash `daily_digest` ga **yozilmaydi**: yozish huquqi fon
+    vazifasiniki, aks holda API so'rovi hisobotni «yig'ilgan» deb
+    belgilab, o'sha kunning yuborilishini to'sib qo'yardi. Javobdagi
+    `stored` aynan shuni ajratadi.
+
+    Tugallanmagan kun so'ralsa `422`: yarim kunning raqamlari smena
+    topshirishda yolg'on taassurot beradi.
+    """
+    actor.require(Permission.DIGEST_READ)
+    # Davr avval tekshiriladi: yaroqsiz sana bazaga umuman bormaydi.
+    latest = digest_mod.last_complete_day(datetime.now(timezone.utc))
+    target = day or latest
+    if target > latest:
+        raise ValidationError("error.day_not_complete", date=target.isoformat())
+
+    row = await geo.require_region(session, (region or settings.default_region_code).lower())
+    stored = await digest_service.load(session, region_id=row.id, day=target)
+    if stored is not None:
+        return DigestOut(region=row.code, date=target, stored=True, payload=stored.to_payload())
+
+    live = await digest_service.collect(
+        session,
+        region_id=row.id,
+        region_code=row.code,
+        period=digest_mod.period_for(target),
+    )
+    return DigestOut(region=row.code, date=target, stored=False, payload=live.to_payload())
 
 
 @router.get("/audit", response_model=list[AuditOut])

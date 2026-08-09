@@ -17,7 +17,11 @@ def test_every_role_is_in_the_matrix() -> None:
 
 
 def test_viewer_reads_only() -> None:
-    assert PERMISSIONS[Role.VIEWER] == frozenset({Permission.OUTAGE_READ})
+    """Uchala ruxsat ham **o'qish**: navbat, kunlik hisobot (`05` §8) va
+    metrikalar (`05` §10). Uchalasi ham faqat agregat son beradi."""
+    assert PERMISSIONS[Role.VIEWER] == frozenset(
+        {Permission.OUTAGE_READ, Permission.DIGEST_READ, Permission.METRICS_READ}
+    )
 
 
 @pytest.mark.parametrize(
@@ -27,6 +31,7 @@ def test_viewer_reads_only() -> None:
         Permission.OUTAGE_REJECT,
         Permission.OUTAGE_MERGE,
         Permission.USER_BLOCK,
+        Permission.DIGEST_READ,
     ],
 )
 def test_moderator_decides_on_outages_and_users(permission: Permission) -> None:

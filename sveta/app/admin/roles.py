@@ -39,6 +39,11 @@ class Permission(StrEnum):
     USER_TRUST = "user.trust"
     #: Audit jurnalini o'qish.
     AUDIT_READ = "audit.read"
+    #: Kunlik hisobotni o'qish (`05` §8 `daily_digest`).
+    DIGEST_READ = "digest.read"
+    #: Metrikalarni o'qish (`05` §10). Ular faqat agregat sonlar, ya'ni
+    #: hisobot bilan bir xil darajada xavfsiz.
+    METRICS_READ = "metrics.read"
 
 
 _MODERATOR: frozenset[Permission] = frozenset(
@@ -47,12 +52,19 @@ _MODERATOR: frozenset[Permission] = frozenset(
         Permission.OUTAGE_REJECT,
         Permission.OUTAGE_MERGE,
         Permission.USER_BLOCK,
+        Permission.DIGEST_READ,
+        Permission.METRICS_READ,
     }
 )
 
 #: Rol → ruxsatlar. `admin` moderatorni to'liq o'z ichiga oladi.
+#: `viewer` ham hisobotni o'qiydi: u faqat sonlardan iborat (`05` §7.3
+#: ruhida — identifikator ham, koordinata ham yo'q), smenani qabul
+#: qilayotgan yangi moderator esa aynan shundan boshlaydi.
 PERMISSIONS: dict[Role, frozenset[Permission]] = {
-    Role.VIEWER: frozenset({Permission.OUTAGE_READ}),
+    Role.VIEWER: frozenset(
+        {Permission.OUTAGE_READ, Permission.DIGEST_READ, Permission.METRICS_READ}
+    ),
     Role.MODERATOR: _MODERATOR,
     Role.ADMIN: _MODERATOR | frozenset({Permission.USER_TRUST, Permission.AUDIT_READ}),
 }

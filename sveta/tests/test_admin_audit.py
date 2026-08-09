@@ -14,10 +14,17 @@ from app.clustering.status import OutageStatus
 
 
 def test_actions_follow_the_object_dot_verb_convention() -> None:
-    """`05` §2.5: `'outage.confirm'`, `'user.block'` uslubi."""
+    """`05` §2.5: `'outage.confirm'`, `'user.block'` uslubi.
+
+    Obyektlar ro'yxati **yopiq** va shu sababli ataylab qo'lda yozilgan:
+    u audit qamrab oladigan narsalar to'plami, ya'ni yangi obyekt
+    qo'shilishi — ko'rib chiqiladigan qaror, jimgina kengayish emas.
+    `region` va `boundaries` 35-sessiyada qo'shildi (BR-024: mintaqa
+    spravochnigi ustidagi amallar ham jurnalda qoladi).
+    """
     for action in AuditAction:
         obj, _, verb = str(action).partition(".")
-        assert obj in {"outage", "user"}
+        assert obj in {"outage", "user", "region", "boundaries"}
         assert verb
 
 

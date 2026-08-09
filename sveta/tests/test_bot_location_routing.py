@@ -36,6 +36,13 @@ class FakeMessage:
 class FakeLocation:
     latitude: float
     longitude: float
+    #: Telegram ning `Location.horizontal_accuracy` si — 29-sessiyada
+    #: `01` §21 `report_created.accuracy` uchun qo'shilgan va handler uni
+    #: **har bir** xabar yo'lida o'qiydi. Fikstyurada u yo'q edi, ya'ni
+    #: `FLOW_REPORT` yo'lidagi ikkita test `AttributeError` bilan yiqilardi;
+    #: sandbox sakkiz run ishlamagani uchun buni hech kim ko'rmadi
+    #: (37-sessiya). `None` — Telegram ko'p mijozda aynan shuni beradi.
+    horizontal_accuracy: float | None = None
 
 
 @dataclass
@@ -65,7 +72,10 @@ def patched(monkeypatch):
     async def fake_scope():
         yield None
 
-    async def fake_language(session, tg_id):
+    async def fake_language(session, tg_id, *, region_code=None):
+        # `region_code` — `01` §17 bo'yicha qo'shilgan nomli argument.
+        # Fikstyura uni qabul qiladi, aks holda haqiqiy imzo o'zgarganda
+        # test jimgina eskirib qolardi.
         return "uz"
 
     async def fake_submit(session, **kwargs):

@@ -1,7 +1,28 @@
 """Fon vazifalari planlovchisi (`05` §8).
 
-E1 da vazifalar ro'yxati bo'sh — karkas turadi, har epic o'z vazifasini
-`JOBS` ro'yxatiga qo'shadi. Barcha vazifalar idempotent bo'lishi shart.
+Har epic o'z vazifasini `JOBS` ro'yxatiga qo'shadi. Barcha vazifalar
+idempotent bo'lishi shart.
+
+## Kontrakt: `app/jobs/` dagi har bir modul — ro'yxatdagi bitta vazifa
+
+`runner` va `__init__` dan boshqa har bir modul `JOB = Job(...)` va
+`register()` e'lon qiladi, `register_jobs()` esa uni **chaqiradi**.
+Chaqiruv unutilsa hech qanday xato chiqmaydi: modul import qilinadi,
+`JOB` yaratiladi, vazifa esa hech qachon ishlamaydi va `jobs.start`
+jurnalida shunchaki bitta nom kam bo'ladi.
+
+`JOB.name` modul nomiga teng: u ham jurnaldagi nom, ham `register()`
+ning takrorlanishga qarshi kaliti.
+
+`handler` — **argumentsiz** `async` funksiya: `_run_job` uni
+`await job.handler()` bilan chaqiradi. Imzosi boshqacha bo'lgan `run()`
+uchun modulda `_tick` o'rami bo'ladi (`purge_exact_geom`,
+`daily_digest`). O'ramsiz handler har intervalda `TypeError` beradi, uni
+quyidagi `except Exception` yutadi — protsess tirik qoladi, vazifa esa
+hech qachon bajarilmaydi.
+
+Chastotalar `05` §8 jadvalidan. Uchala qoida ham
+`tests/test_jobs_registry.py` da qulflangan.
 """
 
 from __future__ import annotations
@@ -32,9 +53,21 @@ def register_jobs() -> None:
     Import shu yerda, modul darajasida emas: `JOBS` e'lon qilinishidan oldin
     `app.jobs.evaluate_outages` ni import qilish aylanma bog'liqlik berardi.
     """
-    from app.jobs import evaluate_outages
+    from app.jobs import (
+        build_map_snapshot,
+        daily_digest,
+        evaluate_outages,
+        process_outbox,
+        purge_exact_geom,
+        refresh_coverage,
+    )
 
     evaluate_outages.register()
+    build_map_snapshot.register()
+    process_outbox.register()
+    refresh_coverage.register()
+    purge_exact_geom.register()
+    daily_digest.register()
 
 
 async def _run_job(job: Job) -> None:

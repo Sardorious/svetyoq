@@ -31,6 +31,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
+from app.reports.sources import DEFAULT_SOURCE_CODE
 
 _POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
 
@@ -76,9 +77,18 @@ class Report(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "reports"
     __table_args__ = (
         Index("ix_reports_geom_public", "geom_public", postgresql_using="gist"),
+        # `05` §3.2 va §8 — `purge_exact_geom` **ataylab** mintaqasiz:
+        # maxfiylik muddati butun bazaga tegishli. Shu sabab mintaqali
+        # indeks qo'shilgandan keyin ham qoldirildi.
         Index("ix_reports_created_at", text("created_at DESC")),
         Index("ix_reports_outage_id", "outage_id"),
         Index("ix_reports_user_id_created_at", "user_id", text("created_at DESC")),
+        # `01` NFR-S-02 — mintaqa bo'yicha filtr **indeks darajasida**.
+        # `reports` ustidagi deyarli har bir so'rov «mintaqa + oyna»
+        # ko'rinishida (`0008` migratsiyasida ro'yxati). Usiz ular
+        # `ix_reports_created_at` ga tushib, qo'shni mintaqaning oynadagi
+        # qatorlarini ham o'qirdi.
+        Index("ix_reports_region_id_created_at", "region_id", text("created_at DESC")),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -105,8 +115,13 @@ class Report(UUIDPrimaryKeyMixin, Base):
     # `06` §10. `source` (`05` §2.2) erkin matn edi; `source_code` — registrga
     # bog'langan kalit. Ikkalasi ham qoldirildi, chunki `06` §10 `ALTER TABLE
     # ADD COLUMN source_code` deydi, mavjud ustunni almashtirishni emas.
+    # Standart registrdan olinadi: `get_source` noma'lum kodni o'shanga
+    # tushiradi, shuning uchun ustunning standarti undan ajralib qolmasin.
     source_code: Mapped[str] = mapped_column(
-        Text, ForeignKey("report_sources.code"), nullable=False, server_default="bot"
+        Text,
+        ForeignKey("report_sources.code"),
+        nullable=False,
+        server_default=DEFAULT_SOURCE_CODE,
     )
     # Yozish paytida qotiriladi (`06` §10): `source.weight × user_factor`.
     # Qotirilmagan qiymat auditni imkonsiz qiladi — izoh `app.reports.sources` da.

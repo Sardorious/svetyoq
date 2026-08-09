@@ -54,6 +54,9 @@ async def region_id():
         await session.execute(
             text("UPDATE outages SET merged_into = NULL WHERE region_id = :id"), {"id": rid}
         )
+        await session.execute(
+            text("DELETE FROM outbox WHERE payload->>'region_id' = :id"), {"id": str(rid)}
+        )
         await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM regions WHERE id = :id"), {"id": rid})
@@ -316,3 +319,123 @@ async def test_evaluate_is_idempotent(region_id) -> None:
         assert first.changed is True
         assert second.changed is False
         assert await status_of(session, outage_id) == "resolved"
+
+
+# --- Outbox (E13) ---
+
+
+async def outbox_topics(session, outage_id: uuid.UUID) -> list[str]:
+    rows = await session.execute(
+        text(
+            "SELECT topic FROM outbox WHERE payload->>'outage_id' = :id "
+            "ORDER BY id"
+        ),
+        {"id": str(outage_id)},
+    )
+    return [r[0] for r in rows.all()]
+
+
+async def test_confirmation_publishes_an_outbox_event(region_id) -> None:
+    """E13: `confirmed` ga o'tish bildirishnoma niyatini **shu tranzaksiyada**
+    yozadi (`05` §2.4). Aks holda «status o'zgardi, lekin hech kim bilmadi»
+    holati paydo bo'lardi."""
+    async with session_scope() as session:
+        outage_ids = set()
+        for i, (north, east) in enumerate([(0, 0), (0, 120), (150, 60)]):
+            user = await make_user(session, region_id)
+            lat, lon = offset(north, east)
+            report = await make_report(
+                session,
+                region_id=region_id,
+                user_id=user,
+                lat=lat,
+                lon=lon,
+                created_at=NOW + timedelta(minutes=i),
+            )
+            outage_ids.add((await assign(session, report)).outage_id)
+
+        outage_id = outage_ids.pop()
+        assert await outbox_topics(session, outage_id) == ["outage.confirmed"]
+
+        payload = (
+            await session.execute(
+                text("SELECT payload FROM outbox WHERE payload->>'outage_id' = :id"),
+                {"id": str(outage_id)},
+            )
+        ).scalar_one()
+        assert payload["status"] == "confirmed"
+        assert payload["report_count"] == 3
+        assert "user_id" not in payload
+
+
+async def test_pending_outage_publishes_nothing(region_id) -> None:
+    """Tasdiqlanmagan hodisa bo'yicha bildirishnoma yuborilmaydi."""
+    async with session_scope() as session:
+        user = await make_user(session, region_id)
+        report = await make_report(session, region_id=region_id, user_id=user, lat=LAT, lon=LON)
+        outage_id = (await assign(session, report)).outage_id
+        assert await outbox_topics(session, outage_id) == []
+
+
+async def test_resolution_publishes_the_second_event(region_id) -> None:
+    """Tasdiqlangan hodisa yopilsa — ikkinchi hodisa (obunachiga «svet keldi»)."""
+    async with session_scope() as session:
+        outage_id = None
+        for i, (north, east) in enumerate([(0, 0), (0, 120), (150, 60)]):
+            user = await make_user(session, region_id)
+            lat, lon = offset(north, east)
+            report = await make_report(
+                session,
+                region_id=region_id,
+                user_id=user,
+                lat=lat,
+                lon=lon,
+                created_at=NOW + timedelta(minutes=i),
+            )
+            outage_id = (await assign(session, report)).outage_id
+
+        await evaluate(session, outage_id, now=NOW + timedelta(minutes=200))
+        assert await status_of(session, outage_id) == "resolved"
+        assert await outbox_topics(session, outage_id) == [
+            "outage.confirmed",
+            "outage.resolved",
+        ]
+
+
+async def test_silent_pending_outage_publishes_nothing_on_close(region_id) -> None:
+    """`pending → resolved`: hech kimga aytilmagan hodisa yopilishi ham
+    aytilmaydi — navbat bo'sh qatorlar bilan to'lmasligi uchun."""
+    async with session_scope() as session:
+        user = await make_user(session, region_id)
+        report = await make_report(session, region_id=region_id, user_id=user, lat=LAT, lon=LON)
+        outage_id = (await assign(session, report)).outage_id
+
+        await evaluate(session, outage_id, now=NOW + timedelta(minutes=121))
+        assert await status_of(session, outage_id) == "resolved"
+        assert await outbox_topics(session, outage_id) == []
+
+
+async def test_idempotent_evaluate_does_not_duplicate_events(region_id) -> None:
+    """`05` §8: takroriy yurish ikkinchi hodisa yozmaydi."""
+    async with session_scope() as session:
+        outage_id = None
+        for i, (north, east) in enumerate([(0, 0), (0, 120), (150, 60)]):
+            user = await make_user(session, region_id)
+            lat, lon = offset(north, east)
+            report = await make_report(
+                session,
+                region_id=region_id,
+                user_id=user,
+                lat=lat,
+                lon=lon,
+                created_at=NOW + timedelta(minutes=i),
+            )
+            outage_id = (await assign(session, report)).outage_id
+
+        moment = NOW + timedelta(minutes=200)
+        await evaluate(session, outage_id, now=moment)
+        await evaluate(session, outage_id, now=moment)
+        assert await outbox_topics(session, outage_id) == [
+            "outage.confirmed",
+            "outage.resolved",
+        ]

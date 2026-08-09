@@ -21,6 +21,7 @@ from app.bot import service
 from app.clustering import repository as cluster_repo
 from app.core.config import settings
 from app.db.session import session_scope
+from app.geo import registry
 from tools import recluster
 
 pytestmark = pytest.mark.requires_db
@@ -45,9 +46,11 @@ async def region(monkeypatch):
     async with session_scope() as session:
         await session.execute(
             sql(
-                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active) "
+                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active, "
+                "bbox_min_lat, bbox_min_lon, bbox_max_lat, bbox_max_lon) "
                 "VALUES (:id, :code, 'Samarqand', 'Самарканд', "
-                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true)"
+                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true, "
+                "39.55, 66.85, 39.75, 67.10)"
             ),
             {"id": region_id, "code": code, "lat": LAT, "lon": LON},
         )
@@ -61,6 +64,9 @@ async def region(monkeypatch):
             {"id": district_id, "region_id": region_id, "wkt": SQUARE},
         )
     monkeypatch.setattr(settings, "default_region_code", code)
+    # E19: mintaqa endi nuqtadan aniqlanadi va reyestr keshlanadi —
+    # oldingi testdan qolgan kesh bu mintaqani ko'rmasdi.
+    registry.invalidate()
 
     yield region_id, code
 
@@ -73,6 +79,7 @@ async def region(monkeypatch):
         await session.execute(sql("DELETE FROM users WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM districts WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM regions WHERE id = :id"), {"id": region_id})
+    registry.invalidate()
 
 
 def _tg_id() -> int:
@@ -202,10 +209,10 @@ async def test_notified_outage_blocks_the_run(region) -> None:
         ).one()
         await session.execute(
             sql(
-                "INSERT INTO notifications (user_id, outage_id, status) "
-                "VALUES (:user_id, :outage_id, 'sent')"
+                "INSERT INTO notifications (user_id, outage_id, region_id, status) "
+                "VALUES (:user_id, :outage_id, :region_id, 'sent')"
             ),
-            {"user_id": user_id, "outage_id": outage_id},
+            {"user_id": user_id, "outage_id": outage_id, "region_id": region_id},
         )
 
     with pytest.raises(recluster.ReclusterBlocked):

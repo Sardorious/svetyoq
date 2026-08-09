@@ -398,6 +398,75 @@ async def outage_ids_started_in(
     return list((await session.execute(stmt)).scalars().all())
 
 
+@dataclass(frozen=True)
+class StatsRow:
+    """Statistika uchun hodisaning eng kichik kesimi (E14).
+
+    `OutageRow` dan ataylab kichikroq: koordinata ham, `region_id` ham yo'q.
+    Statistika vitrinasi joyni ko'rsatmaydi, u faqat sanaydi — kerak
+    bo'lmagan maydonni bermaslik uni kelajakda ham ko'rsata olmaydigan
+    qiladi (`05` §7.3 ruhi).
+    """
+
+    id: uuid.UUID
+    district_id: uuid.UUID | None
+    status: str
+    scale: str
+    confidence: int
+    started_at: datetime
+    resolved_at: datetime | None
+
+
+async def stats_rows_started_between(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    until: datetime,
+    limit: int,
+) -> list[StatsRow]:
+    """Davr ichida **boshlangan** hodisalar (E14, `05` §7.2).
+
+    Davr mezoni sifatida `started_at` tanlandi, `last_report_at` emas: aks
+    holda bitta hodisa ikkita davrga tushib, davrlar yig'indisi umumiy
+    natijadan katta chiqardi — bu aynan `03` §R1.2 chiqish mezoni
+    («agregat farqi ≤5%») taqiqlaydigan holat.
+
+    `limit` — himoya chegarasi: chaqiruvchi natija kesilganini ko'radi
+    (`limit + 1` qator so'raladi) va javobda buni ochiq aytadi.
+    """
+    stmt = (
+        select(
+            Outage.id,
+            Outage.district_id,
+            Outage.status,
+            Outage.scale,
+            Outage.confidence,
+            Outage.started_at,
+            Outage.resolved_at,
+        )
+        .where(
+            Outage.region_id == region_id,
+            Outage.started_at >= since,
+            Outage.started_at < until,
+        )
+        .order_by(Outage.started_at.asc(), Outage.id.asc())
+        .limit(limit)
+    )
+    return [
+        StatsRow(
+            id=row[0],
+            district_id=row[1],
+            status=row[2],
+            scale=row[3],
+            confidence=int(row[4]),
+            started_at=row[5],
+            resolved_at=row[6],
+        )
+        for row in (await session.execute(stmt)).all()
+    ]
+
+
 async def delete_outages(session: AsyncSession, ids: Sequence[uuid.UUID]) -> int:
     """Hodisalarni o'chiradi (faqat E6 qayta hisoblashida).
 
@@ -477,6 +546,143 @@ async def fingerprint_rows(
         )
         for r in (await session.execute(stmt)).all()
     ]
+
+
+async def status_counts_started_between(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    until: datetime,
+) -> dict[str, int]:
+    """Davr ichida **boshlangan** hodisalar, status kesimida (`05` §8 digest).
+
+    `stats_rows_started_between` dan farqi shundaki, bu yerda qatorlar
+    o'qilmaydi: kunlik hisobotga faqat sonlar kerak, shift ham kerak
+    emas. Davr mezoni o'sha — `started_at`, ya'ni kunlar yig'indisi
+    umumiy natijaga teng qoladi.
+    """
+    stmt = (
+        select(Outage.status, func.count())
+        .where(
+            Outage.region_id == region_id,
+            Outage.started_at >= since,
+            Outage.started_at < until,
+        )
+        .group_by(Outage.status)
+    )
+    return {row[0]: int(row[1]) for row in (await session.execute(stmt)).all()}
+
+
+async def count_open(
+    session: AsyncSession, *, region_id: uuid.UUID, min_radius_m: int | None = None
+) -> int:
+    """Hozir ochiq hodisalar soni; `min_radius_m` — moderatsiya navbati.
+
+    Bu davr kesimi emas, **«hozir»** kesimi: smenani qabul qilayotgan
+    moderator kechagi hodisalarni emas, hozir ochiq turgan navbatni
+    ko'rishi kerak (`05` §4.2 «`max_radius` dan kattasi moderatorga»).
+    """
+    stmt = (
+        select(func.count())
+        .select_from(Outage)
+        .where(Outage.region_id == region_id, Outage.status.in_(_OPEN))
+    )
+    if min_radius_m is not None:
+        stmt = stmt.where(Outage.radius_m >= min_radius_m)
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def open_counts_by_region(session: AsyncSession) -> dict[uuid.UUID, int]:
+    """`05` §10 — `outages_open`, mintaqa kesimida.
+
+    Mintaqasi bo'yicha ajratiladi, chunki bitta mintaqada navbat
+    to'planishi boshqasining sog'lom holatiga aralashib ketmasligi kerak.
+    Nolli mintaqa javobda bo'lmaydi — chaqiruvchi uni faol mintaqalar
+    ro'yxatidan to'ldiradi (metrika yo'qolib qolmasligi uchun).
+    """
+    stmt = (
+        select(Outage.region_id, func.count())
+        .where(Outage.status.in_(_OPEN))
+        .group_by(Outage.region_id)
+    )
+    return {row[0]: int(row[1]) for row in (await session.execute(stmt)).all()}
+
+
+async def count_confirmed_ever(session: AsyncSession, region_id: uuid.UUID) -> int:
+    """Mintaqada butun tarix bo'yicha **tasdiqlangan** hodisalar soni.
+
+    `01` FR-S-901 meros qilib olgan «<30 holat» ahamiyat chegarasi uchun.
+    Mezon `confirmed_at IS NOT NULL`, joriy status emas: tasdiqlangan va
+    keyin yopilgan hodisa ham holat sifatida sanaladi, tasdiqlanmasdan
+    so'nib ketgani esa sanalmaydi — u shovqin bo'lishi ham mumkin edi.
+
+    Oyna yo'q: savol «bu mintaqada umuman yetarlicha kuzatilgan hodisa
+    to'planganmi», ya'ni javob so'ralgan davrga bog'liq bo'lmasligi
+    kerak — aks holda bir kunlik kesimni so'ragan odam har doim «yosh
+    mintaqa» javobini olardi.
+    """
+    stmt = select(func.count()).where(
+        Outage.region_id == region_id, Outage.confirmed_at.is_not(None)
+    )
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def confirm_latency_by_region(
+    session: AsyncSession,
+    *,
+    since: datetime,
+    quantiles: Sequence[float],
+    until: datetime | None = None,
+) -> dict[uuid.UUID, tuple[list[tuple[float, float]], int]]:
+    """`05` §10 — `time_to_confirm_seconds` mintaqa kesimida (`01` §22).
+
+    Har mintaqa uchun `([(kvantil, sekund), …], hodisalar soni)`.
+
+    Kvantillar bazada `percentile_cont` bilan **aniq** hisoblanadi.
+    Gistogramma chelaklari kerak emas: `started_at` va `confirmed_at`
+    qatorda saqlanadi, ya'ni taxminiy qiymatga o'tishning sababi yo'q — va
+    protsess ichida holat saqlanmagani uchun bir necha nusxa ishlaganda
+    natija baribir bir xil bo'ladi.
+
+    Mintaqalarni birlashtirib hisoblash mediananing ma'nosini
+    yo'qotardi: kichik mintaqadagi sekin tasdiqlash kattasining tez
+    hodisalari orasida medianaga umuman yetib bormaydi — ya'ni mahsulot
+    va'dasining buzilishi aynan o'sha yerda ko'rinmay qolardi.
+
+    Oyna kerak: mahsulot va'dasi «hozir qanday ishlayapti» degan savol,
+    o'tgan yilning o'rtachasi emas. Oynada tasdiqlangan hodisasi bo'lmagan
+    mintaqa javobda **umuman bo'lmaydi** — `0` yozish «darhol
+    tasdiqlandi» degan yolg'on signal berardi (bu yagona metrika bo'lib,
+    unda yo'q namuna to'g'ri javob).
+    """
+    if not quantiles:
+        return {}
+    seconds = func.extract("epoch", Outage.confirmed_at - Outage.started_at)
+    columns = [func.percentile_cont(q).within_group(seconds.asc()) for q in quantiles]
+    stmt = (
+        select(Outage.region_id, func.count(), *columns)
+        .where(Outage.confirmed_at.is_not(None), Outage.confirmed_at >= since)
+        .group_by(Outage.region_id)
+    )
+    # `until` — yopiq davr uchun (`status_counts_started_between` bilan bir
+    # xil shakl). O'lchov qatlami uni bermaydi: metrika «hozirgacha» degan
+    # oynani so'raydi.
+    if until is not None:
+        stmt = stmt.where(Outage.confirmed_at < until)
+
+    result: dict[uuid.UUID, tuple[list[tuple[float, float]], int]] = {}
+    for row in (await session.execute(stmt)).all():
+        count = int(row[1])
+        if count == 0:
+            continue
+        values = [
+            (q, float(row[index + 2]))
+            for index, q in enumerate(quantiles)
+            if row[index + 2] is not None
+        ]
+        result[row[0]] = (values, count)
+    return result
 
 
 async def open_outage_ids(

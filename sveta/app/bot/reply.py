@@ -26,10 +26,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.core.config import settings
 from app.core.i18n import t
+from app.core.timeutil import display_timezone, round_down
+
+# Yaxlitlash va zona `app.core.timeutil` ga ko'chdi: xuddi shu qoida
+# (`05` §7.3) ommaviy API va xaritaga ham kerak, `app.api` esa `app.bot` ni
+# import qila olmaydi (`05` §1). Nomlar shu yerda qayta eksport qilinadi.
+__all__ = [
+    "KIND_OUTAGE",
+    "KIND_RESTORED",
+    "Situation",
+    "Verdict",
+    "decide",
+    "display_timezone",
+    "format_time",
+    "render",
+    "round_down",
+]
 
 KIND_OUTAGE = "outage"
 KIND_RESTORED = "restored"
@@ -91,22 +105,6 @@ def decide(situation: Situation) -> Verdict:
     # Hodisa yo'q — yoki bor, lekin unda faqat shu foydalanuvchining xabari.
     # Ikkinchi holat mazmunan «yaqin atrofdan boshqa xabar yo'q» bilan bir xil.
     return Verdict.NO_OUTAGE_COVERED if situation.coverage_ok else Verdict.NOT_ENOUGH_DATA
-
-
-def display_timezone() -> timezone | ZoneInfo:
-    """Mintaqa vaqt zonasi. Baza yo'q bo'lsa — UTC ga tushadi."""
-    try:
-        return ZoneInfo(settings.display_timezone)
-    except (ZoneInfoNotFoundError, ValueError):  # pragma: no cover — muhitga bog'liq
-        return timezone.utc
-
-
-def round_down(moment: datetime, *, minutes: int | None = None) -> datetime:
-    """Vaqtni `minutes` gacha pastga yaxlitlaydi (`05` §7.3)."""
-    step = minutes if minutes is not None else settings.public_time_rounding_min
-    if step <= 1:
-        return moment.replace(second=0, microsecond=0)
-    return moment.replace(minute=moment.minute - moment.minute % step, second=0, microsecond=0)
 
 
 def format_time(moment: datetime) -> str:

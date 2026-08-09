@@ -23,6 +23,7 @@ from app.bot.reply import Verdict
 from app.core.config import settings
 from app.core.errors import OutOfRegionError, RateLimitedError
 from app.db.session import session_scope
+from app.geo import registry
 
 pytestmark = pytest.mark.requires_db
 
@@ -45,9 +46,11 @@ async def region(monkeypatch):
     async with session_scope() as session:
         await session.execute(
             text(
-                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active) "
+                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active, "
+                "bbox_min_lat, bbox_min_lon, bbox_max_lat, bbox_max_lon) "
                 "VALUES (:id, :code, 'Samarqand', 'Самарканд', "
-                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true)"
+                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true, "
+                "39.55, 66.85, 39.75, 67.10)"
             ),
             {"id": region_id, "code": code, "lat": LAT, "lon": LON},
         )
@@ -61,10 +64,20 @@ async def region(monkeypatch):
             {"id": district_id, "region_id": region_id, "wkt": SQUARE},
         )
     monkeypatch.setattr(settings, "default_region_code", code)
+    # E19: mintaqa endi nuqtadan aniqlanadi va reyestr keshlanadi —
+    # oldingi testdan qolgan kesh bu mintaqani ko'rmasdi.
+    registry.invalidate()
 
     yield region_id, district_id
 
     async with session_scope() as session:
+        await session.execute(
+            text(
+                "DELETE FROM subscriptions WHERE user_id IN "
+                "(SELECT id FROM users WHERE region_id = :id)"
+            ),
+            {"id": region_id},
+        )
         await session.execute(text("DELETE FROM reports WHERE region_id = :id"), {"id": region_id})
         await session.execute(
             text("UPDATE outages SET merged_into = NULL WHERE region_id = :id"), {"id": region_id}
@@ -75,6 +88,7 @@ async def region(monkeypatch):
             text("DELETE FROM districts WHERE region_id = :id"), {"id": region_id}
         )
         await session.execute(text("DELETE FROM regions WHERE id = :id"), {"id": region_id})
+    registry.invalidate()
 
 
 def _tg_id() -> int:
@@ -230,3 +244,48 @@ async def test_language_is_stored_and_changed(region) -> None:
 
     async with session_scope() as session:
         assert await service.user_language(session, tg_id) == "uz"
+
+
+# --- Obunalar (E13, `05` §6.1) ---
+
+
+async def test_subscription_flow(region) -> None:
+    """Qo'shish → ro'yxat → o'chirish. Xabar yaratilmaydi va rate limit yo'q."""
+    tg_id = _tg_id()
+    async with session_scope() as session:
+        await service.register_user(session, tg_id=tg_id, language_code="uz")
+
+    async with session_scope() as session:
+        empty = await service.list_subscriptions(session, tg_id=tg_id)
+        assert empty.items == []
+
+    async with session_scope() as session:
+        text_added = await service.add_subscription(session, tg_id=tg_id, lat=LAT, lon=LON)
+        assert "500" in text_added
+
+    async with session_scope() as session:
+        listing = await service.list_subscriptions(session, tg_id=tg_id)
+        assert len(listing.items) == 1
+        assert "bot.subscriptions" not in listing.text
+        # Obuna qo'shish xabar yaratmaydi (`05` §6.3 rate limit ham tegmaydi).
+        count = await session.execute(
+            text("SELECT count(*) FROM reports WHERE user_id IN "
+                 "(SELECT id FROM users WHERE tg_id = :tg)"),
+            {"tg": tg_id},
+        )
+        assert count.scalar_one() == 0
+
+    subscription_id = listing.items[0][0]
+    async with session_scope() as session:
+        await service.remove_subscription(
+            session, tg_id=tg_id, subscription_id=subscription_id
+        )
+
+    async with session_scope() as session:
+        assert (await service.list_subscriptions(session, tg_id=tg_id)).items == []
+
+
+async def test_subscription_outside_region_is_rejected(region) -> None:
+    """Mintaqadan tashqaridagi obuna hech qachon ishlamasdi — darhol rad etiladi."""
+    async with session_scope() as session, pytest.raises(OutOfRegionError):
+        await service.add_subscription(session, tg_id=_tg_id(), lat=48.0, lon=20.0)

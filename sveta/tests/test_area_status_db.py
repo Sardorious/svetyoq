@@ -24,6 +24,7 @@ from app.clustering.lookup import AreaVerdict
 from app.core.config import settings
 from app.core.errors import OutOfRegionError
 from app.db.session import session_scope
+from app.geo import registry
 
 pytestmark = pytest.mark.requires_db
 
@@ -45,9 +46,11 @@ async def region(monkeypatch):
     async with session_scope() as session:
         await session.execute(
             sql(
-                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active) "
+                "INSERT INTO regions (id, code, name_uz, name_ru, center, is_active, "
+                "bbox_min_lat, bbox_min_lon, bbox_max_lat, bbox_max_lon) "
                 "VALUES (:id, :code, 'Samarqand', 'Самарканд', "
-                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true)"
+                "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, true, "
+                "39.55, 66.85, 39.75, 67.10)"
             ),
             {"id": region_id, "code": code, "lat": LAT, "lon": LON},
         )
@@ -61,6 +64,9 @@ async def region(monkeypatch):
             {"id": district_id, "region_id": region_id, "wkt": SQUARE},
         )
     monkeypatch.setattr(settings, "default_region_code", code)
+    # E19: mintaqa endi nuqtadan aniqlanadi va reyestr keshlanadi —
+    # oldingi testdan qolgan kesh bu mintaqani ko'rmasdi.
+    registry.invalidate()
 
     yield region_id, district_id
 
@@ -73,6 +79,7 @@ async def region(monkeypatch):
         await session.execute(sql("DELETE FROM users WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM districts WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM regions WHERE id = :id"), {"id": region_id})
+    registry.invalidate()
 
 
 def _tg_id() -> int:

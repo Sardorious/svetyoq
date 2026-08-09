@@ -53,6 +53,8 @@ from app.core.config import settings
 from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.geo import queries as geo_q
+from app.notifications import events as outbox_events
+from app.notifications import outbox
 from app.reports import queries as reports_q
 from app.reports.sources import DEFAULT_SOURCE_CODE, is_authoritative
 
@@ -392,7 +394,75 @@ async def evaluate(
         )
 
     await session.execute(update(Outage).where(Outage.id == outage_id).values(**values))
+    if decision.target is not None:
+        await _publish(
+            session,
+            outage_id,
+            previous=state.status,
+            target=str(decision.target),
+            now=moment,
+        )
     return decision
+
+
+#: Status → outbox topigi (`05` §2.4). Qolgan o'tishlar (`rejected`,
+#: `merged`) bildirishnoma bermaydi: birinchisi — moderatorning «bu voqea
+#: bo'lmagan» qarori, ikkinchisi esa foydalanuvchi uchun o'sha voqeaning
+#: o'zi, faqat boshqa `id` bilan (`05` §4.3).
+NOTIFIABLE_TOPICS: dict[str, str] = {
+    str(OutageStatus.CONFIRMED): outbox_events.TOPIC_CONFIRMED,
+    str(OutageStatus.RESOLVED): outbox_events.TOPIC_RESOLVED,
+}
+
+
+async def _publish(
+    session: AsyncSession,
+    outage_id: uuid.UUID,
+    *,
+    previous: str,
+    target: str,
+    now: datetime,
+) -> None:
+    """Status o'zgarishini outbox ga yozadi (`05` §2.4, E13).
+
+    Yozuv **shu tranzaksiyada** bo'ladi: hodisa va uni e'lon qilish niyati
+    birga commit bo'lsa, «status o'zgardi, lekin hech kim bilmadi» holati
+    umuman paydo bo'lmaydi. Telegramga chiqish esa `process_outbox` da,
+    ya'ni tashqi xizmatning sekinligi bot javobini kechiktirmaydi.
+
+    Bog'liqlik bir tomonlama: `app.clustering` → `app.notifications.outbox`.
+    Payload o'zini o'zi tushuntiradi, shuning uchun teskari import kerak
+    emas (`app/notifications/events.py` ga qarang).
+
+    **`pending → resolved` hodisa yozmaydi.** Yopilish haqidagi xabar faqat
+    e'lon qilingan uzilishga ma'noga ega: tasdiqlanmagan hodisa bo'yicha
+    hech kimga xabar ketmagan, ya'ni yopilishi ham hech kimga aytilmaydi.
+    Aks holda avtomatik yopilgan har bir yolg'iz xabar navbatga bo'sh
+    qator qo'shardi (`05` §4.4 bo'yicha ular ko'pchilikni tashkil qiladi).
+    """
+    topic = NOTIFIABLE_TOPICS.get(target)
+    if topic is None:
+        return
+    if topic == outbox_events.TOPIC_RESOLVED and previous != str(OutageStatus.CONFIRMED):
+        return
+    row = await repo.read_row(session, outage_id)
+    if row is None:  # pragma: no cover — endigina yangilangan qator
+        return
+    report_count = await reports_q.count_attached(session, outage_id, kind=KIND_OUTAGE)
+    event = outbox_events.OutageEvent(
+        outage_id=row.id,
+        region_id=row.region_id,
+        lat=row.lat,
+        lon=row.lon,
+        radius_m=row.radius_m,
+        status=row.status,
+        scale=row.scale,
+        confidence=row.confidence,
+        started_at=row.started_at,
+        changed_at=now,
+        report_count=report_count,
+    )
+    await outbox.publish(session, topic=topic, payload=event.as_payload())
 
 
 #: Moderator qo'li bilan qo'yiladigan statuslar (`05` §4.4 diagrammasi).

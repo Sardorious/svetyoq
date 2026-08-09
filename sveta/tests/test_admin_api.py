@@ -97,6 +97,25 @@ async def test_trust_score_is_validated_before_the_database(client, score) -> No
     assert response.status_code == 422
 
 
+async def test_digest_needs_a_token(client) -> None:
+    """Kunlik hisobot ham admin API — tokensiz `403` (`05` §8)."""
+    response = await client.get("/api/v1/admin/digest")
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("token", [VIEWER_TOKEN, MOD_TOKEN, ADMIN_TOKEN])
+async def test_digest_rejects_an_unfinished_day_for_every_role(client, token: str) -> None:
+    """Tugallanmagan kun `422` — tekshiruv bazaga bormasdan oldin bo'ladi.
+
+    Uchala rol ham hisobotni o'qiy oladi, ya'ni `422` (403 emas) javobning
+    o'zi ruxsat matritsasini ham tasdiqlaydi.
+    """
+    response = await client.get(
+        "/api/v1/admin/digest?date=2999-01-01", headers={"X-Admin-Token": token}
+    )
+    assert response.status_code == 422
+
+
 def test_no_schema_exposes_exact_location_or_telegram_id(app) -> None:
     """`05` §7.3 — `geom_exact` va `tg_id` hech qanday javobda chiqmaydi.
 

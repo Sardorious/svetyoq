@@ -40,14 +40,15 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.admin import audit  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.db.session import dispose_engine, session_scope  # noqa: E402
 from app.geo import osm, quality  # noqa: E402
-from app.geo.bbox import bbox_for  # noqa: E402
+from app.geo.models import Region  # noqa: E402
 
 EXIT_OK = 0
 EXIT_BLOCKED = 2
@@ -97,15 +98,27 @@ async def _load_payload(query: str, url: str, cache: Path | None) -> dict[str, A
     return payload
 
 
-def _resolve_bbox(args: argparse.Namespace) -> str:
+async def _resolve_bbox(args: argparse.Namespace) -> str:
+    """Overpass so'rovi uchun bbox: `--bbox` yoki `regions` qatoridan.
+
+    E19 gacha bbox koddagi lug'atdan olinardi (`REGION_BBOX`), ya'ni yangi
+    shahar importi deploy talab qilardi. Endi u mintaqa qatorida
+    (`0005` migratsiya) va u yerga `tools/region_admin.py add` yozadi —
+    import zanjiri kodga tegmasdan yakunlanadi.
+    """
     if args.bbox:
         return args.bbox
-    box = bbox_for(args.region)
+    async with session_scope() as session:
+        region = (
+            await session.execute(select(Region).where(Region.code == args.region))
+        ).scalar_one_or_none()
+    box = region.bbox if region is not None else None
     if box is None:
         raise SystemExit(
-            f"'{args.region}' uchun bbox e'lon qilinmagan. "
-            f"--bbox 'min_lat,min_lon,max_lat,max_lon' bering yoki "
-            f"app/geo/bbox.py dagi REGION_BBOX ga qo'shing."
+            f"'{args.region}' uchun bbox yo'q. "
+            f"--bbox 'min_lat,min_lon,max_lat,max_lon' bering yoki mintaqani "
+            f"`python -m tools.region_admin add --code {args.region} --bbox …` "
+            f"bilan yarating."
         )
     return box.as_overpass()
 
@@ -114,7 +127,7 @@ def _resolve_bbox(args: argparse.Namespace) -> str:
 
 
 async def cmd_survey(args: argparse.Namespace) -> int:
-    bbox = _resolve_bbox(args)
+    bbox = await _resolve_bbox(args)
     query = osm.survey_query(bbox)
     print(f"# bbox: {bbox}\n{query}")
     payload = await _load_payload(query, args.overpass_url, args.cache)
@@ -224,7 +237,7 @@ async def _run_quality(session, batch_id: uuid.UUID, rows: list[dict]) -> qualit
 
 
 async def cmd_stage(args: argparse.Namespace) -> int:
-    bbox = _resolve_bbox(args)
+    bbox = await _resolve_bbox(args)
     batch_id = uuid.uuid4()
 
     query = osm.fetch_query(bbox, args.admin_level)
@@ -314,6 +327,24 @@ async def cmd_promote(args: argparse.Namespace) -> int:
             text(quality.SQL_PROMOTE), {"region_id": region.id, "batch_id": args.batch}
         )
         await session.execute(text(quality.SQL_MARK_PROMOTED), {"batch_id": args.batch})
+        # BR-024: spravochnik ustidagi amal jurnalda qoladi. Bu quvurdagi
+        # **yagona qaytarib bo'lmaydigan** qadam — eski qatorlar `valid_to`
+        # bilan yopiladi, ya'ni `05` §5 versiyalash chizig'i shu yerda
+        # uziladi. `before`/`after` — partiya va qatorlar soni: chegara
+        # geometriyasining o'zi `districts` da tarixi bilan turadi
+        # (BR-002), jurnal esa «qachon, kim, qaysi partiya» ga javob
+        # beradi — aks holda yozuv butun spravochnik nusxasi bo'lardi.
+        await audit.record(
+            session,
+            actor=audit.cli_actor(),
+            action=audit.AuditAction.BOUNDARIES_PROMOTE,
+            object_id=region.id,
+            after={
+                "batch_id": str(args.batch),
+                "districts": len(rows),
+                "region_code": region.code,
+            },
+        )
 
     print(f"{len(rows)} ta tuman districts ga ko'chirildi. Eski qatorlar valid_to bilan yopildi.")
     return EXIT_OK

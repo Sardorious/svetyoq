@@ -6,9 +6,13 @@ Bu fayl har bir Cowork/Claude sessiyasi boshida o'qiladi.
 
 1. **`cowork_session/INDEX.md` ni o'qi.** «Qayerda to'xtadik» qatori — qayerdan
    davom etishni ko'rsatadi. Kerak bo'lsa oxirgi sessiya faylini ham och.
-2. **`sveta/PROGRESS.md` ni o'qi** — texnik holatning yagona manbai (joriy epic,
-   bloklar, ochiq savollar).
-3. Shundan keyingina yangi ishni boshla. Hech qachon nolldan taxmin qilma —
+2. **`sveta/EpicProgress.md` ni o'qi** — epiclar kesimi, ~15 KB, `Read` ga
+   sig'adi. «Qaysi epic qanday holatda, kodi qayerda, testi qaysi, nima
+   to'sqinlik qilyapti» — bir qarashda.
+3. **`sveta/PROGRESS.md` ni o'qi** — texnik holatning yagona manbai (joriy epic,
+   bloklar, ochiq savollar). U 300 KB dan katta va `Read` ga **sig'maydi** —
+   `Grep -o` bilan kichik oyna (`.{0,150}`) so'rab o'qi.
+4. Shundan keyingina yangi ishni boshla. Hech qachon nolldan taxmin qilma —
    avval qayerda to'xtaganini aniqla.
 
 ## 1. Har run OXIRIDA — majburiy
@@ -27,6 +31,26 @@ Bu fayl har bir Cowork/Claude sessiyasi boshida o'qiladi.
 4. **Sirlarni ko'chirma.** Token, kalit, parol chatda uchrasa — arxivga
    `<TOKEN>` deb yoz. Haqiqiy qiymat faqat `sveta/.env` da.
 5. `sveta/PROGRESS.md` ni yangila (holat jadvali, epic belgisi, run jurnali).
+6. **`sveta/EpicProgress.md` ni ham yangila** — tegilgan epicning «Runlar»
+   ustuni, yangi test fayli, o'zgargan blok. U `PROGRESS.md` ning **hosilasi**:
+   ziddiyat chiqsa `PROGRESS.md` haq. Qanday yangilash — o'sha faylning
+   §5 bo'limida.
+
+### ⛔ `mcp__cowork__allow_cowork_file_delete` NI CHAQIRMA
+
+U **odam tasdig'ini kutadi**, rejalashtirilgan runda esa odam yo'q —
+chaqiruv runni butunlay to'xtatadi. 30-sessiya aynan shunday yo'qoldi:
+u vaqtinchalik `tests/test_dbg_tmp.py` ni o'chirmoqchi bo'ldi va
+`PROGRESS.md` ham, `INDEX.md` ham yangilanmasdan qoldi — ikkita keyingi
+run `01` §16 ni «bajarilmagan» deb o'qidi va ish takrorlanishiga oz
+qoldi.
+
+Shuning uchun:
+
+- **vaqtinchalik fayl yaratma** (debug harness, scratch test, `tmp_*`);
+- yaratilib qolgan bo'lsa — mazmunini `Write`/`Edit` bilan olib tashla
+  (assert siz test fayli pytest ni ifloslantiradi) va o'chirishni
+  `PROGRESS.md` ning «Ochiq savollar» iga 👤 belgisi bilan yoz.
 
 ## 2. Loyihaning qolgan qoidalari
 
@@ -51,7 +75,9 @@ svetyoq/
 ├── CLAUDE.md              ← shu fayl
 ├── 01..06_*.md            ← BRD, PRD, Faza 0, roadmap, texnik dizayn, tasdiqlash
 ├── cowork_session/        ← sessiya arxivi (INDEX.md dan boshla)
-├── sveta/                 ← kod (PROGRESS.md — holat manbai)
+├── sveta/                 ← kod
+│   ├── PROGRESS.md        ← holatning yagona manbai (katta, Grep bilan o'qiladi)
+│   └── EpicProgress.md    ← epiclar kesimi, qisqa xarita (shundan boshlang)
 ├── setup-git.ps1
 ├── cleanup-sessions.ps1   ← C diskdagi sessiya papkalarini tozalash (odam ishga tushiradi)
 └── push.ps1 / push.bat

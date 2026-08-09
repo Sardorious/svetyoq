@@ -1,0 +1,123 @@
+/* Sveta.Net veb-xaritasi — minimal uslub (E9).
+   Ranglar `app.js` dagi qatlam ranglari bilan mos: qizil — tasdiqlangan,
+   sariq — tasdiqlanmoqda, ko'k — rasmiy e'lon. */
+
+:root {
+  --bg: #12151a;
+  --panel: rgba(20, 24, 31, 0.92);
+  --text: #e9edf2;
+  --muted: #9aa4b2;
+  --confirmed: #e2483d;
+  --pending: #e8a33d;
+  --official: #3d6fe2;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.topbar {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+}
+
+.topbar h1 { margin: 0; font-size: 17px; }
+.subtitle { margin: 4px 0 10px; color: var(--muted); font-size: 13px; }
+
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.controls select,
+.controls button {
+  background: #1e242e;
+  color: var(--text);
+  border: 1px solid #2c3440;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.controls button:hover { background: #27303c; }
+.updated { color: var(--muted); font-size: 12px; }
+
+.map { position: absolute; inset: 0; }
+
+.legend {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  bottom: 12px;
+  max-width: min(320px, calc(100% - 24px));
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.legend h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+.legend ul { margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+
+.dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.confirmed { background: var(--confirmed); }
+.dot.pending { background: var(--pending); }
+.dot.official { background: var(--official); }
+
+.note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+/* Yosh mintaqa pometasi (`01` FR-S-901): boshqa izohlardan ko'proq
+   ko'rinadi, chunki u raqamlarni umuman taqqoslash mumkinmi degan
+   savolga tegishli. */
+.note.warn { color: var(--text); font-weight: 600; }
+
+/* Zichlik qatlami (E16). Ranglar `web/app.js` dagi `HEAT_COLORS` bilan
+   bir xil — legenda xaritadan boshqa narsa ko'rsatmasligi kerak. */
+.toggle { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); }
+#heat-legend { margin-top: 14px; border-top: 1px solid #2a3340; padding-top: 10px; }
+.ramp { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.ramp i { flex: 1; }
+.ramp i:nth-child(1) { background: #f6e8c3; }
+.ramp i:nth-child(2) { background: #f2c66b; }
+.ramp i:nth-child(3) { background: #e8a33d; }
+.ramp i:nth-child(4) { background: #e2703d; }
+.ramp i:nth-child(5) { background: #c9302c; }
+.ramp-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.banner {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  max-width: min(520px, calc(100% - 24px));
+  text-align: center;
+}
+
+.popup { color: #12151a; font-size: 13px; }
+.popup div + div { margin-top: 3px; }
+
+@media (max-width: 640px) {
+  .legend { display: none; }
+}

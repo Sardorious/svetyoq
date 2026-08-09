@@ -25,15 +25,36 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import OutOfRegionError, ValidationError
-from app.geo.bbox import is_plausible, is_within_region
+from app.geo import registry
+from app.geo.bbox import BBox, contains, is_plausible
 from app.geo.h3_cells import cell_of
 from app.geo.jitter import public_point
 from app.geo.models import District, Mahalla, Region
+
+
+class RegionLike(Protocol):
+    """Quvur mintaqadan faqat shu uchtasini talab qiladi.
+
+    Shu sababli u ORM `Region` bilan ham, keshdagi `registry.RegionInfo`
+    bilan ham ishlaydi — chaqiruvchi qaysi biri qulay bo'lsa shuni beradi
+    (E19 da bot reyestrga o'tdi, testlar esa ORM qatorini beradi).
+    """
+
+    @property
+    def id(self) -> uuid.UUID: ...
+
+    @property
+    def code(self) -> str: ...
+
+    @property
+    def bbox(self) -> BBox | None: ...
 
 
 @dataclass(frozen=True)
@@ -86,6 +107,32 @@ async def require_region(session: AsyncSession, code: str) -> Region:
     return region
 
 
+async def region_for_point(
+    session: AsyncSession, lat: float, lon: float
+) -> registry.RegionInfo:
+    """Nuqtadan mintaqa (E19). Yozish oqimlarining yagona kirish nuqtasi.
+
+    Ikki xil xato ataylab ajratilgan:
+
+    * `regions` da umuman faol mintaqa yo'q → `RegionNotConfiguredError`
+      («tizim hali sozlanmagan» — bu **operator** xatosi);
+    * mintaqalar bor, lekin nuqta hech qaysisiga tushmadi →
+      `OutOfRegionError` («biz bu shaharda ishlamaymiz» — bu
+      **foydalanuvchi** uchun ma'no).
+
+    Bittasiga birlashtirish foydalanuvchiga o'zi tuzata olmaydigan narsa
+    haqida noto'g'ri xabar berardi.
+    """
+    if not is_plausible(lat, lon):
+        raise OutOfRegionError(region="")
+    found = await registry.for_point(session, lat, lon)
+    if found is not None:
+        return found
+    if not await registry.active_regions(session):
+        raise RegionNotConfiguredError(region=settings.default_region_code)
+    raise OutOfRegionError(region="")
+
+
 async def find_district_id(
     session: AsyncSession, region_id: uuid.UUID, lat: float, lon: float
 ) -> uuid.UUID | None:
@@ -120,22 +167,27 @@ async def find_mahalla_id(
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
-def validate_point(region_code: str, lat: float, lon: float) -> None:
-    """Quvurning birinchi qadami. Xato bo'lsa `OutOfRegionError`."""
-    if not is_plausible(lat, lon) or not is_within_region(region_code, lat, lon):
-        raise OutOfRegionError(region=region_code)
+def validate_point(region: RegionLike, lat: float, lon: float) -> None:
+    """Quvurning birinchi qadami. Xato bo'lsa `OutOfRegionError`.
+
+    E19 gacha bu funksiya mintaqa **kodini** olardi va bbox ni koddagi
+    lug'atdan qidirardi. Endi bbox mintaqa qatorining o'zida
+    (`0005` migratsiya), shuning uchun argument — mintaqa.
+    """
+    if not is_plausible(lat, lon) or not contains(region.bbox, lat, lon):
+        raise OutOfRegionError(region=region.code)
 
 
 async def resolve(
     session: AsyncSession,
     *,
     user_id: uuid.UUID | str | int,
-    region: Region,
+    region: RegionLike,
     lat: float,
     lon: float,
 ) -> GeoResolution:
     """Nuqtani hududga biriktiradi va ommaviy koordinatani hisoblaydi."""
-    validate_point(region.code, lat, lon)
+    validate_point(region, lat, lon)
 
     cell = cell_of(lat, lon)
     district_id = await find_district_id(session, region.id, lat, lon)

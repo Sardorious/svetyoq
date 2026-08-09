@@ -9,6 +9,8 @@ yozuvlardan yig'ilgan teskari indeks.
 
 from __future__ import annotations
 
+import uuid
+from collections.abc import Sequence
 from enum import StrEnum
 
 from aiogram.types import (
@@ -21,6 +23,14 @@ from aiogram.types import (
 from app.core.i18n import SUPPORTED_LANGUAGES, t
 
 LANGUAGE_CALLBACK_PREFIX = "lang"
+
+#: Obuna tugmalari (E13). `ReplyKeyboard` emas, `Inline`: bosilgan tugma
+#: aynan qaysi obunaga tegishli ekani `callback_data` da `uuid` bilan
+#: uzatiladi — yozuv matni bo'yicha tanib olish esa yorliqlar bir xil
+#: bo'lganda ishlamasdi.
+SUBSCRIPTION_CALLBACK_PREFIX = "sub"
+SUBSCRIPTION_ADD = "add"
+SUBSCRIPTION_DELETE = "del"
 
 
 class Action(StrEnum):
@@ -110,6 +120,57 @@ def language_choice() -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def subscriptions_menu(
+    items: Sequence[tuple[uuid.UUID, str]], lang: str | None = None
+) -> InlineKeyboardMarkup:
+    """Obunalar ro'yxati: har biriga o'chirish tugmasi + «qo'shish» (E13).
+
+    Har bir obuna alohida qatorda — yorliqlar uzun bo'lishi mumkin va
+    yonma-yon joylashganda Telegram ularni kesib qo'yardi.
+    """
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=t("bot.subscriptions.remove", lang, label=label),
+                callback_data=(
+                    f"{SUBSCRIPTION_CALLBACK_PREFIX}:{SUBSCRIPTION_DELETE}:{item_id}"
+                ),
+            )
+        ]
+        for item_id, label in items
+    ]
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t("bot.subscriptions.add", lang),
+                callback_data=f"{SUBSCRIPTION_CALLBACK_PREFIX}:{SUBSCRIPTION_ADD}",
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def subscription_from_callback(data: str | None) -> tuple[str, uuid.UUID | None] | None:
+    """`sub:add` → `("add", None)`, `sub:del:<uuid>` → `("del", uuid)`.
+
+    Yaroqsiz yoki begona format — `None`: `callback_data` foydalanuvchi
+    qurilmasidan keladi, ya'ni unga ishonib bo'lmaydi.
+    """
+    if not data:
+        return None
+    parts = data.split(":")
+    if parts[0] != SUBSCRIPTION_CALLBACK_PREFIX or len(parts) < 2:
+        return None
+    if parts[1] == SUBSCRIPTION_ADD and len(parts) == 2:
+        return SUBSCRIPTION_ADD, None
+    if parts[1] == SUBSCRIPTION_DELETE and len(parts) == 3:
+        try:
+            return SUBSCRIPTION_DELETE, uuid.UUID(parts[2])
+        except ValueError:
+            return None
+    return None
 
 
 def language_from_callback(data: str | None) -> str | None:

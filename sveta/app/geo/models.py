@@ -18,7 +18,9 @@ from geoalchemy2 import Geography, Geometry
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -35,6 +37,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
+from app.geo.bbox import BBox, make_bbox
 
 # Spatial indekslar aniq e'lon qilinadi (GeoAlchemy2 avtomatik yaratmasin) —
 # shunda migratsiya va model bir xil nomlarni ishlatadi.
@@ -43,7 +46,31 @@ _MULTIPOLYGON = Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=
 
 
 class Region(UUIDPrimaryKeyMixin, Base):
+    """Mintaqa (`05` §2.1) + E19 da qo'shilgan bbox.
+
+    bbox ustunlari `05` §2.1 DDL sida yo'q. Ular E19 uchun qo'shildi:
+    chiqish mezoni «ikkinchi mintaqa **kodsiz** ishga tushadi», bbox esa
+    shu paytgacha `app/geo/bbox.py` dagi lug'atda edi. Batafsil sabab —
+    `0005_region_bbox.py` migratsiyasida.
+    """
+
     __tablename__ = "regions"
+    __table_args__ = (
+        # «Hammasi yoki hech biri» — yarim to'ldirilgan bbox jim yolg'on
+        # bo'lardi. Matn migratsiyadagi bilan bir xil.
+        CheckConstraint(
+            "(bbox_min_lat IS NULL AND bbox_min_lon IS NULL"
+            " AND bbox_max_lat IS NULL AND bbox_max_lon IS NULL)"
+            " OR (bbox_min_lat IS NOT NULL AND bbox_min_lon IS NOT NULL"
+            " AND bbox_max_lat IS NOT NULL AND bbox_max_lon IS NOT NULL"
+            " AND bbox_min_lat < bbox_max_lat AND bbox_min_lon < bbox_max_lon"
+            " AND bbox_min_lat >= -90 AND bbox_max_lat <= 90"
+            " AND bbox_min_lon >= -180 AND bbox_max_lon <= 180)",
+            # Yakuniy nom — `ck_regions_bbox_complete` (konvensiya prefiks
+            # qo'shadi); migratsiyadagi nom bilan aynan bir xil bo'lishi kerak.
+            name="bbox_complete",
+        ),
+    )
 
     code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     name_uz: Mapped[str] = mapped_column(Text, nullable=False)
@@ -51,6 +78,17 @@ class Region(UUIDPrimaryKeyMixin, Base):
     default_language: Mapped[str] = mapped_column(Text, nullable=False, server_default="uz")
     center = mapped_column(_POINT, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    bbox_min_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bbox_min_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bbox_max_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bbox_max_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    @property
+    def bbox(self) -> BBox | None:
+        """bbox to'liq to'ldirilgan bo'lsa `BBox`, aks holda `None`."""
+        return make_bbox(
+            self.bbox_min_lat, self.bbox_min_lon, self.bbox_max_lat, self.bbox_max_lon
+        )
 
 
 class District(UUIDPrimaryKeyMixin, Base):
@@ -88,7 +126,19 @@ class Mahalla(UUIDPrimaryKeyMixin, Base):
     """E17 gacha bo'sh qoladi, lekin sxema boshidan mavjud (`05` §2.1)."""
 
     __tablename__ = "mahallas"
-    __table_args__ = (Index("ix_mahallas_geom", "geom", postgresql_using="gist"),)
+    __table_args__ = (
+        Index("ix_mahallas_geom", "geom", postgresql_using="gist"),
+        # `01` NFR-S-02 — mintaqa filtri indeks darajasida. `mahallas` da
+        # `region_id` ustuni yo'q (`05` §2.1), ya'ni `GET /geo/mahallas`
+        # mintaqani faqat `district_id → districts.region_id` zanjiri
+        # bilan ajratadi. Indekssiz bu zanjir E17 dan keyin har so'rovda
+        # **barcha** mintaqalarning mahallalarini o'qib tashlardi —
+        # `0008` tuzatgan defektning aynan o'zi, faqat birlashma orqali.
+        # Qisman emas (`districts` dagi `WHERE valid_to IS NULL` dan
+        # farqli): `?at=` bilan tarixiy kesim ham so'raladi va qisman
+        # indeks unga tusha olmasdi.
+        Index("ix_mahallas_district_id", "district_id"),
+    )
 
     district_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("districts.id"), nullable=False

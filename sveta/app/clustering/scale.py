@@ -36,11 +36,40 @@ MIN_CELLS_FOR_MAHALLA = 3
 #: `06` §5.3 — tuman darajasi uchun minimal ta'sirlangan mahallalar soni.
 MIN_MAHALLAS_FOR_DISTRICT = 2
 
-#: `06` §3 — `territory_stats.data_quality` qiymatlari.
+#: `06` §3 — `territory_stats.data_quality` qiymatlari. Ro'yxat **yopiq**:
+#: §3.2 jadvali uchala qiymat uchun xatti-harakatni belgilaydi va to'rtinchisi
+#: uchun hech narsa demaydi. Tartib ham §3.2 dagidek — sifat pasayishi bo'yicha.
 QUALITY_MEASURED = "measured"
 QUALITY_ESTIMATED = "estimated"
 QUALITY_UNKNOWN = "unknown"
 DATA_QUALITIES: tuple[str, ...] = (QUALITY_MEASURED, QUALITY_ESTIMATED, QUALITY_UNKNOWN)
+
+#: §3.2 da adaptiv formulani qo'llashga ruxsat beruvchi qiymatlar. `unknown`
+#: qatori «masshtab da'vo qilinmaydi» deydi, qolgan ikkitasi formulani (bittasi
+#: pasaytirish bilan) ishlatadi.
+USABLE_QUALITIES: tuple[str, ...] = (QUALITY_MEASURED, QUALITY_ESTIMATED)
+
+
+def is_usable_quality(value: str) -> bool:
+    """Sifat qiymati adaptiv formulaga ruxsat beradimi (`06` §3.2).
+
+    **Nima uchun `!= 'unknown'` emas.** Ro'yxatdan tashqari qiymat — masalan
+    sxemaga qo'lda yozilgan `'partial'` — inkor bilan tekshirilganda
+    `measured` bo'lib o'tardi, ya'ni uchta qatorning **eng ruxsat beruvchisi**
+    ni olardi: chegara to'liq formuladan hisoblanardi, pasaytirish
+    qo'llanilmasdi va §5.4 to'sig'i ham ishlamasdi. `data_quality` da
+    `CHECK` yo'q (`0003`), demak bunday qiymat fizik jihatdan mumkin.
+
+    Modulning o'z qoidasi teskarisini talab qiladi: «noaniqlik har doim
+    pastga qarab hal qilinadi» (`coverage_cap` izohi). `app.stats.coverage`
+    xuddi shu §3.2 jadvalini allaqachon shu tomonga yopiq yozgan
+    (`not in (MEASURED, ESTIMATED)`), ya'ni ikkita modul bitta jadvalni
+    **qarama-qarshi** talqin qilardi. Bu yerdagi tomon xavfliroq edi —
+    aynan u «tuman miqyosida uzilish» bildirishnomasini boshlaydi.
+
+    Hujjatdagi uchala qiymat uchun natija o'zgarmagan.
+    """
+    return value in USABLE_QUALITIES
 
 
 def rank(scale: Scale) -> int:
@@ -68,7 +97,7 @@ class TerritoryFacts:
             self.households is not None
             and self.households > 0
             and self.populated_cells > 0
-            and self.data_quality != QUALITY_UNKNOWN
+            and is_usable_quality(self.data_quality)
         )
 
     def coverage_ratio(self, cells_with_reports: int) -> float:
@@ -178,11 +207,12 @@ def coverage_cap(
     Ma'lumot umuman yo'q bo'lsa (`None`) — bu `unknown` bilan bir xil holat,
     ya'ni ham `local`. Kraudsorsing tizimining eng jiddiy xatosi — kam
     ma'lumotdan katta xulosa chiqarish, shuning uchun noaniqlik har doim
-    pastga qarab hal qilinadi.
+    pastga qarab hal qilinadi. Shu sabab ro'yxatdan tashqari qiymat ham
+    shu yerga tushadi (`is_usable_quality`), `measured` ga emas.
     """
-    if district is None or district.data_quality == QUALITY_UNKNOWN:
+    if district is None or not is_usable_quality(district.data_quality):
         return Scale.LOCAL, "district_stats_unknown"
-    if mahalla is None or mahalla.data_quality == QUALITY_UNKNOWN:
+    if mahalla is None or not is_usable_quality(mahalla.data_quality):
         return Scale.LOCAL, "mahalla_stats_unknown"
     if district.active_users_30d < params.min_active_district:
         return Scale.LOCAL, "low_district_coverage"

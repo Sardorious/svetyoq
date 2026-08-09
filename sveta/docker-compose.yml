@@ -42,7 +42,12 @@ services:
         condition: service_completed_successfully
 
   # Fon vazifalari — bir xil kod bazasi, alohida konteyner (05 §1).
-  # E5 dan keyin yoqiladi.
+  # `evaluate_outages` (E5), `build_map_snapshot` (E9), `process_outbox` (E13),
+  # `refresh_coverage` (E14).
+  # Usiz xarita bo'sh qoladi, bildirishnomalar umuman yuborilmaydi VA
+  # `territory_stats` to'lmaydi (Coverage Index doim `unknown` bo'ladi),
+  # shuning uchun prodda bu xizmat doim ishlashi kerak — `profiles: ["jobs"]`
+  # ni olib tashlash odam qaroriga qoldirilgan (PROGRESS.md «Ochiq savollar»).
   jobs:
     build: .
     env_file: .env

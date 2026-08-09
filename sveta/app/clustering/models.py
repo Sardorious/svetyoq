@@ -1,7 +1,11 @@
-"""Hodisa (outage) modeli (`05` §2.3).
+"""Hodisa (outage) va xarita snapshoti modellari (`05` §2.3, §7.1).
 
 Status mashinasi `05` §4.4 da, tasdiqlash va masshtab logikasi `06` da.
 E2 da faqat sxema yaratiladi — o'tishlar E5 va E5b da yoziladi.
+
+`map_snapshot` (`05` §7.1) — `outages` ning ommaviy ko'rinishdagi keshi.
+U shu modulda yashaydi, chunki uni to'ldiradigan yagona manba `outages`;
+`api/` esa router qatlami bo'lib, `05` §1 da jadval egasi emas.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,6 +60,21 @@ class Outage(UUIDPrimaryKeyMixin, Base):
             "status",
             "region_id",
             postgresql_where=text("status IN ('pending','confirmed')"),
+        ),
+        # `01` NFR-S-02. Yuqoridagi indeks **qisman** va faqat ochiq
+        # hodisalarni qamraydi; davr kesimidagi so'rovlar (`/stats`,
+        # `daily_digest`, `recluster` barmoq izi) yopilganlarni ham
+        # o'qiydi va unga umuman tusha olmaydi.
+        Index("ix_outages_region_id_started_at", "region_id", text("started_at DESC")),
+        # `05` §10 metrikalari: `count_confirmed_ever` va
+        # `confirm_latency_by_region` har scrape da bajariladi va
+        # `started_at` tartibi ularning oynasini kesmaydi. Qisman shart
+        # indeksni tasdiqlangan hodisalar bilan cheklaydi.
+        Index(
+            "ix_outages_region_id_confirmed_at",
+            "region_id",
+            "confirmed_at",
+            postgresql_where=text("confirmed_at IS NOT NULL"),
         ),
     )
 
@@ -104,3 +124,24 @@ class Outage(UUIDPrimaryKeyMixin, Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class MapSnapshot(Base):
+    """Ochiq hodisalarning oldindan yig'ilgan GeoJSON kesimi (`05` §7.1).
+
+    Bitta mintaqa — bitta qator. Og'ir fazoviy so'rov tashrifchi soniga
+    bog'liq emas: uni `build_map_snapshot` fon vazifasi 60 soniyada bir marta
+    bajaradi, `GET /api/v1/map` esa faqat shu qatorni o'qiydi.
+
+    `etag` payload dan hisoblanadi (mazmun o'zgarmasa — o'zgarmaydi), shuning
+    uchun `If-None-Match` bilan kelgan mijoz `304` oladi va trafik ketmaydi.
+    """
+
+    __tablename__ = "map_snapshot"
+
+    region_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("regions.id"), primary_key=True
+    )
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    etag: Mapped[str] = mapped_column(Text, nullable=False)
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

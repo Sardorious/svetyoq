@@ -27,7 +27,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from app.reports.sources import SOURCES
+from app.reports.sources import DEFAULT_SOURCE_CODE, SOURCES
 
 revision: str = "0003"
 down_revision: str | None = "0002"
@@ -98,7 +98,12 @@ def upgrade() -> None:
     # --- `06` §10 — `reports` ---
     op.add_column(
         "reports",
-        sa.Column("source_code", sa.Text(), server_default="bot", nullable=False),
+        # Zaxira kod `app.reports.sources` da: `get_source` noma'lum kodni
+        # o'shanga tushiradi, ustunning `server_default` i esa eski xabarlarga
+        # o'shani beradi. Literal yozilsa ikkalasi jimgina ajralib ketardi.
+        sa.Column(
+            "source_code", sa.Text(), server_default=DEFAULT_SOURCE_CODE, nullable=False
+        ),
     )
     op.create_foreign_key(
         "fk_reports_source_code_report_sources",

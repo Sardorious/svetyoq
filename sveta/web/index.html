@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sveta.Net</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!--
+    Sahifada foydalanuvchiga ko'rinadigan qattiq kodlangan matn YO'Q
+    (`04` §6 — u bloklovchi defekt). Barcha satrlar `data-i18n` kaliti
+    orqali `GET /api/v1/map/i18n` dan keladi, ya'ni yagona manba baribir
+    `app/core/i18n/locales/{uz,ru}.json`.
+  -->
+  <header class="topbar">
+    <h1 data-i18n="map.title"></h1>
+    <p class="subtitle" data-i18n="map.subtitle"></p>
+    <div class="controls">
+      <select id="lang" aria-label="uz / ru">
+        <option value="uz">UZ</option>
+        <option value="ru">RU</option>
+      </select>
+      <!--
+        Mintaqalar ro'yxati `GET /api/v1/map/config` dan keladi (E19) —
+        sahifaga qattiq yozilmaydi, aks holda har yangi shahar frontend
+        deployini talab qilardi. Bitta mintaqa bo'lsa tanlagich yashiriladi.
+      -->
+      <select id="region" hidden></select>
+      <button id="reload" data-i18n="map.reload"></button>
+      <label class="toggle">
+        <input type="checkbox" id="heat" />
+        <span data-i18n="heatmap.toggle"></span>
+      </label>
+      <span id="updated" class="updated"></span>
+    </div>
+  </header>
+
+  <div id="map" class="map"></div>
+
+  <aside class="legend">
+    <h2 data-i18n="map.legend.title"></h2>
+    <ul>
+      <li><i class="dot confirmed"></i><span data-i18n="map.legend.confirmed"></span></li>
+      <li><i class="dot pending"></i><span data-i18n="map.legend.pending"></span></li>
+      <li><i class="dot official"></i><span data-i18n="map.legend.official"></span></li>
+    </ul>
+    <p class="note" data-i18n="map.privacy"></p>
+    <p class="note" data-i18n="app.disclaimer"></p>
+
+    <!-- Zichlik qatlami (E16) yoqilganda ko'rinadi. -->
+    <div id="heat-legend" hidden>
+      <h2 data-i18n="heatmap.legend.title"></h2>
+      <div class="ramp"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="ramp-labels">
+        <span data-i18n="heatmap.legend.low"></span>
+        <span data-i18n="heatmap.legend.high"></span>
+      </div>
+      <p class="note" data-i18n="heatmap.disclaimer.density"></p>
+      <!--
+        Qamrov indeksi (`03` §R1.2, `01` PG-S4): zichlik qatlami —
+        statistika vitrinasi, ya'ni u indekssiz ko'rsatilmaydi. Matn
+        serverdan kelgan `coverage.message_key` bo'yicha to'ldiriladi.
+      -->
+      <p class="note" id="heat-coverage" hidden>
+        <b data-i18n="stats.coverage.title"></b>: <span id="heat-coverage-text"></span>
+      </p>
+      <!--
+        Ma'lumot chuqurligi (`01` FR-S-901, §23). Qamrovdan alohida
+        qator: indeks hududni, bu esa kuzatuvning yoshini o'lchaydi.
+        Faqat mintaqa yosh bo'lganda ko'rinadi — doimiy pometani hech
+        kim o'qimay qo'yardi.
+      -->
+      <p class="note warn" id="heat-maturity" hidden>
+        <b data-i18n="stats.maturity.title"></b>: <span id="heat-maturity-text"></span>
+      </p>
+    </div>
+  </aside>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
