@@ -37,8 +37,10 @@ Test bazasiz.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import inspect
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -63,6 +65,10 @@ JOBS_DIR = SVETA_ROOT / "app" / "jobs"
 #: `app/jobs/` dagi vazifa **bo'lmagan** modullar. Qo'lda va sabab bilan:
 #: `runner` — planlovchining o'zi, `__init__` — bo'sh paket fayli.
 NOT_A_JOB = frozenset({"__init__", "runner"})
+
+#: Skript rejimini takrorlash uchun — `python -m app.jobs.runner` shu faylni
+#: `__main__` nomi bilan yuklaydi.
+RUNNER_PATH = JOBS_DIR / "runner.py"
 
 #: `05` §8 ning «Chastota» ustunidagi so'zlar. Noma'lum so'z — testning
 #: yiqilishi, jimgina o'tkazib yuborish emas: yangi chastota yozilsa uni
@@ -229,6 +235,88 @@ def test_the_implemented_table_matches_the_design_doc() -> None:
     ikkala test ham yashil qolardi.
     """
     assert _spec_jobs() == IMPLEMENTED
+
+
+# --------------------------------------------------------------------------
+# Skript sifatida ishga tushirish (`python -m app.jobs.runner`)
+# --------------------------------------------------------------------------
+#
+# 56-sessiya, prodda topilgan defekt. `sveta-jobs` konteyneri qayta-qayta
+# ko'tarilib turardi va jurnalda faqat bitta satr bor edi:
+#
+#   {"logger": "__main__", "msg": "jobs.empty",
+#    "note": "vazifalar ro'yxatga olinmagan"}
+#
+# Yuqoridagi o'n yetti test yashil edi va bittasi ham buni ko'rmasdi, chunki
+# ular `runner` ni **import qilingan modul** sifatida ishlatadi. Prodda esa
+# u **skript** sifatida yuriladi va bu boshqa hodisa.
+
+
+def test_the_module_is_loaded_twice_when_it_runs_as_a_script() -> None:
+    """`python -m app.jobs.runner` `JOBS` ning IKKITA nusxasini yaratadi.
+
+    Bu Pythonning xatti-atvori, defekt emas: `-m` fayl ni `__main__` nomi
+    bilan yuklaydi, vazifa modullari esa `from app.jobs.runner import JOBS`
+    deb yozgan — interpretator o'sha faylni ikkinchi marta, endi
+    `app.jobs.runner` nomi bilan yuklaydi. Ikki nusxaning `JOBS` i — ikki
+    xil ro'yxat.
+
+    Shu test mexanizmni **qayd etadi**: keyingi tuzatish uni buzmasdan
+    turib to'g'ri ishlashi kerak.
+    """
+    spec = importlib.util.spec_from_file_location("_runner_as_script", RUNNER_PATH)
+    assert spec is not None and spec.loader is not None
+    copy = importlib.util.module_from_spec(spec)
+    sys.modules["_runner_as_script"] = copy
+    try:
+        spec.loader.exec_module(copy)
+        assert copy.JOBS is not runner.JOBS, (
+            "nusxalar bir xil ro'yxatni ulashyapti — bu test endi hech narsani "
+            "o'lchamaydi, quyidagisini ham qayta ko'ring"
+        )
+        runner.JOBS.clear()
+        copy.register_jobs()
+        # `register()` lar KANONIK modulga qo'shadi, nusxaga emas.
+        assert copy.JOBS == []
+        assert len(runner.JOBS) == len(IMPLEMENTED)
+    finally:
+        sys.modules.pop("_runner_as_script", None)
+        _registered()
+
+
+def test_the_script_entrypoint_runs_the_canonical_main(monkeypatch) -> None:
+    """`if __name__ == "__main__"` bloki KANONIK moduldan `main` ni oladi.
+
+    Aynan shu qator prodda oltita vazifani o'chirib qo'ygan edi: blok
+    `asyncio.run(main())` deb yozilgan va u `__main__` nusxasining
+    `main` ini chaqirardi — o'sha nusxaning `JOBS` i esa doim bo'sh,
+    ya'ni `jobs.empty` → funksiya darhol qaytadi → konteyner o'chadi →
+    `restart: unless-stopped` uni qayta ko'taradi.
+
+    Nosozlik **jim** edi ikki tomondan: xato chiqmaydi (`jobs.empty` —
+    `INFO`), va chiqish kodi `0` (`main()` normal qaytadi), ya'ni
+    `docker compose ps` da ham «yiqildi» deb ko'rinmaydi.
+
+    Fayl `__name__ == "__main__"` bilan ijro etiladi. Tuzatish o'z o'rnida
+    bo'lsa — `runner.main` ning o'rniga qo'yilgan soxta funksiya chaqiriladi.
+    Regressiya bo'lsa — `__main__` nusxasining haqiqiy `main` i yuriladi,
+    `JOBS` i bo'sh bo'lgani uchun darhol qaytadi (ya'ni test osilib
+    qolmaydi) va `called` bo'sh qoladi.
+    """
+    called: list[str] = []
+
+    async def fake_main() -> None:
+        called.append("canonical")
+
+    monkeypatch.setattr(runner, "main", fake_main)
+    namespace = {"__name__": "__main__", "__file__": str(RUNNER_PATH)}
+    exec(compile(RUNNER_PATH.read_text(encoding="utf-8"), str(RUNNER_PATH), "exec"), namespace)
+
+    assert called == ["canonical"], (
+        "`__main__` bloki modul ichidagi `main` ni chaqirdi — skript rejimida "
+        "u bo'sh `JOBS` ni ko'radi va bironta vazifa ishlamaydi"
+    )
+    _registered()
 
 
 def test_the_scan_is_measuring_something() -> None:

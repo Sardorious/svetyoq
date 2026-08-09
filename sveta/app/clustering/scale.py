@@ -19,6 +19,11 @@ from enum import StrEnum
 
 from app.clustering.formulas import adaptive_threshold
 from app.clustering.params import GuardParams, ScaleParams
+from app.clustering.status import OutageStatus
+
+#: `06` §8 — masshtab pasayishiga ruxsat etilgan yagona status. Status
+#: mashinasidan olinadi, satr sifatida qo'lda yozilmaydi.
+PENDING_STATUS = str(OutageStatus.PENDING)
 
 
 class Scale(StrEnum):
@@ -263,13 +268,20 @@ def decide(
 
 
 def apply_deescalation(*, current: Scale, proposed: Scale, status: str) -> Scale:
-    """`06` §8 — tasdiqlangan hodisaning masshtabi pasaytirilmaydi.
+    """`06` §8 — masshtab pasayishi **faqat `pending`** da ruxsat etiladi.
 
     Sabab: foydalanuvchiga «tuman miqyosida uzilish» bildirishnomasi
     yuborilgan bo'lsa, uni keyin «aslida bitta ko'cha edi» ga o'zgartirish
     ishonchni yo'qotadi. Xato bo'lsa — moderator qo'lda `rejected` qiladi va
     bu auditda qoladi (E8).
+
+    **Nima uchun `!= "confirmed"` emas.** Qoida inkor bilan yozilganda
+    `resolved`/`rejected`/`merged` ham pasayishga ruxsat olardi. Hozir bu
+    yo'l `evaluate` ning `is_open` qo'riqchisi tufayli chaqirilmaydi, ya'ni
+    xato ko'rinmasdi; qo'riqchi olib tashlansa esa yopilgan hodisaning
+    masshtabi jimgina kichrayardi. Tanimagan status ham pasaytirmaydi.
+    O'sish har qanday statusda o'tadi — §8 faqat pasayish haqida.
     """
-    if status == "confirmed" and rank(proposed) < rank(current):
+    if status != PENDING_STATUS and rank(proposed) < rank(current):
         return current
     return proposed

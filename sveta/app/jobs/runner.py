@@ -89,5 +89,22 @@ async def main() -> None:
     await asyncio.gather(*(_run_job(job) for job in JOBS))
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == "__main__":  # pragma: no cover — kirish nuqtasi
+    # `main()` ni TO'G'RIDAN-TO'G'RI chaqirmang. `python -m app.jobs.runner`
+    # bu faylni **`__main__`** nomi bilan yuklaydi; vazifa modullari esa
+    # `from app.jobs.runner import JOBS, Job` deb yozgan, ya'ni interpretator
+    # o'sha faylni **ikkinchi marta**, `app.jobs.runner` nomi bilan yuklaydi.
+    # Ikki nusxaning `JOBS` i — ikki xil ro'yxat: `register()` lar
+    # `app.jobs.runner.JOBS` ga qo'shadi, `__main__` niki esa bo'sh qoladi.
+    #
+    # Natijasi prodda ko'rindi (56-run, `sveta-jobs` konteyneri):
+    # `jobs.empty` → `main()` darhol qaytadi → konteyner o'chadi →
+    # `restart: unless-stopped` uni qayta ko'taradi va tsikl aylanaveradi.
+    # Oltita vazifaning HECH BIRI ishlamaydi: xarita bo'sh, bildirishnoma
+    # yuborilmaydi, `territory_stats` to'lmaydi va `geom_exact` tozalanmaydi.
+    #
+    # Shuning uchun kanonik moduldan import qilinadi — u vazifa modullari
+    # to'ldirgan o'sha nusxa.
+    from app.jobs.runner import main as _main
+
+    asyncio.run(_main())
