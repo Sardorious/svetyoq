@@ -128,6 +128,22 @@ hodisaning `app/` da haqiqatan chaqirilishini talab qiladi.
 
 ## Odam qaroriga bog'liq bloklar (👤)
 
+> **⚠️ 2026-08-09, 55-run — `push.ps1` da poyga (race).** Odam `push.ps1` ni
+> agent hali fayllarni yozayotgan paytda ishga tushirdi: skript 16:21 da
+> commit yaratdi (`23783c9`, 225 fayl), 16:23 da rebase ga o'tdi va agentning
+> yangi tahrirlari tufayli `cannot rebase: You have unstaged changes` bilan
+> to'xtadi. **Rebase boshlanmagan** (`.git/rebase-merge` yo'q), shuning uchun
+> `git rebase --continue` / `--abort` **kerak emas** — skriptning
+> «TO'QNASHUV» xabari chalg'ituvchi. Commit joyida, hech narsa yo'qolmagan
+> (`main` `origin/main` dan **1 ta oldinda**). Ortda `.git/index.lock`
+> (0 bayt) qolgan va uni sandboxdan o'chirib bo'lmaydi.
+> **Yechim:** `Remove-Item .git\index.lock -Force` → `.\push.ps1` (qayta).
+> **👤 Ikkita tuzatish nomzodi:** (1) `push.ps1` commit bilan rebase orasida
+> daraxt o'zgarganini tekshirsin yoki `git stash` qilsin; (2) xato matni
+> rebase haqiqatan boshlanganini (`.git/rebase-merge` bor-yo'qligini)
+> tekshirib yozsin — hozir u boshlanmagan rebase uchun ham «to'xtadi» deydi
+> va odamni mavjud bo'lmagan to'qnashuvni hal qilishga yo'naltiradi.
+
 | Blok | Kerak | Holat |
 |---|---|---|
 | INFRA-1 | Sandbox `useradd failed: No space left on device` | ⛔ **Qayta ochildi va endi eng qimmat blok. 2026-08-09 (52-run) holatiga — yigirma uchta ketma-ket run** (30–52) yiqildi va 36–52 runlarning ~290 ta testi hech qachon ishga tushirilmagan. Sandbox tiklangandagi **birinchi ish — butun `pytest` va `ruff check`, yangi kod emas.** 41-run holati (o'n ikkita run) (§19, 29–41) kodni `ruff` va `pytest` siz qoldirdi; 36–41 runlarning ~66 ta testi hech qachon ishga tushirilmagan. 41-run uch urinishdan keyin to'xtadi va butun ishni faqat fayl asboblari bilan bajardi. 2026-08-07 da (22-run) yopilgan edi, lekin 29-, 32-, 33-, 34-, 35- va 36-runlarda qaytaldi — **yettita ketma-ket run** kodni `ruff` va `pytest` siz qoldirdi. **Narxi ikki xil o'lchandi:** 35-run yozgan kod mavjud testni (`test_actions_follow_the_object_dot_verb_convention`) buzardi va buni faqat qo'lda o'qish ushladi — sandbox ishlaganda u darhol qizarardi. **36-run esa teskari tomonni ko'rsatdi:** o'sha running defekti (`cmd_update` audit qatorisiz commit qilardi) sandbox ishlaganda ham **topilmasdi**, chunki uni ushlaydigan test hali yozilmagan edi — ya'ni sandbox yozilgan testni ishga tushiradi, yozilmaganini emas. Bugungi holat ikkalasining eng yomoni: 36-run 15 ta yangi bazali test yozdi va **birortasi ham hech qachon ishga tushirilmadi**. 👤 `cleanup-sessions.ps1` ni ishga tushiring (C diskdagi sessiya papkalari) |

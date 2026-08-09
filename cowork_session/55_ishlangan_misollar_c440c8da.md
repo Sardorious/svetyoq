@@ -187,30 +187,85 @@ shu bilan birga ikkala chegarani ham (`floor = 3`, `ceil = 8`) ko'radi.
 
 ---
 
-## 7. Sandbox — INFRA-1, 26-marta
+## 7. Sandbox — INFRA-1 yopildi
 
-`mcp__workspace__bash` uch marta bir xil xato bilan yiqildi:
+Run boshida `mcp__workspace__bash` uch marta bir xil xato bilan yiqildi
+(`useradd: No space left on device`) va ko'rsatma bo'yicha to'xtatildi, ya'ni
+butun ish qo'lda tekshirildi. **Run oxirida sandbox ko'tarildi.**
+
+Holat: disk hamon **100% band** (9.6 G dan 96 MB bo'sh), tizim Python i —
+**3.10**, `pytest` va `ruff` o'rnatilmagan. Loyiha 3.11+ talab qiladi
+(`StrEnum`), o'rnatishga esa joy yo'q. Yechim: **oldingi sessiyadan qolgan
+`/tmp/venv9`** — Python 3.11.15, ichida `pytest`, `ruff`, `fastapi`,
+`alembic`, `uvicorn`. `pip` yo'q, lekin kerak ham bo'lmadi.
 
 ```
-useradd failed: exit status 1: useradd: /etc/passwd.NNNNN: No space left on device
+/tmp/venv9/bin/ruff check .          → All checks passed!
+/tmp/venv9/bin/python -m pytest -q -m "not requires_db"
+                                     → 1296 passed, 1 skipped, 212 deselected
 ```
 
-Uchinchi urinishdan keyin to'xtatildi (ko'rsatma bo'yicha). Demak:
+**36–55 runlarning testlari birinchi marta ishladi.** Shu running yangi
+fayli ham yashil (28 ta funksiya, 39 ta ishga tushish — bashorat qilingan
+son bilan aynan).
 
-* yangi fayl **ishga tushirilmagan** — barcha tasdiqlar qo'lda, hujjat va
-  kodni yonma-yon o'qib bajarildi (`N_req` ustunining yettala qatori,
-  `confidence = 87` ning ikkala hisobi, `freshness` pog'onalari, regexlarning
-  har bir qatorga mosligi shu tarzda tekshirildi);
-* 36–55 runlarning ~375 ta testi hech qachon ishlamagan.
+### 7.1 Topilgan yagona yiqilish — 54-ning TEST xatosi
 
-👤 **Odamga:** `cleanup-sessions.ps1` — sandboxning sababi ehtimol C
-diskdagi sessiya papkalari.
+`test_confidence_contract.py::test_low_coverage_caps_confidence_at_the_documented_percent`:
+
+```
+assert 97 <= 50
+ +  where 97 = confidence(w=999.0, n_req=3, a_local=19, last_report_age_min=0)
+```
+
+**Sabab.** `coverage_factor = clamp(0.5, sqrt(A/20), 1.0)` ning **poli faqat
+`A_local ≤ 5` da bog'lanadi** (`sqrt(5/20) = 0.5`); `sqrt(19/20) = 0.97`.
+Ya'ni §6 ning «hech qachon 50% dan oshmaydi» va'dasi butun «past qamrov» ga
+emas, polning **bog'langan oralig'iga** tegishli.
+
+`19` 54-da yonidagi `test_coverage_factor_never_falls_below_the_documented_floor`
+ro'yxatidan ko'chirilgan — u yerda da'vo boshqacha (`coverage_factor(19) =
+0.97 >= 0.5` ✓) va shuning uchun zararsiz edi.
+
+**Tuzatish.** Kod **o'zgartirilmadi** — `06` §6 ga ko'ra `sqrt(19/20)` to'g'ri
+qiymat. Chegara endi hujjatdan ham, qo'ldan ham emas, **ikkita doimiydan
+hisoblanadi**: `COVERAGE_DIVISOR × COVERAGE_FACTOR_MIN² = 5`. Yangi
+`test_the_coverage_floor_binds_only_below_the_computed_point` chegarani
+ikki tomondan qulflaydi (`cf(5) == 0.5`, `cf(6) > 0.5`).
+
+**Saboq.** Ro'yxatni bir testdan ikkinchisiga ko'chirganda **da'vo o'zgaradi**:
+«pol ushlanadi» bilan «natija 50 dan oshmaydi» bir xil kirishlarga tegishli
+emas. 53-ning sabog'ining («bir bo'limning qoidasini ikkinchisiga
+ko'chirmang») test darajasidagi ko'rinishi.
+
+## 7.2. 👤 so'rovi — `EpicProgress.md`
+
+Run o'rtasida odam so'radi: *«PROGRESS.md juda katta bo'lib ketgan. Epic
+progress.md ham qil»*. Aniqlashtirildi: **PROGRESS.md qisqartirilmaydi**,
+yoniga parallel fayl quriladi, epic bo'yicha kesim bitta faylda.
+
+Yaratildi: `sveta/EpicProgress.md` (~15 KB, `Read` ga sig'adi) — beshta
+bo'lim: (1) 21 ta epic + 4 ta epicdan tashqari blok jadvali (holat, kod,
+runlar, ✅ uchun nima kerak), (2) testlar epiclar bo'yicha, (3) kontrakt
+qatlami (40–55 runlar, hujjat bo'limi → test fayli → run), (4) nima
+to'sqinlik qilyapti (👤 ishi va infratuzilma alohida), (5) faylni qanday
+yangilash.
+
+`CLAUDE.md` ga yozildi: run **boshida** EpicProgress.md dan boshlanadi
+(PROGRESS.md `Read` ga sig'maydi — `Grep -o` kerak), run **oxirida** u ham
+yangilanadi. Fayl **hosila**: ziddiyat chiqsa `PROGRESS.md` haq.
 
 ---
 
 ## 8. Keyingi run uchun
 
-**Birinchi ish — butun `pytest` va `ruff check sveta`, yangi kod emas.**
+**Sandbox ishlayapti.** `pytest`/`ruff` uchun **`/tmp/venv9/bin/python`** dan
+foydalaning — tizim Python i 3.10, loyiha 3.11+ talab qiladi va venv da `pip`
+yo'q. Yana yiqilsa 👤 ga `cleanup-sessions.ps1` ni eslating.
+
+⏳ **212 ta `requires_db` testi hamon ishlamagan** — sandboxda
+Postgres/PostGIS yo'q. Ular faqat CI da yuriladi, CI esa hali hech qachon
+yurmagan: **55 run push qilinmagan holda turibdi** (👤 `.\push.ps1`).
 
 **Yopilgan nomzodlar, qayta ochilmasin:** `06` §7 ishlangan misollar (55),
 §6 `confidence` (54), §4.1–4.3 chegara (53), §5.1–5.4 narvon (52),
