@@ -11,23 +11,61 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+
+#: `conftest.py` `APP_ENV` ni shu qiymatga qo'yadi (`os.environ.setdefault`).
+#: Nom shu yerda konstanta: `get_engine()` va uni qulflaydigan test bir xil
+#: satrni ishlatsin, aks holda ular jimgina ajralib ketardi.
+TEST_ENV = "test"
 
 _engine: AsyncEngine | None = None
 _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
 
 def get_engine() -> AsyncEngine:
+    """Global engine — protsess davomida bitta.
+
+    ## Nima uchun testda pool O'CHIRILADI
+
+    56-runda CI birinchi marta yurganda `requires_db` ning **hammasi**
+    yiqildi, bittasi ham o'z sababi bilan emas:
+
+        RuntimeError: Task … got Future … attached to a different loop
+
+    Sabab shu global keshning `pytest-asyncio` bilan uchrashuvi.
+    `_engine` birinchi testda yaratiladi va pool o'sha testning event
+    loop ida ochilgan `asyncpg` ulanishlarini saqlab qoladi. Keyingi test
+    esa **yangi loop** da yuriladi (`asyncio_mode = "auto"` da har test
+    o'z loopini oladi), pooldan qaytgan ulanish esa eskisiga bog'langan —
+    va uni ishlatishga birinchi urinishda shu xato chiqadi.
+
+    Nosozlik faqat CI da ko'rindi va buning sababi ham bor: sandboxda
+    PostGIS yo'q, `conftest._db_reachable()` esa `requires_db` ni
+    o'tkazib yuboradi. Ya'ni 212 ta test yozildi, lekin ular birinchi
+    marta faqat CI da uchrashdi.
+
+    `NullPool` — SQLAlchemy hujjatining aynan shu holat uchun tavsiyasi:
+    ulanish saqlanmaydi, har `connect()` **joriy** loopda yangisini
+    ochadi. Prodda pool o'z holicha qoladi (`db_pool_size`), chunki u
+    yerda loop bitta va pool aynan kerak.
+
+    ⚠️ `pool_size` ni `NullPool` bilan birga berib bo'lmaydi —
+    `create_engine()` `Invalid argument(s) 'pool_size'` deb yiqiladi.
+    """
     global _engine
     if _engine is None:
-        _engine = create_async_engine(
-            settings.database_url,
-            echo=settings.db_echo,
-            pool_size=settings.db_pool_size,
-            pool_pre_ping=True,
-            future=True,
-        )
+        options: dict[str, object] = {
+            "echo": settings.db_echo,
+            "pool_pre_ping": True,
+            "future": True,
+        }
+        if settings.app_env == TEST_ENV:
+            options["poolclass"] = NullPool
+        else:
+            options["pool_size"] = settings.db_pool_size
+        _engine = create_async_engine(settings.database_url, **options)
     return _engine
 
 

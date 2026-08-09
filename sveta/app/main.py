@@ -26,7 +26,7 @@ log = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    setup_logging(settings.log_level)
+    setup_logging(settings.log_level, db_echo=settings.db_echo)
     log.info(
         "app.startup",
         extra={

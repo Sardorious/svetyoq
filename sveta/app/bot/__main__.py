@@ -14,7 +14,7 @@ from app.core.logging import setup_logging
 
 
 def main() -> None:
-    setup_logging(settings.log_level)
+    setup_logging(settings.log_level, db_echo=settings.db_echo)
     asyncio.run(run_polling())
 
 

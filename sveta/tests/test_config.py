@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from sqlalchemy.pool import NullPool
+
 from app.core.config import Settings, settings
+from app.db.session import TEST_ENV, get_engine
 
 
 def test_baseline_clustering_parameters() -> None:
@@ -107,3 +110,45 @@ def test_region_cache_ttl_is_bounded() -> None:
     nima noto'g'ri ketganini tushunmasdi.
     """
     assert 0 < settings.region_cache_ttl_s <= 3600
+
+
+# --------------------------------------------------------------------------
+# Test muhitidagi engine (56-run, CI da topildi)
+# --------------------------------------------------------------------------
+
+
+def test_the_test_environment_is_actually_active() -> None:
+    """`conftest.py` `APP_ENV` ni o'rnatishi — quyidagi testning sharti.
+
+    U `os.environ.setdefault` bilan, ya'ni tashqaridan boshqa qiymat
+    berilgan bo'lsa saqlanadi. O'sha holda pastdagi qulf jimgina
+    ma'nosini yo'qotardi: engine prod sozlamalari bilan yasalardi va
+    `requires_db` yana «attached to a different loop» bilan yiqilardi.
+    """
+    assert settings.app_env == TEST_ENV
+
+
+def test_the_test_engine_does_not_pool_connections() -> None:
+    """Testda pool o'chiq bo'lishi shart — sabab `app/db/session.py` da.
+
+    Qisqasi: `_engine` global va protsess davomida bitta, `pytest-asyncio`
+    esa har testga **yangi event loop** beradi. Poolda saqlangan `asyncpg`
+    ulanishi birinchi testning loopiga bog'langan bo'ladi va ikkinchi
+    testda `RuntimeError: … attached to a different loop` beradi.
+
+    56-runda CI birinchi marta yurganda aynan shu 98 ta xato va 26 ta
+    yiqilish bergan edi — hammasi bitta sababdan. Sandboxda ko'rinmaydi:
+    PostGIS yo'q, `requires_db` o'tkazib yuboriladi.
+    """
+    assert isinstance(get_engine().pool, NullPool)
+
+
+def test_the_pool_size_setting_still_exists_for_production() -> None:
+    """`db_pool_size` o'chib ketmasin.
+
+    Testda u **berilmaydi** (`NullPool` bilan birga `pool_size` ni uzatish
+    `create_engine()` ni yiqitadi), ya'ni bironta test uni endi o'qimaydi
+    va sozlama jimgina o'lik qolishi mumkin edi. `05` §4.2 uni talab
+    qiladi, prod shoxi esa aynan shu qiymatni beradi.
+    """
+    assert settings.db_pool_size > 0

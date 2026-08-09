@@ -80,7 +80,7 @@ async def _run_job(job: Job) -> None:
 
 
 async def main() -> None:
-    setup_logging(settings.log_level)
+    setup_logging(settings.log_level, db_echo=settings.db_echo)
     register_jobs()
     if not JOBS:
         log.info("jobs.empty", extra={"note": "vazifalar ro'yxatga olinmagan"})

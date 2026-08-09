@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-09, 57-run.
+**Oxirgi yangilanish:** 2026-08-09, 58-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -22,7 +22,7 @@ faqat havola qilinadi.
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | CI **va haqiqiy Telegram runi** |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | 02, 28, 41, 42 | — |
 | E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11, 57 | CI yashil |
-| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–57** | CI yashil |
+| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58** | CI yashil |
 | E6 | Retrospektiv qayta hisob | 🔄 | `tools/recluster.py` | 11 | CI yashil |
 | E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py` | 11 | CI yashil |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | CI + `DIGEST_CHAT_IDS` (E8-b) |
@@ -44,7 +44,7 @@ faqat havola qilinadi.
 | Blok | Holat | Kod | Runlar |
 |---|---|---|---|
 | TEST — sun'iy uzilish generatori (`05` §9.1) | 🔄 | `tools/simulate.py` | 20, 46 |
-| OBS — kuzatuvchanlik (`05` §10) | 🔄 | `app/obs/` | 21, 24, 47 |
+| OBS — kuzatuvchanlik (`05` §10) | 🔄 | `app/obs/`, `app/core/logging.py` | 21, 24, 47, **56** |
 | ANL — analitika hodisalari (`01` §21) | 🔄 | `app/analytics/` | 29 |
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` | 45, 49, **56** |
 
@@ -52,8 +52,8 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **104 ta test fayli**; oxirgi yurish (57-run):
-`pytest -m "not requires_db"` → **1345 passed, 1 skipped**; **212 ta
+Jami **106 ta test fayli**; oxirgi yurish (58-run):
+`pytest -m "not requires_db"` → **1375 passed, 1 skipped**; **212 ta
 `requires_db`** testi (27 faylda) sandboxda ishlamaydi — ular
 Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri birinchi marta
@@ -69,7 +69,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry`, `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db` |
-| E5b | `test_confirmation`, `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract` |
+| E5b | `test_confirmation`, `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
 | E6 | `test_recluster`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
@@ -79,7 +79,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E19 | `test_region_registry`, `test_regions_api_db` |
-| TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_analytics`, `test_analytics_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf) |
+| TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_analytics`, `test_analytics_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf), `test_logging_setup` |
 
 ---
 
@@ -108,6 +108,7 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `06` §7 ishlangan misollar | `test_worked_examples_contract.py` | 55 |
 | `06` §10 sxema o'zgarishlari (DDL ↔ model ↔ `0003`) | `test_schema_changes_contract.py` | 56 |
 | `06` §8 qayta baholash va deeskalatsiya | `test_deescalation_contract.py` | 57 |
+| `06` §12 ssenariylarning **mazmuni** (46 — nomlari) | `test_golden_scenarios_content.py` | 58 |
 
 **Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning §2, §5, §6.1, §7.2, §8, §9.3, §10 bo'limlari ham.
@@ -120,9 +121,15 @@ inkor bilan yozgani — 57) va 55-run 54-ning bitta test xatosini tuzatdi.
 `Fake*` ↔ haqiqiy tip (38), API `commit` (39), `02` Faza 0 (34), javob
 maydonlari (`test_openapi_contract.py` ularni qulflaydi).
 
-**Ochiq qolgani:** `06` §11 (34-run qisman yopgan), `06` §12 (46-run faqat
-nomlarni bog'lagan, mazmunini emas). `05` tomonida §3.1 (jitter) va
-§4.4/§4.5 (status mashinasi diagrammasi) hali o'z kontrakt fayliga ega emas.
+**Ochiq qolgani:** `06` §11 (34-run qisman yopgan). `05` tomonida §3.1
+(jitter) va §4.4/§4.5 (status mashinasi diagrammasi) hali o'z kontrakt
+fayliga ega emas.
+
+**`06` §12 — yopildi (58).** 46-run raqamlarni test **nomlariga** bog'lagan,
+58-run esa har qatordan sonni, kod nomini va kutilgan natijani parse qilib
+ular bilan haqiqiy kodni yurgizadi. Ikkala fayl bir-birini almashtirmaydi:
+46 — «ssenariyning testi bormi», 58 — «ssenariy hujjat yozganidek
+bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 
 ---
 
@@ -132,7 +139,7 @@ nomlarni bog'lagan, mazmunini emas). `05` tomonida §3.1 (jitter) va
 
 | Nima | Kimni bloklaydi |
 |---|---|
-| `.\push.ps1` — **55 run push qilinmagan** | hammasi (CI umuman yurmagan) |
+| `.\push.ps1` — **56-running 3- va 4-tuzatishi commit qilinmagan** (58-run tekshirdi: `git status -sb` → `main...origin/main`, ya'ni repo origin bilan **teng**; `HEAD` = `c184648`, 08-09 18:06, JOBS fiksi). ⚠️ «55 run push qilinmagan» degan eski qator **noto'g'ri edi** | prod: SQL jurnali (quyida), CI: `NullPool` tuzatishi |
 | Telegram bot tokeni va haqiqiy run | E3, E13 |
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh) |
 | Rasmiy manba (H-4) kelishuvi | E18 |
@@ -145,6 +152,12 @@ nomlarni bog'lagan, mazmunini emas). `05` tomonida §3.1 (jitter) va
 
 - **CI hech qachon yurmagan** — hamma 🔄 epicning ✅ ga o'tishi shunga
   bog'liq. 212 ta `requires_db` testi faqat CI da yuriladi.
+- **CI (56-run) — birinchi marta yurdi.** `not requires_db` qismi yashil,
+  `requires_db` ning hammasi yiqildi: global engine + har testga yangi event
+  loop → `attached to a different loop`. Test muhitida engine endi `NullPool`
+  bilan. 👤 CI ni qayta yurgizing — 212 ta bazali test birinchi marta
+  haqiqatan tekshiriladi.
+
 - **INFRA-1 (sandbox).** Ikki uzun uzilish bo'ldi: 5–21 runlar (Avgust 6–7)
   va 30–55 runlar (Avgust 8–9, **26 ta ketma-ket**). Sabab —
   `useradd: No space left on device`. 55-run oxirida ko'tarildi va butun
@@ -170,6 +183,23 @@ nomlarni bog'lagan, mazmunini emas). `05` tomonida §3.1 (jitter) va
   niki bo'sh qoladi. `runner.py` ning kirish nuqtasi tuzatildi, ikkita qulf
   qo'shildi. Ta'siri: xarita bo'sh, bildirishnoma yo'q, `territory_stats`
   bo'sh, `geom_exact` tozalanmagan. 👤 image **qayta yig'ilishi** shart.
+  (3) **SQL jurnali standart holatda yoqiq edi** — `echo=False` SQLAlchemy
+  loggeriga daraja qo'ymaydi, ildizning `INFO` i yetarli. `INSERT` parametrlari
+  bilan `geom_exact` koordinatalari konteyner jurnaliga tushardi. `setup_logging`
+  endi `DB_ECHO` ni hisobga oladi; `tests/test_logging_setup.py` — 8 ta qulf.
+  **⚠️ 58-run: prodda hali tuzalmagan.** Odam 2026-08-09 13:40 (UTC) jurnalini
+  ko'rsatdi — `sqlalchemy.engine.Engine` har 5 soniyada `BEGIN`/`SELECT … FOR
+  UPDATE SKIP LOCKED`/`COMMIT` yozmoqda. Uch tekshiruv sababni aniq ko'rsatdi:
+  serverda `DB_ECHO=false`, `LOG_LEVEL=INFO`; konteynerda
+  `grep -c engine_floor /app/app/core/logging.py` → **0**; va
+  `git show HEAD:sveta/app/core/logging.py | grep -c engine_floor` → **0**.
+  Ya'ni image `c184648` dan yig'ilgan (`runner.py` fiksi **bor**, logging fiksi
+  **yo'q** — u o'sha commitdan keyin yozilgan va hali commit qilinmagan).
+  👤 Tartib **muhim**: avval `.\push.ps1`, keyin serverda `git pull`, keyin
+  `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`. Faqat
+  `build` yordam bermaydi — kod serverga hali yetib bormagan. Uchala servis
+  ham kerak: `setup_logging(..., db_echo=...)` uchta kirish nuqtasida
+  (`app/main.py`, `app/bot/__main__.py`, `app/jobs/runner.py`).
 
 ---
 
