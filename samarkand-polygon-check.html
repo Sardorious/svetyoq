@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Самарканд — проверка полигона</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root{
+    --paper:#EDE8DE; --ink:#101418; --line:#B9B0A0;
+    --poly:#8A2E3B;   /* предложенный полигон */
+    --bbox:#B4530A;   /* прежний bbox */
+    --ok:#1B6B5A;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--paper);color:var(--ink);
+    font-family:ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column}
+  header{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+  .sub{margin:5px 0 0;font-size:12px;line-height:1.5;color:#4A5158}
+  #map{flex:1;min-height:330px;background:#DCD6CA}
+  .panel{border-top:1px solid var(--line);padding:12px 16px 18px;font-size:12px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;margin:0 0 10px}
+  th,td{text-align:left;padding:4px 6px 4px 0;border-bottom:1px solid #D6CFC2;vertical-align:top}
+  th{font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#4A5158}
+  .num{text-align:right;white-space:nowrap}
+  .bar{height:9px;margin-top:4px;display:flex;border:1px solid var(--line);background:#E3DDD1}
+  .bar span{display:block;height:100%}
+  .note{color:#4A5158}
+  .vtx{font-weight:700}
+  .leaflet-container{font-family:inherit}
+  .leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.5}
+  .toggle{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+  .toggle button{
+    font:inherit;font-size:11px;padding:5px 9px;border:1px solid var(--line);
+    background:transparent;color:var(--ink);border-radius:2px;cursor:pointer}
+  .toggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .toggle button:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Полигон «Samarkand» — что он покрывает</h1>
+  <p class="sub">Семь вершин, координаты округлены до 0,01°. Каждая вершина показана точкой — между ними граница идёт по прямой.</p>
+</header>
+
+<div id="map"></div>
+
+<div class="panel">
+  <div class="toggle">
+    <button id="b-poly" aria-pressed="true">Полигон 156 км²</button>
+    <button id="b-bbox" aria-pressed="true">BBOX 210 км²</button>
+    <button id="b-vtx" aria-pressed="true">Вершины</button>
+  </div>
+
+  <table>
+    <tr><th>Контур</th><th class="num">Площадь</th><th class="num">К факту</th></tr>
+    <tr><td>Город (офиц.)</td><td class="num">120 км²</td><td class="num">—</td></tr>
+    <tr><td style="color:var(--poly)">Полигон, 7 вершин</td><td class="num">≈156 км²</td><td class="num">+30 %</td></tr>
+    <tr><td style="color:var(--bbox)">BBOX</td><td class="num">≈210 км²</td><td class="num">+75 %</td></tr>
+  </table>
+
+  <div class="note">Доля лишней площади</div>
+  <div class="bar" title="120 км² города против 156 км² полигона">
+    <span style="width:77%;background:#1B6B5A"></span><span style="width:23%;background:#8A2E3B"></span>
+  </div>
+  <p class="note" style="margin:6px 0 0">
+    Тёмно-зелёное — город, бордовое — 36 км² пригорода и полей, которые полигон запишет в городскую черту.
+    Шаг координатной сетки 0,01° ≈ 1,1 км: граница не различает соседние махалли.
+  </p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+  const POLY = [
+    [39.70,66.90],[39.72,66.95],[39.68,67.02],[39.63,67.05],
+    [39.58,67.00],[39.59,66.92],[39.64,66.87]
+  ];
+  const BBOX = [[39.5950,66.8800],[39.7250,67.0500]];
+
+  const map = L.map('map', { center:[39.6547,66.9597], zoom:11, scrollWheelZoom:false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom:19, attribution:'&copy; OpenStreetMap' }).addTo(map);
+
+  const bboxLayer = L.rectangle(BBOX, {
+    color:'#B4530A', weight:2, dashArray:'7 5', fill:false
+  }).bindPopup('<b>BBOX</b> ≈210 км²<br>Тег: [ОЦЕНКА]');
+
+  const polyLayer = L.polygon(POLY, {
+    color:'#8A2E3B', weight:2.5, fillColor:'#8A2E3B', fillOpacity:0.14
+  }).bindPopup('<b>Предложенный полигон</b><br>7 вершин · ≈156 км²<br>Заявлен как административная граница — не является ею.');
+
+  const vtxLayer = L.layerGroup(
+    POLY.map((p,i) => L.circleMarker(p, {
+      radius:5, color:'#8A2E3B', weight:2, fillColor:'#EDE8DE', fillOpacity:1
+    }).bindPopup('Вершина ' + (i+1) + '<br>' + p[1].toFixed(2) + ', ' + p[0].toFixed(2) +
+                 '<br>Точность 0,01° ≈ ±1,1 км'))
+  );
+
+  bboxLayer.addTo(map); polyLayer.addTo(map); vtxLayer.addTo(map);
+  map.fitBounds(BBOX, { padding:[22,22] });
+  map.on('click', () => map.scrollWheelZoom.enable());
+
+  const wire = (id, layer) => {
+    const b = document.getElementById(id);
+    b.addEventListener('click', () => {
+      const on = b.getAttribute('aria-pressed') === 'true';
+      b.setAttribute('aria-pressed', String(!on));
+      on ? map.removeLayer(layer) : map.addLayer(layer);
+    });
+  };
+  wire('b-poly', polyLayer); wire('b-bbox', bboxLayer); wire('b-vtx', vtxLayer);
+</script>
+</body>
+</html>

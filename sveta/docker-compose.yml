@@ -12,10 +12,19 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sveta} -d ${POSTGRES_DB:-sveta}"]
+      # `-h 127.0.0.1` MAJBURIY — usiz birinchi ishga tushirish poygaga tushadi.
+      # Postgres entrypoint i `initdb` va PostGIS init skriptlarini server
+      # **faqat unix soketda** turgan holda bajaradi (`listen_addresses=''`).
+      # Soket orqali `pg_isready` o'sha paytdayoq «accepting connections»
+      # deydi → compose konteynerni `healthy` deb belgilaydi → `migrate`
+      # ishga tushadi va **TCP** ga ulanib `Connection refused` oladi.
+      # 56-runda serverda aynan shu yuz berdi (yangi volume, DB 10.1 s da
+      # «healthy», `migrate` 12.5 s da yiqildi).
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-sveta} -d ${POSTGRES_DB:-sveta}"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 30s
 
   migrate:
     build: .

@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-09, 55-run.
+**Oxirgi yangilanish:** 2026-08-09, 56-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -22,7 +22,7 @@ faqat havola qilinadi.
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | CI **va haqiqiy Telegram runi** |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | 02, 28, 41, 42 | — |
 | E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11 | CI yashil |
-| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–55** | CI yashil |
+| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–56** | CI yashil |
 | E6 | Retrospektiv qayta hisob | 🔄 | `tools/recluster.py` | 11 | CI yashil |
 | E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py` | 11 | CI yashil |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | CI + `DIGEST_CHAT_IDS` (E8-b) |
@@ -52,9 +52,11 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **102 ta test fayli**; `pytest -m "not requires_db"` → **1296 passed,
-1 skipped**; **212 ta `requires_db`** testi (27 faylda) sandboxda ishlamaydi —
-ular Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
+Jami **103 ta test fayli**; oxirgi yurish (56-run):
+`pytest -m "not requires_db"` → **1325 passed, 1 skipped**; **212 ta
+`requires_db`** testi (27 faylda) sandboxda ishlamaydi — ular
+Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
+⚠️ `ruff check` 56-runda ishga tushmadi — diskda joy qolmadi.
 
 | Epic | Test fayllari |
 |---|---|
@@ -63,7 +65,7 @@ ular Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
 | E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry`, `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db` |
-| E5b | `test_confirmation`, `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract` |
+| E5b | `test_confirmation`, `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract` |
 | E6 | `test_recluster`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
@@ -100,8 +102,9 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `06` §4 tasdiqlash chegarasi | `test_confirmation_threshold_contract.py` | 53 |
 | `06` §6 `confidence` | `test_confidence_contract.py` | 54 |
 | `06` §7 ishlangan misollar | `test_worked_examples_contract.py` | 55 |
+| `06` §10 sxema o'zgarishlari (DDL ↔ model ↔ `0003`) | `test_schema_changes_contract.py` | 56 |
 
-**Natijasi.** `06` ning §10–§12 dan boshqa **butun hujjati** kod bilan
+**Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning §2, §5, §6.1, §7.2, §8, §9.3, §10 bo'limlari ham.
 Yo'l-yo'lakay uchta haqiqiy defekt topildi (`data_quality` ni ikki modul
 qarama-qarshi talqin qilardi — 51; `NOTIFICATION_STATUSES` da `closed`
@@ -112,9 +115,10 @@ xatosini tuzatdi.
 `Fake*` ↔ haqiqiy tip (38), API `commit` (39), `02` Faza 0 (34), javob
 maydonlari (`test_openapi_contract.py` ularni qulflaydi).
 
-**Ochiq qolgani:** `06` §10 (`reports.weight` ni qotirish yo'li
-o'lchanmagan), `06` §11 (34-run qisman yopgan), `06` §12 (46-run faqat
-nomlarni bog'lagan, mazmunini emas).
+**Ochiq qolgani:** `06` §11 (34-run qisman yopgan), `06` §12 (46-run faqat
+nomlarni bog'lagan, mazmunini emas). `06` §8 nasr — deeskalatsiya taqiqi
+`test_scale.py` va `test_confidence_contract.py` orqali qisman tegilgan,
+lekin §8 jadvalining o'zi hech qayerdan o'qilmaydi.
 
 ---
 
@@ -140,8 +144,17 @@ nomlarni bog'lagan, mazmunini emas).
 - **INFRA-1 (sandbox).** Ikki uzun uzilish bo'ldi: 5–21 runlar (Avgust 6–7)
   va 30–55 runlar (Avgust 8–9, **26 ta ketma-ket**). Sabab —
   `useradd: No space left on device`. 55-run oxirida ko'tarildi va butun
-  to'plam **birinchi marta** ishga tushdi. Disk hamon 100% (96 MB bo'sh);
-  👤 `cleanup-sessions.ps1` ni vaqti-vaqti bilan yurgizing.
+  to'plam **birinchi marta** ishga tushdi. **56-run:** disk yana 100%, lekin
+  yo'l topildi — `pip install --target /tmp/<nom>` (uy katalogida kvota bor,
+  `/tmp` da yo'q) + Python 3.10 uchun `sitecustomize.py` da `enum.StrEnum` va
+  `datetime.UTC` shimi. Shu bilan **1325 passed**; `ruff` uchun joy qolmadi.
+  👤 `cleanup-sessions.ps1` ni **har run oldidan** yurgizing.
+
+- **Deploy (56-run).** Serverda `docker compose up` birinchi marta
+  `sveta-migrate` bilan yiqiladi: postgres init paytida `pg_isready` unix
+  soket orqali «healthy» deydi, `migrate` esa TCP ga ulanadi. `sveta/docker-compose.yml`
+  tuzatildi (`pg_isready -h 127.0.0.1`, `start_period: 30s`); 👤 serverdagi
+  `~/deploy/docker-compose.yml` **alohida nusxa** — unga qo'lda ko'chiring.
 
 ---
 
