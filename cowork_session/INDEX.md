@@ -12,79 +12,74 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-> ✅ **76-sessiya: REL — `01` §28 «Dependencies» birinchi marta kodda.**
-> 75-run uchta nomzod qoldirgan edi; §28 tanlandi, chunki uning uchinchi
-> ustuni (`Блокирует`) `01` dagi jadvallar orasida **eng kuchli da'vo**
-> qiladi: mitigatsiya yoki holat emas, **to'siq**. To'siq esa yolg'onga
-> chiqarilishi mumkin bo'lgan yagona da'vo turi.
-> **Asosiy qaror — bitta ustun to'rt xil narsaga ishora qiladi.**
-> Bosqich/reliz (4 qator), funksional talab (`FR-804`), ochiq savol
-> (`OQ-01`) va mahsulot sirti («Официальный слой карты»). Farq bezak
-> emas: repo faqat oxirgisiga to'liq guvoh bo'la oladi; bosqich odam
-> qadami va uning kodda holati **bo'lishi ham shart emas** (67-ning
-> `EXTERNAL` sabog'i); talab va ochiq savol esa **manzil** bo'lishi
-> kerak edi. Tasnif bahodan emas, hujjatdan chiqariladi.
-> **Ikkita meros havola manzilsiz.** `FR-804` butun `01` da **faqat shu
-> jadvalda** uchraydi — §8 talablari `FR-S-` prefiksi bilan, `FR-S-804`
-> esa H3-agregatsiya, ya'ni prefiksni qo'shish qatorni tuzatmaydi.
-> `OQ-01` uch marta havola qilinadi va **birorta hujjatda
-> ta'riflanmaydi** (`01`, `02`, `05`, `06`, BRD). Naqsh qarorning
-> asosi: prefikssiz `FR-` §28 dan **tashqarida** har uchala marta
-> «наследует» belgisi bilan yoziladi; §28 — yagona joy, u belgisiz.
-> Shundan yangi `Hold.VOID`: u «to'siq yo'q» ham, «to'siq bor» ham
-> demaydi — **da'voning manzili yo'q**, ya'ni qator har qanday holatda
-> bajarilgandek ko'rinadi.
-> **Eng jim topilma — eng kuchli qator to'smaydi.** `DP-1`: poligonlar
-> «весь региональный запуск» ni to'sadi deb yozilgan. Amalda ishga
-> tushirishning **yagona** qorovuli `region_admin._set_active` va u
-> `bbox` ni so'raydi — to'rtta `float`, `update --bbox` bilan qo'lda
-> yoziladi, poligon talab qilmaydi. Keyin ham to'siq yo'q:
-> `find_district_id` `None` qaytaradi, `reports.district_id` `NULL`
-> bo'la oladi (`region_id` esa `NOT NULL` — bu juftlik `DP-1` va
-> `DP-6` orasidagi butun farq), issiqlik xaritasi H3 da ishlaydi.
-> Haqiqatan to'xtaydigani — statistika vitrinasi
-> (`aggregate.MAX_UNASSIGNED_RATIO`), ya'ni **bitta sirt** →
-> `Hold.LEAKY`. Tuzatilmadi ataylab: `FR-S-802` degradatsiyani AC
-> darajasida talab qiladi, noto'g'ri narsa — jadvalning **so'zi**.
-> **Yagona haqiqiy to'siq — `DP-4` (1055).** Rasmiy qatlam mexanizmi
-> to'liq bor, lekin `app/` da rasmiy kod bilan xabar yaratadigan
-> birorta chaqiruv yo'q. Test satr emas, **chaqiruvning `source_code=`
-> argumentini** qidiradi (`"official"` `LAYER_OFFICIAL` sifatida ham
-> uchraydi).
-> **Teskari yo'nalish — ikkita bog'liqlik reyestrda yo'q:** Telegram
-> Bot API (xabar qabul qilishning yagona yo'li; jadvaldagi yagona
-> «сервис» qatori esa mahsulotda umuman ishlatilmaydigan geokoder) va
-> OSM/ODbL (poligonlarning haqiqiy manbai va **bajarilayotgan** huquqiy
-> shart; jadvaldagi yagona «правовая» qatori esa mahsulotda **yo'q**
-> hujjat haqida).
-> **Hisob:** `Supply` — `MET` 1, `PARTIAL` 1, `UNMET` 4, `MOOT` 1;
-> `Hold` — `ENFORCED` 2, `LEAKY` 1, `VOID` 2, `UNSTATED` 2 →
-> `accurate` `False`. Hech narsa tuzatilmadi **ataylab**.
-> **17 mutatsiya, 1 survivor topildi va tuzatildi:** `accurate` dan
-> `undeclared` shartini olib tashlash hech narsani yiqitmasdi — qolgan
-> ikkitasi baribir buzilgan, ya'ni ro'yxatlarning bo'sh emasligini
-> tekshirish har shartning **hissasini** o'lchamaydi; endi har shart
-> uchun faqat o'sha buzilgan hisobot quriladi. `DP-4` ni `MET` qilish
-> testgacha yetmaydi — reyestrning o'z `_check_registry()` i import
-> paytida yiqiladi.
-> Yon ta'sir: 69- va 73-runlarning geokoder tripwirelari yangi
-> reyestrni ko'rdi — ro'yxatlar yangilandi (75 bilan bir xil naqsh).
-> **2079 passed** (+43), `requires_db` 231 (o'zgarmadi), migratsiyasiz,
-> ruff yashil.
-> 👤 **To'rtta savol:** `FR-804` qatori olib tashlanadimi/belgilanadimi;
-> `OQ-*` ro'yxati qayerda; §28 ning birinchi qatori toraytiriladimi;
-> Telegram va OSM/ODbL qatorlari qo'shiladimi.
-> **Keyingi nomzodlar:** `01` §25 «Release Plan» (R0 ning sharti
-> «Полигоны валидны» — `DP-1` bilan **ikkinchi marta** aytiladi va
-> `03` §6 gate lari bilan bog'lanmagan), `GET /api/v1/admin/monitoring`
-> (endi **o'n bitta** reyestr vitrinasiz), yoki `01` §29/§30 (hech
-> qachon o'qilmagan).
+> ✅ **77-sessiya: REL — `01` §25 «Release Plan» birinchi marta kodda.**
+> 76-run uchta nomzod qoldirgan edi; §25 tanlandi, chunki u repoda
+> **allaqachon javobi bor** savolga ikkinchi javob beradi: 66-run `03` §6
+> ning to'qqizta gate ini kodga ko'chirgan, ya'ni «chiqishga ruxsat
+> bormi» o'lchanadi. §25 o'sha savolga beshta boshqa shart bilan javob
+> beradi va ikkala hujjat bir-biriga **hech qayerda havola qilmaydi** —
+> §25 ning beshta shartidan birortasi ham `03` §6 ning gate i emas.
+> **Asosiy qaror — reliz identifikatori umumiy kalit emas.** Uchta ID
+> so'zma-so'z ustma-ust tushadi, bittasigina bir xil narsani anglatadi:
+> `R1.1` — ikkalasida ham bildirishnomalar; `R2.0` — `01` da 1055
+> avtoparsingi, `03` da **ommaviy API** (1055 esa `R2.1`); `R3.0` —
+> `01` da viloyat va operator, `03` da **PWA va ko'p mintaqalilik**.
+> Bu terminologiya emas, chunki **kod allaqachon tanlagan**: `G-8`
+> `release="R3.0"` va uning mezoni `MIN_ACTIVE_REGIONS`; `measures`
+> ning `r20` bosqichi «Ochiqlik». §25 dan kelgan o'quvchi «R3.0 ning
+> gate i» ni muzokara deb o'qiydi va butunlay boshqa mezonni ko'radi.
+> Shuning uchun `COLLIDING` faqat `REASSIGNED` ni oladi: `SPLIT`
+> (`R1` → `R1.0` + `R1.2`, orasida `G-7`) va `FOREIGN` (`R0` — `03` da
+> yopiq bosqich **reliz emas**) yanglishtirmaydi, `REASSIGNED` esa
+> **javob beradi** va javob noto'g'ri.
+> **Eng jim topilma — `R0` ning ikkala yarmi bitta bayroq, qarama-qarshi
+> holatda.** «Регион активен … **закрытый круг**»: `regions.is_active`
+> yagona bit — `registry.active_regions` bo'yicha o'chirilgan mintaqa
+> xabar qabul qilmaydi, `jobs.build_map_snapshot` aynan o'sha ro'yxat
+> uchun snapshot quradi, `get_map` esa autentifikatsiyasiz va
+> `is_active` ni umuman so'ramaydi. Ikkinchi bayroq yo'q: `Region` da
+> bitta mantiqiy ustun bor. `03` ning eng qat'iy qoidasi («Xarita gate
+> yopilmasdan ochilmaydi — muhokama predmeti emas») shu sababdan
+> **mexanizmsiz**, va 66-run buni o'z izohida ochiq yozgan. Yangi sinf
+> `Ship.CONTRADICTED`: tugallanmagan ish ham, qisman qurilgan narsa ham
+> emas — repo qatorni yozilganidek bajarishga **imkon bermaydi**.
+> **Yagona javob beriladigan shart yagona bajarib bo'lmaydigan qatorda.**
+> «Полигоны валидны» repoda bor (`geo.quality` ning oltita tekshiruvi,
+> `SQL_PROMOTE` undan keyin) → hisobotda `answerable == unshippable`.
+> Qolgan uchtasi: ikkitasi Faza 0 ga tayanadi va uning natijasi repoda
+> saqlanmaydi (75-run sabog'i, endi tripwire), bittasi chegarasiz
+> (`G-4` ning `N` i bilan bir xil bo'shliq), bittasi muzokara.
+> **Teskari yo'nalish:** §25 mavjud bo'lmagan ikkitasini (1055,
+> operator) reliz qilib qo'yadi va mavjud bo'lgan ikkitasini umuman
+> sanamaydi — ommaviy API (`03` R2.0, E15) va moderatsiya (`03` R0.3,
+> E8); §25 matnida `api`, `модерац`, `админ` so'zlari yo'q.
+> **Hisob:** `Alias` — `FOREIGN` 1, `SPLIT` 1, `SHARED` 1, `REASSIGNED` 2;
+> `Ship` — `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1;
+> `Gate` — `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1,
+> `EXTERNAL` 1 → `accurate` `False`. Hech narsa tuzatilmadi **ataylab**.
+> **37 mutatsiya, 1 survivor topildi va tuzatildi:** `03` §3 reliz
+> ro'yxatini **ikki marta** beradi (mermaid gantt + «Bosh jadval») va
+> ular mustaqil yozilgan — gantt dagi ID ni o'zgartirish hech narsani
+> yiqitmasdi, holbuki butun `Alias` tasnifi o'sha bo'limga tayanadi
+> (57-run sabog'i o'z faylida). Yo'l-yo'lakay `PEER_SPEC` o'lik
+> konstanta bo'lib qolayotgani ko'rindi — endi undan bo'lim raqami
+> parse qilinadi.
+> **2079 → 2130 passed** (+51), `requires_db` 231 (o'zgarmadi),
+> migratsiyasiz, ruff yashil.
+> 👤 **To'rtta savol:** `R0` uchun ikkinchi bayroq (yig'ish yoqilgan,
+> nashr o'chirilgan); reliz identifikatorlarining nom fazosi
+> (`01` §25 ↔ `03` §3); §25 ommaviy API ni ham, moderatsiyani ham
+> nomlamaydi; `R1.1` ning zichlik sharti `G-4` ning `N` iga tengmi.
+> **Keyingi nomzodlar:** `GET /api/v1/admin/monitoring` (endi **o'n
+> ikkita** reyestr vitrinasiz), `01` §29/§30 (hech qachon o'qilmagan),
+> yoki `01` §24 «Product Roadmap» (P0-1…P0-7 — 75-, 76- va 77-runlarning
+> **uchalasi** ham unga qaytdi va uning natijasi repoda saqlanmaydi).
 >
 > ---
 >
-> ⚠️ **Push:** 74b-sessiyada qolgan `.git/index.lock` (0 bayt) keyingi
-> git yozuvini to'sishi mumkin — `del .git\index.lock`. `push.ps1` ning
-> ikkita defekti [74b](74b_push_index_lock_6136bad5.md) da.
+> ✅ **Push blokи yopiq:** 76-run commit qilingan (`bc09f12`),
+> `.git/index.lock` yo'q. `push.ps1` ning ikkita defekti hali ochiq —
+> [74b](74b_push_index_lock_6136bad5.md).
 >
 > 👤 **Serverda hali bajarilmagan:** `git pull` →
 > `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`,
@@ -93,13 +88,16 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > yurgizing.
 > 👤 **Sandbox:** `/tmp/sv75` **butun holda qoldi** — hech narsa
 > o'rnatilmadi, faqat `PYTHONPATH=/tmp/sv75 TMPDIR=/tmp/tmpdir
-> PATH=/tmp/sv75/bin:$PATH`. `$HOME` 24 MB, `/` da 3.6 GB bo'sh.
-> `cleanup-sessions.ps1` ni har run oldidan yurgizing.
+> PATH=/tmp/sv75/bin:$PATH`. ⚠️ `/tmp` ga **yozib bo'lmaydi** —
+> vaqtinchalik skript `$HOME` ga yoziladi. `$HOME` 26 MB, `/` da
+> 1.3 GB bo'sh (76-runda 3.6 GB edi) — `cleanup-sessions.ps1` ni har
+> run oldidan yurgizing.
 
 ## Sessiyalar
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 77 | [reliz_rejasi](77_reliz_rejasi_9ecd3681.md) | `local_9ecd3681` | `01` §25 ning beshta relizi birinchi marta kod bilan solishtirildi. Asosiy qaror — **reliz identifikatori umumiy kalit emas**: `R2.0` va `R3.0` `01` va `03` da ikki xil relizni nomlaydi va kod `03` ni tanlagan (`G-8` → `MIN_ACTIVE_REGIONS`, `measures` ning `r20` → «Ochiqlik»). Ikkita o'q: `Ship` (mazmun qurilganmi) va `Gate` (shart qayerdan javob oladi); tasnif o'qi `Alias` ikkita hujjatni solishtirishdan chiqadi. | `app/release/plan.py` + `tests/test_release_plan_contract.py` (51 test). `FOREIGN` 1, `SPLIT` 1, `SHARED` 1, `REASSIGNED` 2; `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1; `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1, `EXTERNAL` 1 → `accurate` `False`. Eng jim topilma — `R0`: «регион активен» va «закрытый круг» bitta `is_active` bitini qarama-qarshi holatda talab qiladi, ikkinchi bayroq yo'q, va `03` ning eng qat'iy qoidasi («xarita gate yopilmasdan ochilmaydi») shu sababdan mexanizmsiz. Yagona `INSTRUMENTED` shart aynan o'sha bajarib bo'lmaydigan qatorda. Teskari yo'nalish — ommaviy API (E15) va moderatsiya (E8) §25 da umuman yo'q. 37 mutatsiya, 1 survivor tuzatildi (`03` §3 ning gantt va jadval nusxalari bog'lanmagan edi). 2130 passed (+51), migratsiyasiz. |
 | 76 | [bogliqliklar_reyestri](76_bogliqliklar_reyestri_0aa2716d.md) | `local_0aa2716d` | `01` §28 ning yettita bog'liqligi birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Блокирует` ustuni to'rt xil narsaga ishora qiladi** (bosqich, funksional talab, ochiq savol, mahsulot sirti) va repo faqat oxirgisiga to'liq guvoh bo'la oladi. Ikkita o'q: `Supply` (ta'minlanganmi) va `Hold` (to'siq ishlaydimi); yangi `Hold.VOID` — «to'siq yo'q» ham, «bor» ham emas, **da'voning manzili yo'q**. | `app/release/dependencies.py` + `tests/test_dependencies_contract.py` (43 test). `MET` 1, `PARTIAL` 1, `UNMET` 4, `MOOT` 1; `ENFORCED` 2, `LEAKY` 1, `VOID` 2, `UNSTATED` 2 → `accurate` `False`. `FR-804` butun `01` da faqat §28 da; `OQ-01` birorta hujjatda ta'riflanmagan — prefikssiz `FR-` §28 dan tashqarida har safar «наследует» belgili, §28 esa belgisiz. Eng jim topilma — `DP-1`: poligonlar «весь региональный запуск» ni to'sadi deb yozilgan, amalda qorovul `bbox` ni so'raydi va `district_id` `NULL` bo'la oladi; to'xtaydigani faqat statistika vitrinasi. Teskari yo'nalish — Telegram Bot API va OSM/ODbL reyestrda yo'q. 17 mutatsiya, 1 survivor tuzatildi. 2079 passed, ruff yashil. 👤 to'rtta savol. |
 | 75 | [risk_reyestri](75_risk_reyestri_3aa898cd.md) | `local_3aa898cd` | `01` §26 ning o'nta riski va §27 ning sakkizta допущение si birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Вероятность` bashorat ustuni va u sarflanadi**: to'rtta qatorda shart allaqachon bajarilgan (yoki, `RS-04` da, endi hech qachon bajarilmaydi), ya'ni ustun 100% yoki 0% ni ko'rsatadi va jadvalda ikkalasi bir xil ko'rinadi. Ikkita o'q: `Cover` (mitigatsiya **qayerda** ushlaydi) va `Onset` (shart bajarilganmi). | `app/release/risks.py` + `tests/test_risk_register_contract.py` (37 test). `MECHANISED` 4, `DISPLACED` 4, `DEGENERATE` 1, `INSTRUMENTED` 1, `SCHEDULED` 8; sarflangan bashorat 4, e'lon qilinmagan risk 1 → `accurate` `False`. Eng jim topilma — `RS-08` (yagona «Низкая»): «откат без релиза» API/vebda ishlaydi, **botda yo'q** (`pick_language` `app/bot/` da chaqirilmaydi), gipoteza esa botda o'lchanadi. `RS-02` ning «деградация до района» i ADR-07 dan keyin bitta bucketga tushadi. 14 ta band Faza 0 ga tayanadi va uning natijasi repoda saqlanmaydi. 31 mutatsiya, 0 survivor (4 tasi topilib tuzatildi, 1 o'lik shart olib tashlandi). 2036 passed, ruff yashil. 👤 to'rtta savol. |
 | 74b | [push_index_lock](74b_push_index_lock_6136bad5.md) | `local_6136bad5` | Odam bilan qisqa diagnostika: `push.ps1` «TO'QNASHUV» dedi, aslida rebase **umuman boshlanmagan** edi. Sabab — poyga: `git add` dan keyin hali ishlayotgan 74-run `PROGRESS.md`/`EpicProgress.md` ni qayta yozdi. | Commitlar o'tgan (`8b82603`, `7c91017`, `d3d3f5b`), `main` = `origin/main` — **56-rundan beri osilib turgan push bloki yopildi**. Ikkita `push.ps1` defekti: rebase oldidan `git add -A` takrorlanmaydi; rebase boshlanmaganda ham to'qnashuv deb yozadi. ⚠️ `.git/index.lock` qolib ketdi — 👤 `del .git\index.lock`. |

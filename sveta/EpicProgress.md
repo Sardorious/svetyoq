@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 75-run.
+**Oxirgi yangilanish:** 2026-08-10, 77-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -47,7 +47,7 @@ faqat havola qilinadi.
 | OBS — kuzatuvchanlik (`05` §10 + `01` §22) | 🔄 | `app/obs/`, `app/core/logging.py` | 21, 24, 47, 56, **69** |
 | ANL — analitika hodisalari va dashboardlari (`01` §21) | 🔄 | `app/analytics/` | 29, **68** |
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` | 45, 49, **56** |
-| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) | 🔄 | `app/release/` | 66, 67, 70, 75, **76** |
+| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) + reliz rejasi (`01` §25) | 🔄 | `app/release/` | 66, 67, 70, 75, 76, **77** |
 | SEC — xavfsizlik kafolatlari (`01` §20 + BRD «Безопасность» NFR) | 🔄 | `app/admin/security.py` | **71** |
 | DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` | **72** |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` | **73** |
@@ -56,8 +56,8 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **127 ta test fayli**; oxirgi yurish (75-run):
-`pytest -m "not requires_db"` → **2036 passed, 1 skipped**; **231 ta
+Jami **129 ta test fayli**; oxirgi yurish (77-run):
+`pytest -m "not requires_db"` → **2130 passed, 1 skipped**; **231 ta
 `requires_db`** testi (28 faylda) sandboxda ishlamaydi — ular
 Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri `ruff` ham,
@@ -84,7 +84,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E19 | `test_region_registry`, `test_regions_api_db` |
 | TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf), `test_logging_setup` |
-| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract` |
+| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract` |
 | SEC | `test_security_posture_contract` |
 | DATA | `test_data_model_contract` |
 | INT | `test_integrations_contract` |
@@ -144,6 +144,8 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `01` §18 «Integrations» oltita qatori ↔ kod | `test_integrations_contract.py` | **73** |
 | `01` §19 «Notifications» kanallar jadvali + yetkazish qoidasi | `test_notification_channels_contract.py` | **74** |
 | `01` §26 «Risks» + §27 «Assumptions» | `test_risk_register_contract.py` | **75** |
+| `01` §28 «Dependencies» ↔ `03` §3/§6 | `test_dependencies_contract.py` | **76** |
+| `01` §25 «Release Plan» ↔ `03` §3 reliz xaritasi | `test_release_plan_contract.py` | **77** |
 
 **Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning esa **butun hujjati** — §1–§10 ning hammasi (60-run §3
@@ -259,6 +261,54 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+
+- **77-run — reliz identifikatori umumiy kalit emas.** `01` §25 ning
+  beshta relizi `app/release/plan.py` da uchta o'q bilan yozildi:
+  `Alias` (hujjatlarni solishtirishdan), `Ship` (mazmun qurilganmi) va
+  `Gate` (shart qayerdan javob oladi). Asosiy qaror — `01` va `03`
+  bir xil shakldagi identifikatorlardan foydalanadi va uchtasi
+  so'zma-so'z ustma-ust tushadi, **bittasigina** bir xil narsani
+  anglatadi: `R2.0` `01` da 1055 avtoparsingi, `03` da ommaviy API
+  (1055 esa `R2.1`); `R3.0` `01` da viloyat va operator, `03` da PWA
+  va ko'p mintaqalilik. Kod allaqachon `03` ni tanlagan — `G-8`
+  `release="R3.0"` va uning mezoni `MIN_ACTIVE_REGIONS` — ya'ni §25
+  dan kelgan o'quvchi «R3.0 ning gate i» ni muzokara deb o'qiydi va
+  butunlay boshqa mezonni ko'radi. Shuning uchun `COLLIDING` faqat
+  `REASSIGNED` ni oladi: `SPLIT` va `FOREIGN` yanglishtirmaydi,
+  `REASSIGNED` esa **javob beradi**.
+  ⚠️ **Eng jim topilma `R0` da:** «Регион активен … закрытый круг»
+  ikkala yarmi bitta bayroqni qarama-qarshi holatda talab qiladi.
+  `regions.is_active` yagona bit: `registry.active_regions` bo'yicha
+  o'chirilgan mintaqa xabar qabul qilmaydi, `build_map_snapshot` aynan
+  o'sha ro'yxat uchun snapshot quradi, `get_map` esa
+  autentifikatsiyasiz va `is_active` ni umuman so'ramaydi. Ikkinchi
+  bayroq yo'q — `Region` da bitta mantiqiy ustun. Shu sababdan `03`
+  ning eng qat'iy qoidasi («Xarita gate yopilmasdan ochilmaydi —
+  muhokama predmeti emas») **mexanizmsiz**, va 66-run buni o'z
+  izohida ochiq yozgan. Yangi sinf `Ship.CONTRADICTED`: tugallanmagan
+  ish ham, qisman qurilgan narsa ham emas.
+  ⚠️ **Ikkinchi topilma o'sha qatorda:** beshtadan **yagona**
+  `INSTRUMENTED` shart («Полигоны валидны» — `geo.quality` ning oltita
+  tekshiruvi, `SQL_PROMOTE` undan keyin) aynan o'sha bajarib
+  bo'lmaydigan qatorda turibdi → `answerable == unshippable`. Ustiga
+  tekshiruvlar `districts` ustida, R0 ning mazmuni esa mahallalar
+  haqida (`import_boundaries.py` da `mahalla` so'zi umuman yo'q).
+  **Teskari yo'nalish:** §25 mavjud bo'lmagan ikkitasini (1055,
+  operator) reliz qilib qo'yadi va mavjud bo'lgan ikkitasini —
+  ommaviy API (`03` R2.0, E15) va moderatsiya (`03` R0.3, E8) —
+  umuman sanamaydi. Hisob: `FOREIGN` 1, `SPLIT` 1, `SHARED` 1,
+  `REASSIGNED` 2; `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1;
+  `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1, `EXTERNAL` 1 →
+  `accurate` `False`; hech narsa tuzatilmadi **ataylab**. 37
+  mutatsiya, **1 survivor topildi va tuzatildi**: `03` §3 reliz
+  ro'yxatini ikki marta beradi (mermaid gantt + «Bosh jadval») va
+  ular mustaqil yozilgan edi — gantt dagi ID ni o'zgartirish hech
+  narsani yiqitmasdi (57-run sabog'i o'z faylida). Yo'l-yo'lakay
+  `PEER_SPEC` o'lik konstanta bo'lishdan qutqarildi. 2079 → **2130
+  passed** (+51), migratsiyasiz, ruff yashil. 👤 **To'rtta savol:**
+  `R0` uchun ikkinchi bayroq; identifikatorlarning nom fazosi; §25 da
+  API va moderatsiyaning yo'qligi; `R1.1` ning zichligi `G-4` ning
+  `N` iga tengmi.
 
 - **76-run — `Блокирует` ustuni to'rt xil narsaga ishora qiladi.**
   `01` §28 ning yettita qatori `app/release/dependencies.py` da ikkita
