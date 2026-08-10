@@ -18,25 +18,25 @@ faqat havola qilinadi.
 | # | Epic | Holat | Kod | Runlar | ✅ uchun nima kerak |
 |---|---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | 02, 40, 44, 45, 47 | — |
-| E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | 03, 27, 40, 60, 73, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | CI **va haqiqiy Telegram runi** |
+| E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | 03, 27, 40, 60, 73, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | **Haqiqiy Telegram runi** (E3-a) |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | 02, 28, 41, 42 | — |
-| E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11, 57, 59, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58**, 61, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E6 | Retrospektiv qayta hisob | 🔄 | `tools/recluster.py` | 11, 62, 64, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py` | 11, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | CI + `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, **78** | CI + ADR-08 (tayl manbasi) |
+| E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | 04, 11, 57, 59, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E5b | Tasdiqlash va masshtab (`06`) | ✅ | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58**, 61, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | 11, 62, 64, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | 11, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | `DIGEST_CHAT_IDS` (E8-b) |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, **78** | ADR-08 (tayl manbasi) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | (64 — asbob) | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | — | E10, E11 |
-| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43, 74, **78** | CI **va haqiqiy Telegram runi** |
-| E14 | Statistika + Coverage Index | 🔄 | `app/stats/` | 15, 22, 23, 25, 30, 32, 63, **65** | CI + vitrina sahifasi (E14-a) |
-| E15 | Ommaviy API + OpenAPI | 🔄 | `app/api/` | 16, 27, 48, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
-| E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22, **78** | CI + haqiqiy zichlik (E10) |
+| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43, 74, **78** | **Haqiqiy Telegram runi** (E3-a) |
+| E14 | Statistika + Coverage Index | 🔄 | `app/stats/` | 15, 22, 23, 25, 30, 32, 63, **65** | Vitrina sahifasi (E14-a) |
+| E15 | Ommaviy API + OpenAPI | ✅ | `app/api/` | 16, 27, 48, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
+| E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22, **78** | Haqiqiy zichlik (E10) |
 | E17 | Mahalla darajasi | ⬜ | — | — | 👤 **poligonlar** |
 | E18 | Rasmiy manba parsing | ⬜ | — | — | 👤 **H-4** |
-| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28, **78** | CI + **ikkinchi mintaqani haqiqiy import** |
+| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28, **78** | **Ikkinchi mintaqani haqiqiy import** |
 | E20 | PWA + Web Push | ⬜ | — | — | E12 |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
@@ -51,13 +51,18 @@ faqat havola qilinadi.
 | SEC — xavfsizlik kafolatlari (`01` §20 + BRD «Безопасность» NFR) | 🔄 | `app/admin/security.py` | **71** |
 | DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` | **72** |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` | **73** |
+| ARCH — arxitektura konteynerlari (`01` §29 ↔ `03` §Q-1) | 🔄 | `app/core/architecture.py` | **79** |
 
 ---
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **129 ta test fayli**; oxirgi yurish (78-run): `pytest -q` (**bayroqsiz,
-ya'ni `requires_db` bilan birga**) → **2363 passed, 1 skipped**.
+Jami **130 ta test fayli**; oxirgi yurish (79-run): `pytest -q` (**bayroqsiz,
+ya'ni `requires_db` bilan birga**) → **2408 passed, 1 skipped**.
+
+✅ **79-run: CI ni odam yurgizdi va u yashil.** 78-run ning yagona ochiq
+so'rovi shu edi — oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun
+✅ ga qolgan yagona shart CI ning o'z tasdig'i edi.
 
 ⚡ **78-rundan beri `requires_db` sandboxda ham yuradi.** PostGIS
 `micromamba` bilan `conda-forge` dan o'rnatiladi va `/tmp` da ishlaydi
@@ -94,6 +99,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | SEC | `test_security_posture_contract` |
 | DATA | `test_data_model_contract` |
 | INT | `test_integrations_contract` |
+| ARCH | `test_architecture_contract` |
 
 ---
 
@@ -223,7 +229,7 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 
 | Nima | Kimni bloklaydi |
 |---|---|
-| **CI ni qayta yurgizish.** 78-run 15 ta yiqilishning hammasini tuzatdi va lokal PostGIS da `pytest -q` to'liq yashil (2363 passed). Oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun ✅ ga qolgan **yagona** shart — CI ning o'z tasdig'i | E2, E5, E5b, E6, E7, E15 |
+| ~~**CI ni qayta yurgizish.**~~ ✅ **yopildi (79-sessiya):** odam CI ning yashilligini tasdiqladi. Oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) ✅ ga o'tdi; qolgan epiclarning to'sig'idan «CI» olib tashlandi (E3/E13 — Telegram runi, E8 — `DIGEST_CHAT_IDS`, E9 — ADR-08, E14 — vitrina, E16 — zichlik, E19 — ikkinchi mintaqa) | (edi) E2, E5, E5b, E6, E7, E15 |
 | ⛔ **`.git/index.lock`** (78-run, 0 bayt, 16:26) — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | ~~`.\push.ps1` — 56-running 3- va 4-tuzatishi commit qilinmagan~~ ✅ **yopildi (74.5-sessiya):** `8b82603`, `7c91017`, `d3d3f5b` push qilindi, `main` = `origin/main` = `d3d3f5b`. ⚠️ Qolgani: `.git/index.lock` (0 bayt, 08-10 13:03) keyingi git yozuvini to'sadi — `del .git\index.lock`; `push.ps1` ning ikkita defekti `PROGRESS.md` ning «Ochiq savollar» ida | (edi) prod: SQL jurnali, CI: `NullPool` |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
@@ -847,7 +853,22 @@ Ziddiyat chiqsa — `PROGRESS.md` haq.
 
 ---
 
-## 6. Sandboxda PostGIS ko'tarish (78-run)
+## 6. Sandboxda PostGIS ko'tarish (78-run, 79-run da aniqlashtirildi)
+
+> ⚡ **79-run: o'rnatish takrorlanmadi, klaster esa qaytadan yaratildi.**
+> `/tmp/pg` (micromamba muhiti) va `/tmp/venv78` (Python 3.12) sessiyadan
+> **omon qoladi** va o'qish uchun ochiq — ya'ni 1- va 2-qadamlar (~4 daqiqa)
+> o'tkazib yuboriladi. Lekin uchta narsa har run qaytariladi:
+>
+> * `PGDATA` **egasi oldingi sessiyaning foydalanuvchisi** (`nobody`) bo'lib
+>   qoladi va o'qib bo'lmaydi → yangi `initdb -D /tmp/pgdata<NN>`.
+> * `-k /tmp` **ishlamaydi**: `/tmp/.s.PGSQL.5432.lock` eski egaga tegishli
+>   (`Permission denied`) → alohida katalog va port,
+>   `-k /tmp/pgsock<NN> -p 5433`, `DATABASE_URL` da ham 5433.
+> * Server **har `bash` chaqiruvi oxirida o'ladi** (`setsid nohup` bilan ham),
+>   ya'ni `pg_ctl start` har chaqiruv boshida qaytariladi va butun ish
+>   (migratsiya + `pytest`) **bitta chaqiruvda** bajariladi.
+
 
 `requires_db` testlari endi sandboxda ham yuradi. Retsept `/tmp` da
 ishlaydi (`$HOME` va `/sessions` to'lib ketgan bo'lishi mumkin) va

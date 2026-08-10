@@ -12,6 +12,76 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **79-sessiya: ARCH — `01` §29 «High-Level Architecture» birinchi marta
+> kodda: `app/core/architecture.py`.** 78-run uchta nomzod qoldirgan edi;
+> §29 tanlandi, chunki u hujjatdagi yagona joy, u yerda mahsulot
+> **konteynerlar** darajasida chiziladi — o'nta tugun, o'n ikkita strelka,
+> bitta xulosa jumlasi — va o'sha rasm bugungi kodga mos kelmasligi hech
+> qayerda tekshirilmagan.
+> **Asosiy topilma — o'nta tugundan ikkitasi umuman yo'q.** `KF` (Kafka) va
+> `RD` (Redis) unutilgan emas, ular `ADR-05` bilan rad etilgan (`05` §11) va
+> `03` §9 da qaytish sharti bilan yozilgan. Ya'ni §29 ning xulosa jumlasi —
+> «Единственное архитектурное следствие Самарканда … **Остальные контейнеры
+> не меняются**» — **bugun yolg'on**, va Samarqand tufayli emas: rasm
+> Toshkent paketidan meros olingan va yakka ishlab chiquvchi uchun qayta
+> chizilmagan. Bu 71- (`01` §20) va 72-runlar (`coverage_zones`) topgan
+> «наследуется» tuzog'ining **uchinchi** holati.
+> **Javob bor, lekin boshqa hujjatda.** `03` §Q-1 ning sarlavhasi so'zma-so'z:
+> «PRD §29 arxitekturasi — bu maqsad holati, boshlang'ich holat emas».
+> §29 dan kelgan o'quvchi hech qanday havola ko'rmaydi va rasmni bajarilishi
+> kerak bo'lgan reja deb o'qiydi — 77-run ning `01` §25 ↔ `03` §6 holati
+> aynan takrorlandi.
+> ⚠️ **Eng jim topilma — rad etishning qaytish sharti tug'ilishidan o'lik.**
+> `03` §9 ning qoidasi qat'iy: «"hozir qilib qo'yaylik" degan asos
+> **taqiqlanadi**; qaytish sharti — yagona asos», ya'ni butun qaror shartning
+> **o'lchanishiga** tayanadi. Uchala shart ham o'lchanmaydi, uch xil sababdan:
+> Kafka ning `Kunlik xabar >50k` — `DERIVABLE`
+> (`sveta_reports_received_total` kümulativ hisoblagich); Redis ning
+> `API p95 >300 ms` — `UNMEASURED` (gistogramma yo'q); mikroservislarning
+> `Jamoa >6 dev` — `ORGANIZATIONAL` (mahsulot metrikasi emas va bo'lishi
+> shart emas). To'rtinchisi yangi sinf: Kafka ning `klaster kechikishi >30 s`
+> — **`VOID`**, chunki almashtirish o'lchanadigan narsani **yo'q qilgan**:
+> `submit_report` da `clustering.assign` xabar yozilgan **o'sha
+> tranzaksiyada** sinxron chaqiriladi, navbat yo'q — navbat kechikishi ham
+> yo'q. Shart o'zi asoslayotgan komponentning **mavjudligini** o'lchaydi va
+> tetik hech qachon ishlamaydi. Redis ning tetigi esa **67-run allaqachon
+> ko'rgan bo'shliq** (`measures.api_p95` = `ABSENT`) — faqat u yerda u
+> *reliz o'lchovi* edi; bitta gistogramma ikkala qatorni yopadi.
+> **Ikkita strelka noto'g'ri tomonga qaraydi:** `ADM → API` kodda teskari
+> (`api → admin`; alohida deploy qilinadigan admin ilovasi yo'q) —
+> `REVERSED`; `NT → BOT` esa import **emas va bo'lmasligi kerak** (aylana),
+> ulash `app.jobs.process_outbox` da — `MEDIATED`. O'n ikkita strelkadan
+> **beshtasi** rad etilgan tugun orqali o'tadi (`COLLAPSED`), ya'ni rasmning
+> qariyb yarmi mavjud bo'lmagan yo'lni ko'rsatadi.
+> **Teskari yo'nalish:** `app/` da 14 paket, diagrammada 6 tasi. `jobs`
+> faqat `05` §1 da (`SPECIFIED`) — holbuki `KF→NT` va `NT→BOT` faqat o'sha
+> konteyner ishlagandagina bajariladi; `stats` ikkala hujjatda ham yo'q
+> (`EMERGENT`), garchi `01` §24 Phase 1 ning «витрина статистики» si va §4
+> Success Metrics shunga tayansa ham.
+> **`03` §Q-1 ning «muhim shart» i birinchi marta o'lchandi:** «bir modul
+> boshqasining jadvaliga to'g'ridan-to'g'ri murojaat qilmaydi» — shu jumla
+> `05` §1 va `CLAUDE.md` da ham bor va hech qachon tekshirilmagan edi, ya'ni
+> butun «keyinchalik ajratish mumkin» va'dasi taxmin edi. Bugun bajariladi:
+> boshqa modulning `models` ini faqat `app/db/models.py` import qiladi;
+> `models.py` dan tashqarida xom SQL faqat `api/v1/health.py` da.
+> **Hisob:** 2 yangi fayl, **mahsulot kodi o'zgarmadi**, migratsiyasiz,
+> **2363 → 2408 passed** (+45), 1 skipped, ruff yashil.
+> 👤 **Uchta savol:** §29 tuzatilsinmi (rasmdan `KF`/`RD` olib tashlansinmi
+> yoki `03` §Q-1 ga havola qo'yilsinmi); `klaster kechikishi` sharti qayta
+> yozilsinmi (bugungi holida hech qachon ishlamaydi); `api_p95`
+> gistogrammasi qo'shilsinmi (bitta o'lchov ikkita qatorni yopadi).
+> **Keyingi nomzodlar:** `GET /api/v1/admin/monitoring` (o'n ikkita reyestr
+> vitrinasiz), `01` §30 «Glossary» (atamalar ↔ kod nomlari), yoki `01` §24
+> «Product Roadmap» (P0-1…P0-7).
+>
+> ---
+>
+> ✅ **CI YASHIL — odam tasdiqladi (79-run o'rtasida).** Oltita epic
+> (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun ✅ ga qolgan yagona shart shu
+> edi; hammasi ✅ ga o'tkazildi (`sveta/EpicProgress.md` §1).
+>
+> ---
+>
 > ✅ **78-sessiya: CI BIRINCHI MARTA YASHIL — `pytest -q` (bayroqsiz)
 > 2363 passed, 1 skipped.** Bu run mavzuni o'zi tanlamadi: odam CI ning
 > chiqishini chatga tashladi — `15 failed, 2346 passed`. 73-rundan beri
@@ -76,12 +146,6 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > **Keyingi nomzodlar:** `GET /api/v1/admin/monitoring` (o'n ikkita
 > reyestr vitrinasiz), `01` §29/§30 (hech qachon o'qilmagan), yoki
 > `01` §24 «Product Roadmap» (P0-1…P0-7).
->
-> ---
->
-> 👤 **CI ni qayta yurgizing.** Oltita epic (`E2`, `E5`, `E5b`, `E6`,
-> `E7`, `E15`) uchun ✅ ga qolgan **yagona** shart — CI ning o'z
-> tasdig'i; lokal PostGIS da hammasi yashil.
 >
 > ---
 >
@@ -180,6 +244,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 79 | [arxitektura_kontrakti](79_arxitektura_kontrakti_d44eb564.md) | `local_d44eb564` | **ARCH — `01` §29 «High-Level Architecture» birinchi marta kodda.** 78-run uchta nomzod qoldirgan edi; §29 tanlandi, chunki u hujjatdagi yagona joy, u yerda mahsulot **konteynerlar** darajasida chiziladi va o‘sha rasm bugungi kodga mos kelmasligi hech qayerda tekshirilmagan. | `app/core/architecture.py` + `tests/test_architecture_contract.py` (45 test); mahsulot kodi **o‘zgarmadi**, migratsiyasiz, **2363 → 2408 passed**, ruff yashil. O‘nta tugundan ikkitasi (`KF`, `RD`) `ADR-05` bilan rad etilgan → §29 ning «остальные контейнеры не меняются» jumlasi **yolg‘on**; javob `03` §Q-1 da bor, lekin `01` unga havola qilmaydi. Eng jim topilma — Kafka ning `klaster kechikishi >30 s` sharti **`VOID`**: sinxron `assign` navbatni yo‘q qilgan, ya’ni tetik hech qachon ishlamaydi. Redis ning tetigi 67-run ning `api_p95` bo‘shlig‘i bilan **bir xil**. `ADM→API` teskari, `NT→BOT` `MEDIATED`, 12 strelkadan 5 tasi `COLLAPSED`. `03` §Q-1 ning modul chegarasi sharti birinchi marta o‘lchandi. 👤 CI yashil → oltita epic ✅. |
 | 78 | [ci_yashil](78_ci_yashil_5ff5356c.md) | `local_5ff5356c` | **CI birinchi marta yashil.** Odam CI chiqishini tashladi (15 failed); sandboxda birinchi marta haqiqiy PostGIS ko'tarildi (`micromamba` + `conda-forge`, PostGIS 3.5.0) va o'n beshta yiqilish **takrorlandi**, keyin tuzatildi. Asosiy qaror — ko'r-ko'rona tuzatmaslik: yiqilishlarning kamida uchtasi mahsulot xatti-harakati haqida savol berardi. | 10 fayl, migratsiyasiz, **2130 → 2363 passed**, ruff yashil. Uchta mahsulot defekti: `ST_SimplifyPreserveTopology` `MultiPolygon` ni `Polygon` ga tushiradi (javob sxemasi `simplify` ga bog'liq edi); `/heatmap` ning `ETag` i `max-age=900` ga zid bo'lib hech qachon `304` bermasdi → `resolve_period(quantum_s=)`; `test_inactive_region_stays_hidden` begona qatorga tayanardi. Eng jim topilma — **20-run ning akkaunt yoshi tuzog'i takrorlangan** (`submit_report` `now` ni `get_or_create_user` ga ataylab bermaydi → muzlatilgan `NOW` da xabar beruvchi hech qachon hisobga o'tmaydi). Ikkinchisi — `05` §9.3 ning 5-ssenariysi `evaluate_outages` siz bajarilmaydi. Uchinchisi — `outbox` da **vaqt bombasi** (test kalendar `2026-08-07` dan o'tgan kuni qizargan). Qolgani: pytest 9 `RaisesExc`, `notifications.id`, `mahallas` tartibi. 👤 to'rtta savol. |
 | 77 | [reliz_rejasi](77_reliz_rejasi_9ecd3681.md) | `local_9ecd3681` | `01` §25 ning beshta relizi birinchi marta kod bilan solishtirildi. Asosiy qaror — **reliz identifikatori umumiy kalit emas**: `R2.0` va `R3.0` `01` va `03` da ikki xil relizni nomlaydi va kod `03` ni tanlagan (`G-8` → `MIN_ACTIVE_REGIONS`, `measures` ning `r20` → «Ochiqlik»). Ikkita o'q: `Ship` (mazmun qurilganmi) va `Gate` (shart qayerdan javob oladi); tasnif o'qi `Alias` ikkita hujjatni solishtirishdan chiqadi. | `app/release/plan.py` + `tests/test_release_plan_contract.py` (51 test). `FOREIGN` 1, `SPLIT` 1, `SHARED` 1, `REASSIGNED` 2; `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1; `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1, `EXTERNAL` 1 → `accurate` `False`. Eng jim topilma — `R0`: «регион активен» va «закрытый круг» bitta `is_active` bitini qarama-qarshi holatda talab qiladi, ikkinchi bayroq yo'q, va `03` ning eng qat'iy qoidasi («xarita gate yopilmasdan ochilmaydi») shu sababdan mexanizmsiz. Yagona `INSTRUMENTED` shart aynan o'sha bajarib bo'lmaydigan qatorda. Teskari yo'nalish — ommaviy API (E15) va moderatsiya (E8) §25 da umuman yo'q. 37 mutatsiya, 1 survivor tuzatildi (`03` §3 ning gantt va jadval nusxalari bog'lanmagan edi). 2130 passed (+51), migratsiyasiz. |
 | 76 | [bogliqliklar_reyestri](76_bogliqliklar_reyestri_0aa2716d.md) | `local_0aa2716d` | `01` §28 ning yettita bog'liqligi birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Блокирует` ustuni to'rt xil narsaga ishora qiladi** (bosqich, funksional talab, ochiq savol, mahsulot sirti) va repo faqat oxirgisiga to'liq guvoh bo'la oladi. Ikkita o'q: `Supply` (ta'minlanganmi) va `Hold` (to'siq ishlaydimi); yangi `Hold.VOID` — «to'siq yo'q» ham, «bor» ham emas, **da'voning manzili yo'q**. | `app/release/dependencies.py` + `tests/test_dependencies_contract.py` (43 test). `MET` 1, `PARTIAL` 1, `UNMET` 4, `MOOT` 1; `ENFORCED` 2, `LEAKY` 1, `VOID` 2, `UNSTATED` 2 → `accurate` `False`. `FR-804` butun `01` da faqat §28 da; `OQ-01` birorta hujjatda ta'riflanmagan — prefikssiz `FR-` §28 dan tashqarida har safar «наследует» belgili, §28 esa belgisiz. Eng jim topilma — `DP-1`: poligonlar «весь региональный запуск» ni to'sadi deb yozilgan, amalda qorovul `bbox` ni so'raydi va `district_id` `NULL` bo'la oladi; to'xtaydigani faqat statistika vitrinasi. Teskari yo'nalish — Telegram Bot API va OSM/ODbL reyestrda yo'q. 17 mutatsiya, 1 survivor tuzatildi. 2079 passed, ruff yashil. 👤 to'rtta savol. |
