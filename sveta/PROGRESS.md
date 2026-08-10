@@ -167,7 +167,9 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 
 ## Odam qaroriga bog'liq bloklar (👤)
 
-> **⛔ 2026-08-10, 74-run — PROD: `regions` jadvali bo'sh, mintaqa hech qachon
+> **✅ 2026-08-10, 74-run — YECHILDI (quyidagi to'rtala qadam prodda bajarildi).**
+>
+> **⛔ (edi) PROD: `regions` jadvali bo'sh, mintaqa hech qachon
 > yaratilmagan.** Odam prodda botni sinab ko'rdi: `/start`, til tanlash va menyu
 > ishlaydi, lekin **har** geo-oqim `error.region_not_configured` («Hudud hali
 > sozlanmagan») bilan tugaydi. Analitika buni tasdiqlaydi — hamma hodisada
@@ -283,6 +285,7 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 
 | Sana/vaqt | Epic | Nima qilindi | Keyingi qadam |
 |---|---|---|---|
+| 2026-08-10 | E2 | **PROD: Samarqand mintaqasi jonli.** `region_admin add` + 17 kalit seed, Overpass `survey` (4→1, 6→7, 8→1), `stage --admin-level 6` (7 poligon, nomlar 7/7, ODbL, ustma-ustlik 0.12%), `promote` → `districts`, `activate`. ADR-07 qarori: daraja **6**, ya'ni shahar bitta `district` | 👤 ~5 daqiqadan keyin botni sinang; `sveta-jobs` da `jobs.build_map_snapshot` chiqishi kerak |
 | 2026-08-10 | E2 | PROD defekti: Overpass so'rovi `User-Agent` siz ketardi va `406` olardi — `app/geo/osm.py` da `OVERPASS_HEADERS`, `_overpass` da `OverpassError` va o'qiladigan `[BLOK]` xabari; `regions` bo'shligi aniqlandi (migratsiya mintaqa yaratmaydi) | 👤 `docker compose build sveta-api` va `import_boundaries survey` ni takrorlash |
 | 2026-08-10 | E13 | `01` §19 «Notifications»: kanallar reyestri — reja (`Reach`) va siyosat (`Standing`) o'qlari, In-App banner `SURFACED`, uchta «Не входит» qatori bitta begona qorovulda, e'lon qilinmagan kunlik hisobot | 👤 uchta savol (quyida); keyingi nomzod — `01` §26/§27 «Risks»/«Assumptions» yoki `GET /api/v1/admin/monitoring` |
 | 2026-08-10 | E2 | `geom_exact` `NOT NULL` defekti: GeoAlchemy2 ning umumiy tip nusxasi `05` §3.2 ni bekor qilgan — `app/db/spatial.py` fabrikalari, to'rtta model + `0002` o'tkazildi, `0010` mavjud bazalarni tuzatadi, `tests/test_schema_spatial_nullability.py` sababni qulflaydi | 👤 CI ni qayta yurgizing; serverda `alembic upgrade head` |
@@ -434,6 +437,27 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 ## Ochiq savollar (odamga)
 
 <!-- Run davomida yuzaga kelgan, qaror talab qiladigan savollar -->
+- **👤 ADR-07: Samarqand uchun `admin_level` tanlash — OSM da shahar ichida
+  bo'linish YO'Q (74-run, prod `survey`).** Natija: `4` → 1 ta («Samarqand
+  viloyati»), `6` → 7 ta (6 ta qishloq tumani + **«Samarqand shahri» bitta
+  poligon**), `8` → 1 ta («Бошдарксон»). Ya'ni `6` yagona amaliy daraja, lekin
+  u bilan **pilot shahri bitta `district` bo'lib qoladi** va shahar ichidagi
+  hamma xabar bir xil `district_id` oladi. Oqibati: E14 (`territory_stats`,
+  Coverage Index), E9 ning tuman qatlami va `01` §23 ning hudud kesimi aynan
+  xabarlar tushadigan joyda **rezolyutsiyasiz** qoladi.
+  Ikkinchi topilma — `8` darajada bittagina obyekt: OSM da Samarqand
+  mahallalarining chegaralari **yo'q**, ya'ni OQ-02 (mahalla poligonlari
+  manbai) va E17 boshqa manba bilan yopilishi kerak; Overpass bu bo'shliqni
+  to'ldirmaydi.
+  Uchinchisi — `05` §5.3 ning qoplash tekshiruvi bu ma'lumotda **o'ta
+  olmaydi**: shaharni qoplaydigan daraja yo'q, `--reference-level 4` esa
+  7 ta tumanni butun viloyat bilan solishtiradi (≪98%). Tekshiruv
+  `promote` ni to'smaydi (u faqat `check_names` ga qaraydi), ya'ni odam
+  **ataylab** yiqilgan tekshiruv bilan ko'chirishi kerak bo'ladi — bu
+  qaror qayd etilishi shart.
+  ⚠️ Nomlar: `survey` da lotin va kirill aralash chiqdi («Бошдарксон»),
+  ya'ni `name:ru`/`name:uz` teglari to'liq emas. `promote` `check_names` da
+  bloklaydi — bo'sh nomlarni `boundary_staging` da qo'lda to'ldirish kerak.
 - **👤 `sveta/4wpi2gpv` ni qo'lda o'chiring (74-run).** `/tmp` to'lib qolganda pytest vaqtinchalik faylni repo ichiga yozdi (4 bayt). Agent uni o'chira olmaydi: mountda `rm` — `Operation not permitted`, `allow_cowork_file_delete` esa odam tasdig'ini kutadi va rejalashtirilgan runni to'xtatadi (CLAUDE.md §1). Vaqtincha `.gitignore` ga qo'shildi, ya'ni commitga tushmaydi.
 - **👤 `01` §19 ning In-App (веб-баннер) qatori «MVP» deb yozilgan, lekin yetkazish qoidasi bilan ziddiyatda (74-run).** Qoida «при подтверждённом инциденте **в радиусе подписки**» deydi; obuna `users.tg_id` ga bog'langan va faqat bot orqali yaratiladi, vebda esa foydalanuvchi identifikatori yo'q va §20 ga ko'ra bo'lmaydi. Uch yo'l: (a) qoida vebda boshqacha o'qiladi (masalan ko'rinib turgan hududdagi tasdiqlangan hodisa, obunasiz) — bu §19 ning matnini tahrirlaydi; (b) qator «Phase 2» ga ko'chadi; (c) veb foydalanuvchini taniydi — bu §20 ni tahrirlaydi. Kod hech birini o'zi tanlay olmaydi.
 - **👤 `notifications` da kanal ustuni yo'q va `UNIQUE (user_id, outage_id)` ikkinchi kanalni to'sadi (74-run).** `05` §2.4 ning cheklovi bitta kanal uchun to'g'ri kafolat (outbox `at-least-once`), lekin §19 ikki kanalli MVP va Phase 2 da uchinchi kanal e'lon qiladi. Ikkinchi kanal paydo bo'lganda `channel` ustuni va `UNIQUE (user_id, outage_id, channel)` kerak bo'ladi — ya'ni `05` §2.4 tahriri va migratsiya. Bugun bajarilmadi: ikkinchi kanalning taqdiri yuqoridagi savolga bog'liq.

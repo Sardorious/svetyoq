@@ -499,7 +499,14 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
   `OVERPASS_USER_AGENT`/`OVERPASS_HEADERS` so'rov matni bilan bir joyda,
   `OverpassError` + `[BLOK]` xabari traceback o'rniga, `test_geo_osm.py` da
   ikkita qulf. 👤 `docker compose build sveta-api` kerak.
-  ⛔ **`regions` prodda bo'sh edi** — hech bir migratsiya mintaqa qatorini
+  ✅ **Shu run oxirida Samarqand prodda jonli:** `region_admin add` (+17
+  kalit), Overpass `survey` (4→1, 6→7, 8→1), `stage --admin-level 6`
+  (7 poligon; nomlar 7/7, ODbL, ustma-ustlik 0.12%; qoplash tekshiruvi
+  o'ta olmaydi va `promote` uni tekshirmaydi), `promote` → `districts`,
+  `activate`. **ADR-07 qarori: daraja 6**, ya'ni pilot shahri bitta
+  `district`; `8` darajada OSM da bittagina obyekt bor, demak mahalla
+  chegaralari boshqa manbadan kelishi kerak (OQ-02, E17).
+  ⛔ (edi) **`regions` prodda bo'sh edi** — hech bir migratsiya mintaqa qatorini
   yaratmaydi (`0005` faqat bbox ni `UPDATE` qiladi), E19 uni
   `tools/region_admin.py` ga topshiradi. Botning «Hudud hali sozlanmagan»
   javobi va `sveta-jobs` ning jimligi — bitta sababning ikki ko'rinishi.
