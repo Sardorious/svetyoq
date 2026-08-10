@@ -90,6 +90,7 @@ import pytest
 
 import app as app_pkg
 from app.admin import digest as admin_digest
+from app.admin import registries as registries_mod
 from app.bot import keyboards, reply
 from app.clustering import lookup
 from app.clustering.scale import Scale
@@ -225,6 +226,13 @@ KEY_TABLES: dict[str, tuple[str, ...]] = {
     # beriladi, ya'ni skaner uni ko'rmaydi.
     "release.measures.MEASURE_KEYS": measures.MEASURE_KEYS,
     "release.measures.STAGE_KEYS": measures.STAGE_KEYS,
+    # Spetsifikatsiya reyestrlari indeksi. Gate lar bilan bir xil
+    # sabab, kuchliroq shaklda: `Registry.key` **hisoblanadigan**
+    # xususiyat (`f"registry.{code}"`), sabab kaliti esa `api/v1/
+    # admin.py` da f-satrdan quriladi — ya'ni ikkala oila ham skaner
+    # uchun butunlay ko'rinmas.
+    "admin.registries.REGISTRY_KEYS": registries_mod.REGISTRY_KEYS,
+    "admin.registries.REASON_KEYS": registries_mod.REASON_KEYS,
 }
 
 

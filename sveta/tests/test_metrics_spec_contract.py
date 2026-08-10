@@ -52,8 +52,12 @@ BEYOND_SPEC: dict[str, str] = {
         "nechta hodisadan hisoblanganini ko'rsatmaydi"
     ),
     "http_requests_total": (
-        "«xatolik darajasi» ogohlantirishi uchun; bazadan bilib bo'lmaydi "
-        "(`app.obs.counters`)"
+        "«xatolik darajasi» ogohlantirishi uchun; bazadan bilib bo'lmaydi (`app.obs.counters`)"
+    ),
+    "http_request_duration_seconds": (
+        "`03` §11 R2.0 «API p95» va `03` §9 ning Redis sharti aynan shu "
+        "sonni talab qiladi; `05` §10 jadvalida javob vaqti yo'q "
+        "(`app.obs.latency`)"
     ),
     "alert_active": "ogohlantirishning o'zi, o'lchov emas (`05` §10, to'rtta shart)",
 }
@@ -157,9 +161,7 @@ def test_registry_keeps_the_documented_order() -> None:
     yuradi), ya'ni javobni `diff` bilan solishtirish shu tartibga tayanadi.
     """
     in_code = [f.name for f in m.FAMILIES if f.name in SPEC]
-    assert in_code == list(SPEC), (
-        f"registr tartibi: {in_code}\n`05` §10 tartibi: {list(SPEC)}"
-    )
+    assert in_code == list(SPEC), f"registr tartibi: {in_code}\n`05` §10 tartibi: {list(SPEC)}"
 
 
 # --------------------------------------------------------------------------
@@ -174,9 +176,20 @@ def test_family_type_matches_the_name_suffix(name: str) -> None:
     Prometheus da `_total` bilan tugagan gauge — `rate()` ni yolg'on
     qiladigan nom; `_total` siz counter esa aksincha, o'sishini hech kim
     hisoblamaydi.
+
+    `HISTOGRAM` bu qoidaga tushmaydi va tushishi ham kerak emas: uning
+    qatorlari `_bucket`/`_sum`/`_count` qo'shimchalari bilan chiqadi,
+    ya'ni oilaning **o'z** nomi hech qanday qo'shimcha talab qilmaydi
+    (`_count` — counter, `_sum` esa yig'indi, lekin ikkalasi ham
+    namuna, oila emas).
     """
     family = m.FAMILY_BY_NAME[name]
-    assert family.type in (m.COUNTER, m.GAUGE), f"`{name}` turi noma'lum: {family.type}"
+    assert family.type in (m.COUNTER, m.GAUGE, m.HISTOGRAM), (
+        f"`{name}` turi noma'lum: {family.type}"
+    )
+    if family.type == m.HISTOGRAM:
+        assert name.endswith("_seconds"), f"`{name}` — gistogramma birligi nomda bo'lsin"
+        return
     suffixed = name.endswith(_COUNTER_SUFFIX)
     assert (family.type == m.COUNTER) == suffixed, (
         f"`{name}` turi `{family.type}`, nomi esa `{_COUNTER_SUFFIX}` bilan "

@@ -43,6 +43,15 @@ NO_REGION_PARAM: dict[str, str] = {
         "`?region=` ni qabul qilish har mintaqada boshqacha javob "
         "bo'lishi mumkinligini anglatardi."
     ),
+    "read_registries": (
+        "Reyestrlar indeksi `read_measures` bilan bir xil sinfdan: "
+        "javob kodning tuzilishidan chiqadi, ya'ni u mintaqaga bog'liq "
+        "emas. Farqi shundaki, indeksdagi **bitta** qator mintaqani "
+        "talab qiladi (`gates`) — va aynan shu sababdan u indeksda "
+        "hisoblanmaydi, o'z endpointiga havola qilinadi. `?region=` ni "
+        "qabul qilish o'sha qatorni ham shu yerda hisoblasa bo'ladi "
+        "degan taassurot qoldirardi."
+    ),
 }
 
 
@@ -205,16 +214,19 @@ def test_the_check_catches_a_real_regression() -> None:
 
 @pytest.mark.parametrize("name", sorted(NO_REGION_PARAM))
 def test_exemption_list_is_minimal(name: str) -> None:
-    """Istisnolar ikkita — ro'yxat o'sib ketmasin.
+    """Istisnolar uchta — ro'yxat o'sib ketmasin.
 
     O'sish o'zi xato emas, lekin u sezilmay bo'lmasligi kerak: yangi
     qator qo'shgan odam shu testni ham yangilaydi va shunda sabab
     o'ylab topiladi.
 
-    Ikkalasining sababi ham bir xil sinfdan va u **mintaqasizlik**:
+    Uchalasining sababi ham bir xil sinfdan va u **mintaqasizlik**:
     `get_regions` mintaqa tanlashdan oldin so'raladi, `read_measures`
-    esa umuman jonli ma'lumotga qaramaydi (`03` §11 qamrovi kodning
-    tuzilishidan chiqadi). Uchinchi istisno boshqa sababdan kelsa —
-    demak til qoidasining o'zi qayta ko'rib chiqilishi kerak.
+    va `read_registries` esa umuman jonli ma'lumotga qaramaydi (javob
+    kodning tuzilishidan chiqadi). 80-sessiya uchinchisini qo'shdi va
+    ataylab **yangi sabab o'ylab topmadi**: `read_registries` —
+    `read_measures` ning aynan o'sha sinfi, ya'ni qoidaning o'zi qayta
+    ko'rib chiqilishini talab qilmaydi. To'rtinchi istisno boshqa
+    sababdan kelsa — demak til qoidasi qayta ko'rib chiqilishi kerak.
     """
-    assert name in {"get_regions", "read_measures"}
+    assert name in {"get_regions", "read_measures", "read_registries"}

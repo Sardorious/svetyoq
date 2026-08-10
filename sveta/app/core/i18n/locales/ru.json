@@ -216,5 +216,20 @@
   "release.measure.api_p95": "Время ответа API, p95",
   "release.measure.external_consumers": "Число внешних потребителей",
   "release.measure.moderation_sla": "SLA модерации",
-  "release.measure.autoconfirm_share": "Доля автоподтверждений"
+  "release.measure.autoconfirm_share": "Доля автоподтверждений",
+  "registry.data_model": "Модель данных (ER-диаграмма)",
+  "registry.integrations": "Внешние интеграции",
+  "registry.channels": "Каналы уведомлений",
+  "registry.security": "Гарантии безопасности",
+  "registry.dashboards": "Дашборды",
+  "registry.monitoring": "Логи и мониторинг",
+  "registry.acceptance": "Критерии приёмки региона",
+  "registry.plan": "План релизов",
+  "registry.risks": "Риски и допущения",
+  "registry.dependencies": "Зависимости",
+  "registry.architecture": "Контейнеры архитектуры",
+  "registry.measures": "Покрытие измерениями",
+  "registry.gates": "Релизные гейты",
+  "registry.reason.doc_missing": "Текста спецификации нет в этой среде",
+  "registry.reason.needs_region": "Отчёт строится отдельно по региону"
 }

@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from app.core.config import Settings
-from app.obs import alerts, metrics
+from app.obs import alerts, latency, metrics
 from app.obs import monitoring as mon
 from app.obs.readings import REGION_UNKNOWN, Readings, RegionReading, to_samples
 
@@ -200,6 +200,13 @@ def _resolve(ref: str) -> object:
 # --------------------------------------------------------------------------
 
 
+def _public_buckets() -> tuple[int, ...]:
+    """Bitta tez so'rov — gistogramma eksportda ko'rinishi uchun yetarli."""
+    counts = [0] * (len(latency.BUCKETS) + 1)
+    counts[0] = 1
+    return tuple(counts)
+
+
 def _sample_export() -> list[metrics.Sample]:
     """Ikki mintaqali to'liq eksport, `/metrics` endpointidagidek.
 
@@ -224,10 +231,16 @@ def _sample_export() -> list[metrics.Sample]:
             RegionReading(code=REGION_UNKNOWN),
         )
     )
-    samples = to_samples(readings, http_counts={"2xx": 10, "5xx": 1})
+    samples = to_samples(
+        readings,
+        http_counts={"2xx": 10, "5xx": 1},
+        # Gistogramma ham eksportda: `LABEL_EXEMPT` ro'yxati aynan shu
+        # yurish bilan solishtiriladi, ya'ni bo'sh lug'at yangi oilani
+        # tekshiruvdan olib qo'yardi.
+        http_latency={latency.PUBLIC: latency.Histogram(counts=_public_buckets())},
+    )
     samples += [
-        metrics.Sample(metrics.ALERT_ACTIVE.name, 0, (("alert", name),))
-        for name in alerts.ALERTS
+        metrics.Sample(metrics.ALERT_ACTIVE.name, 0, (("alert", name),)) for name in alerts.ALERTS
     ]
     return samples
 
@@ -316,9 +329,7 @@ def test_the_design_still_caps_alerts_at_four() -> None:
     ko'rsatardi.
     """
     block = _section(DESIGN_DOC.read_text(encoding="utf-8"), DESIGN_SECTION)
-    sentence = next(
-        line.strip() for line in block.splitlines() if line.startswith("Ogohlantirish")
-    )
+    sentence = next(line.strip() for line in block.splitlines() if line.startswith("Ogohlantirish"))
     assert "faqat to'rttasiga" in sentence
     listed = sentence.split(":", 1)[1].rstrip(".").split(",")
     assert len(listed) == mon.ALERT_CAP

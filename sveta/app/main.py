@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -19,7 +20,7 @@ from app.core.errors import SvetaError, ValidationError
 from app.core.i18n import normalize_language, t
 from app.core.logging import get_logger, setup_logging
 from app.db.session import dispose_engine
-from app.obs import counters
+from app.obs import counters, latency
 
 log = get_logger(__name__)
 
@@ -132,23 +133,42 @@ def create_app() -> FastAPI:
         Metrikalarning qolgani bazadan o'qiladi (`app.obs.collector`), lekin
         HTTP javoblari hech qayerda saqlanmaydi va saqlanmasligi ham kerak.
 
+        Shu yerda javob **vaqti** ham o'lchanadi (`app.obs.latency`,
+        `03` §11 «API p95»): u ham javobning xossasi, ya'ni ikkinchi
+        joyda o'lchanishi mumkin emas. Ikkalasi bitta o'ramda, chunki
+        ikkinchi middleware har so'rovga yana bir qatlam qo'shardi.
+
         `/metrics` ning o'zi sanalmaydi: scrape har 15–60 soniyada keladi va
         u doim `2xx` bo'lgani uchun xatolik ulushini sekin-asta nolga
-        yaqinlashtirib, aynan shu ogohlantirishni o'chirardi.
+        yaqinlashtirib, aynan shu ogohlantirishni o'chirardi. Vaqt uchun
+        ham xuddi shu istisno, lekin teskari tomonga: scrape o'nlab
+        agregat so'rov bajaradi va taqsimotga o'zining sekinligini
+        qo'shardi.
 
         Ushlanmagan istisno ham `5xx` deb sanaladi va **qayta uzatiladi** —
         aks holda xatolik darajasi eng muhim holatda, ya'ni servis
-        yiqilayotganda jim qolardi.
+        yiqilayotganda jim qolardi. Uning vaqti ham yoziladi: yiqilgan
+        so'rov ham vaqt oladi va uni tashlab yuborish p95 ni yaxshi
+        tomonga siljitardi.
         """
-        counted = request.url.path != f"{settings.api_prefix}/metrics"
+        path = request.url.path
+        counted = path != f"{settings.api_prefix}/metrics"
+        surface = latency.classify(
+            path,
+            api_prefix=settings.api_prefix,
+            webhook_path=settings.telegram_webhook_path,
+        )
+        started = time.perf_counter()
         try:
             response = await call_next(request)
         except Exception:
             if counted:
                 counters.observe(500)
+                latency.observe(surface, time.perf_counter() - started)
             raise
         if counted:
             counters.observe(response.status_code)
+            latency.observe(surface, time.perf_counter() - started)
         return response
 
     app.include_router(api_router, prefix=settings.api_prefix)

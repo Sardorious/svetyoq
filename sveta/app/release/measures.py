@@ -297,13 +297,17 @@ MEASURES: tuple[Measure, ...] = (
         bound=_stats("app.stats.mahalla_coverage:MahallaCoverage.bands"),
     ),
     # ---- R2.0 · «Ochiqlik» -----------------------------------------------
-    # `http_requests_total` faqat status sinfini sanaydi — javob vaqti
-    # hech qayerda o'lchanmaydi, ya'ni p95 uchun gistogramma kerak.
+    # 81-run: gistogramma qo'shildi (`app.obs.latency`), ya'ni bu qator
+    # `ABSENT` dan `MEASURED` ga o'tdi. Chelaklar ichida `0.3` bor —
+    # `03` §6 mezoni interpolyatsiyasiz hal bo'ladi; yuza yorlig'i esa
+    # webhook va `/health` ni ommaviy API dan ajratadi (67-run
+    # ko'rsatgan `near` — `http_requests_total` — aynan shu ikkalasini
+    # bitta songa qo'shib yuborardi).
     Measure(
         "api_p95",
         "r20",
-        Coverage.ABSENT,
-        near=(_metric(metrics.HTTP_REQUESTS.name),),
+        Coverage.MEASURED,
+        bound=_metric(metrics.HTTP_DURATION.name),
     ),
     # Ommaviy API da iste'molchining identifikatori yo'q (kalit ham,
     # token ham). «Nechta tashqi foydalanuvchi» — bu o'lchov emas,

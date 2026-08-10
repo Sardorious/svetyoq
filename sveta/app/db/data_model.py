@@ -683,3 +683,22 @@ def build_report(doc: str, metadata: MetaData) -> Report:
         relations=evaluate_relations(diagram, metadata),
         region_gaps=undiagrammed_region_scope(diagram, metadata),
     )
+
+
+def build_current_report(doc: str) -> Report:
+    """Hujjat matni → **bugungi** sxema bo'yicha hisobot.
+
+    `build_report` sxemani argument sifatida oladi va shunday
+    qolishi kerak: testlar unga sun'iy `MetaData` beradi va aynan shu
+    tufayli parserning o'zi tekshiriladi. Lekin chaqiruvchi haqiqiy
+    sxemani so'raganda uni **o'zi** yig'ib bo'lmaydi:
+    `app.db.models` ni import qilish `03` §Q-1 ning modul chegarasini
+    buzadi (`tests/test_architecture_contract.py`), chunki u boshqa
+    beshta modulning `models` ini bir joyga to'playdi.
+
+    Shuning uchun yig'ish shu yerda — `app/db/` ning ichida, ya'ni
+    o'z modulida.
+    """
+    from app.db.models import metadata
+
+    return build_report(doc, metadata)

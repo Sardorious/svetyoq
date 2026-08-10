@@ -41,7 +41,7 @@ from app.core.architecture import (
     Shape,
     Trigger,
 )
-from app.obs import metrics
+from app.obs import latency, metrics
 from app.release import measures
 
 SVETA_ROOT = Path(__file__).resolve().parents[1]
@@ -351,12 +351,47 @@ def test_no_metric_family_measures_clustering_lag() -> None:
     assert not [n for n in names if "cluster" in n]
 
 
-def test_the_redis_trigger_is_the_gap_run_67_already_found() -> None:
-    """`api_p95` `ABSENT` — bu ayni paytda Redis ni qaytaradigan yagona tetik."""
+def test_the_redis_trigger_and_the_release_measure_close_together() -> None:
+    """79-run ning bashorati: bo'shliq bitta, ya'ni ikkala qator birga o'zgaradi.
+
+    Shuning uchun ikkalasi **bitta** testda tekshiriladi. Ular ayrilib
+    qolsa — masalan gistogramma olib tashlanib, `measures` da `MEASURED`
+    qolib ketsa — aynan shu yerda ko'rinadi, va bu 74- va 76-runlar
+    topgan «hisobot to'g'ri ko'rinishda qoladi» xatosining oldini oladi.
+    """
     api_p95 = measures.MEASURE_BY_CODE["api_p95"]
-    assert api_p95.coverage is measures.Coverage.ABSENT
+    assert api_p95.coverage is measures.Coverage.MEASURED
+    assert api_p95.bound is not None
+    assert api_p95.bound.ref == metrics.HTTP_DURATION.name
+
     (condition,) = arch.CONTAINER_BY_NODE["RD"].conditions
-    assert condition[1] is Trigger.UNMEASURED
+    assert condition[1] is Trigger.MEASURED
+    assert metrics.HTTP_DURATION.type == metrics.HISTOGRAM
+
+
+def test_the_redis_threshold_is_a_bucket_edge() -> None:
+    """`03` §9 ning soni chelak chegarasi bo'lmasa, tetik interpolyatsiyaga tayanardi.
+
+    Shart matni («API p95 >300 ms») va `latency.TARGET_S` bir joyda
+    tekshiriladi: hujjatdagi son o'zgarsa, chelaklar ham o'zgarishi
+    kerak, aks holda javob jimgina taxminiy bo'lib qolardi.
+    """
+    (condition,) = arch.CONTAINER_BY_NODE["RD"].conditions
+    assert "300 ms" in condition[0]
+    assert latency.TARGET_S == 0.3
+    assert latency.TARGET_S in latency.BUCKETS
+
+
+def test_no_declined_condition_is_unmeasured_today() -> None:
+    """`UNMEASURED` sinfi bo'sh — lekin ataylab saqlanadi (`Trigger` izohi).
+
+    Bu test 79-run ning holatini emas, **bugungi** holatni qulflaydi:
+    yangi rad etilgan tugun o'lchanmaydigan shart bilan qo'shilsa, u
+    jimgina o'tib ketmasin.
+    """
+    triggers = {trigger for container in arch.CONTAINERS for _, trigger in container.conditions}
+    assert Trigger.UNMEASURED not in triggers
+    assert Trigger.UNMEASURED in set(Trigger)
 
 
 def test_the_kafka_volume_trigger_has_a_counter_behind_it() -> None:

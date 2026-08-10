@@ -12,6 +12,78 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **80-sessiya: VITRINA — `GET /api/v1/admin/registries`, o'n uchta
+> spetsifikatsiya reyestri bitta indeksda: `app/admin/registries.py`.**
+> 79-run uchta nomzod qoldirgan edi; sakkiz rundan beri kutayotgan
+> vitrina tanlandi va sabab uni kutayotgani emas: 66–79 runlarning
+> **o'n to'rttasi** hujjatning bitta bo'limini reyestrga aylantirdi, va
+> bugun o'sha o'n uchta modulning **o'n bittasini faqat `pytest`
+> o'qiydi**. Ya'ni o'n to'rtta run natijasini odam hech qachon
+> ko'rmagan. Ustiga bu 62-rundan beri birinchi **funksional** ish.
+> **Asosiy qaror — bitta ustun yetmaydi.** Reyestrlar bir xil savolga
+> javob bermaydi va ularni `accurate: bool` ga siqish 74- va 76-runlar
+> topgan xatoning aynan o'zi bo'lardi. Ikkita o'q: `Verdict` (hujjat
+> haqidagi hukm) × `Serving` (hisobot **operator o'qiydigan joyda**
+> qurilishi mumkinmi). `Verdict.UNSCORED` uchinchi qiymat sifatida
+> ataylab: `measures`, `monitoring`, `dashboards` qamrovni o'lchaydi,
+> `acceptance` esa **mintaqa** haqida — ularni `INACCURATE` deb
+> belgilash hujjatga u aytmagan gapni yuklardi.
+> ⚠️ **Eng jim topilma — to'rtta reyestr prodda umuman ko'rinmaydi.**
+> `data_model`, `integrations`, `channels` va `architecture` hisobotni
+> `01_PRD_Samarkand.md` matnidan quradi. `Dockerfile` esa `app`,
+> `tools`, `tests`, `alembic` ni ko'chiradi — hujjat obrazda **yo'q**,
+> va uni qo'shish shunchaki `COPY` emas: build konteksti `sveta/`,
+> hujjat undan bir daraja yuqorida, ya'ni kontekst tashqarisida. Buni
+> hech narsa ko'rsatmasdi, chunki hujjatni faqat testlar o'qiydi va
+> testlar repoda yuriladi. To'rtta modul CI da yashil va shu bilan
+> birga serverdagi odamga hech qachon javob bera olmaydi.
+> ✅ **Odam o'sha kuni javob berdi: hujjatlar obrazga qo'shilmaydi.**
+> Ya'ni `Serving.DOC_BOUND` — vaqtinchalik holat emas, **doimiy
+> chegara**: bu to'rtta reyestr ishlab chiqish asbobi (repo va CI),
+> mahsulot vitrinasi emas; prodda `complete: false` **kutilgan** javob.
+> Test tripwire dan **kontrakt**ga aylandi
+> (`test_the_image_does_not_ship_the_spec_document`) va qarorni ikki
+> tomondan ushlaydi — hujjatning `COPY` ga qo'shilishi ham, build
+> kontekstining repo ildiziga ko'chishi ham uni yiqitadi.
+> **Indeksning bugungi javobi: `accurate` — 0.** Hukm beradigan
+> sakkiztasining **sakkiztasi ham** «hujjat bugungi kodga zid» deydi.
+> Yangi ma'lumot emas — har biri o'z runida yozilgan — lekin ular
+> birinchi marta bitta ekranda va yig'indi boshqa narsani ko'rsatadi:
+> bu alohida qoloqliklar emas, **tizimli holat**. Prodda esa ro'yxat
+> bundan ham qisqa: `unavailable` — 5.
+> **Yo'l-yo'lakay 79-run ning ikkita qorovuli ishladi va ikkalasi ham
+> haq edi:** yangi modul birinchi kunidayoq `03` §Q-1 modul
+> chegarasini buzdi (`app.db.models` importi → `data_model.
+> build_current_report`), va til qoidasi uchinchi istisnoni talab
+> qildi (`read_registries`, `read_measures` bilan **bir xil** sinfdan
+> — yangi sabab o'ylab topilmadi).
+> **Hisob:** 2 yangi fayl, 1 yangi endpoint, 1 yangi ruxsat,
+> migratsiyasiz, **2177 → 2210 passed** (bazasiz), 232 skipped, ruff
+> yashil.
+> ⚠️ **Bu run `requires_db` ni yurgizmadi** — sandboxda PostGIS
+> ko'tarilmadi (§6 retsepti bitta `bash` chaqiruvining vaqt
+> chegarasiga sig'madi). Tegilgan kod bazaga umuman murojaat
+> qilmaydi, lekin CI ning tasdig'i kerak.
+> 👤 **Uchta savol:** spetsifikatsiya hujjatlari obrazga
+> qo'shiladimi (uch yo'l, quyida); endpoint nomi `/admin/monitoring`
+> bo'lib qoladimi yoki `/admin/registries` ga o'tadimi (bugungi nom
+> `01` §22 «Logging & Monitoring» bilan chalkashadi); nol `ACCURATE`
+> qabul qilingan holatmi.
+> ✅ **Odam o'sha kuni ikkita savolga javob berdi:** hujjatlar obrazga
+> **qo'shilmaydi** (yuqorida), va endpoint `/admin/monitoring` dan
+> **`/admin/registries`** ga qayta nomlandi — `01` §22 ning o'zi
+> «Logging & Monitoring» deb ataladi va indeksda `monitoring` degan
+> alohida qator bor, ya'ni eski nom ikkita boshqa narsani bitta so'z
+> bilan atardi. ⚠️ 74–79 runlarning jurnalida eski nom qoladi.
+> **Keyingi run — odam tanladi: sakkizta `inaccurate` dan bittasini
+> tuzatish.** Har uchala arzon yo'l ham hujjatni tahrirlaydi (`01` §17
+> ning to'rtta eskirgan qatori — 72-run; `01` §29 dan `KF`/`RD` —
+> 79-run; `01` §25 ning nom fazosi — 77-run), ya'ni run avval tahrirni
+> taklif qiladi, keyin reyestrni qayta o'lchaydi va indeks natijani
+> darhol ko'rsatadi.
+>
+> ---
+>
 > ✅ **79-sessiya: ARCH — `01` §29 «High-Level Architecture» birinchi marta
 > kodda: `app/core/architecture.py`.** 78-run uchta nomzod qoldirgan edi;
 > §29 tanlandi, chunki u hujjatdagi yagona joy, u yerda mahsulot
@@ -244,6 +316,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 80 | [reyestrlar_indeksi](80_reyestrlar_indeksi_e3e24188.md) | `local_e3e24188` | **Vitrina — `GET /api/v1/admin/registries`: o‘n uchta spetsifikatsiya reyestri bitta indeksda.** 79-run uchta nomzod qoldirgan edi; sakkiz rundan beri kutayotgan vitrina tanlandi, chunki 66–79 runlarning o‘n to‘rttasi reyestr yozgan va ularning **o‘n bittasini faqat `pytest` o‘qiydi**. Ikkita o‘q: `Verdict` (hujjat haqidagi hukm, `UNSCORED` bilan) × `Serving` (hisobot operator o‘qiydigan joyda qurilishi mumkinmi). ⚠️ To‘rtta reyestr **prodda umuman ko‘rinmaydi**: ular `01_PRD_Samarkand.md` ni parse qiladi, hujjat esa Docker build kontekstidan tashqarida. Bugungi javob: **`accurate` — 0**, `inaccurate` — 8. | `app/admin/registries.py`, `GET /admin/registries`, `REGISTRIES_READ`, `data_model.build_current_report`, 15 i18n kalit, `tests/test_admin_registries.py` (32 test). 2177 → **2210 passed** (bazasiz), 232 skipped, ruff yashil, migratsiyasiz. 79-run ning ikkita qorovuli ishladi va ikkalasi ham haq edi (modul chegarasi, `?region=` istisnosi). |
 | 79 | [arxitektura_kontrakti](79_arxitektura_kontrakti_d44eb564.md) | `local_d44eb564` | **ARCH — `01` §29 «High-Level Architecture» birinchi marta kodda.** 78-run uchta nomzod qoldirgan edi; §29 tanlandi, chunki u hujjatdagi yagona joy, u yerda mahsulot **konteynerlar** darajasida chiziladi va o‘sha rasm bugungi kodga mos kelmasligi hech qayerda tekshirilmagan. | `app/core/architecture.py` + `tests/test_architecture_contract.py` (45 test); mahsulot kodi **o‘zgarmadi**, migratsiyasiz, **2363 → 2408 passed**, ruff yashil. O‘nta tugundan ikkitasi (`KF`, `RD`) `ADR-05` bilan rad etilgan → §29 ning «остальные контейнеры не меняются» jumlasi **yolg‘on**; javob `03` §Q-1 da bor, lekin `01` unga havola qilmaydi. Eng jim topilma — Kafka ning `klaster kechikishi >30 s` sharti **`VOID`**: sinxron `assign` navbatni yo‘q qilgan, ya’ni tetik hech qachon ishlamaydi. Redis ning tetigi 67-run ning `api_p95` bo‘shlig‘i bilan **bir xil**. `ADM→API` teskari, `NT→BOT` `MEDIATED`, 12 strelkadan 5 tasi `COLLAPSED`. `03` §Q-1 ning modul chegarasi sharti birinchi marta o‘lchandi. 👤 CI yashil → oltita epic ✅. |
 | 78 | [ci_yashil](78_ci_yashil_5ff5356c.md) | `local_5ff5356c` | **CI birinchi marta yashil.** Odam CI chiqishini tashladi (15 failed); sandboxda birinchi marta haqiqiy PostGIS ko'tarildi (`micromamba` + `conda-forge`, PostGIS 3.5.0) va o'n beshta yiqilish **takrorlandi**, keyin tuzatildi. Asosiy qaror — ko'r-ko'rona tuzatmaslik: yiqilishlarning kamida uchtasi mahsulot xatti-harakati haqida savol berardi. | 10 fayl, migratsiyasiz, **2130 → 2363 passed**, ruff yashil. Uchta mahsulot defekti: `ST_SimplifyPreserveTopology` `MultiPolygon` ni `Polygon` ga tushiradi (javob sxemasi `simplify` ga bog'liq edi); `/heatmap` ning `ETag` i `max-age=900` ga zid bo'lib hech qachon `304` bermasdi → `resolve_period(quantum_s=)`; `test_inactive_region_stays_hidden` begona qatorga tayanardi. Eng jim topilma — **20-run ning akkaunt yoshi tuzog'i takrorlangan** (`submit_report` `now` ni `get_or_create_user` ga ataylab bermaydi → muzlatilgan `NOW` da xabar beruvchi hech qachon hisobga o'tmaydi). Ikkinchisi — `05` §9.3 ning 5-ssenariysi `evaluate_outages` siz bajarilmaydi. Uchinchisi — `outbox` da **vaqt bombasi** (test kalendar `2026-08-07` dan o'tgan kuni qizargan). Qolgani: pytest 9 `RaisesExc`, `notifications.id`, `mahallas` tartibi. 👤 to'rtta savol. |
 | 77 | [reliz_rejasi](77_reliz_rejasi_9ecd3681.md) | `local_9ecd3681` | `01` §25 ning beshta relizi birinchi marta kod bilan solishtirildi. Asosiy qaror — **reliz identifikatori umumiy kalit emas**: `R2.0` va `R3.0` `01` va `03` da ikki xil relizni nomlaydi va kod `03` ni tanlagan (`G-8` → `MIN_ACTIVE_REGIONS`, `measures` ning `r20` → «Ochiqlik»). Ikkita o'q: `Ship` (mazmun qurilganmi) va `Gate` (shart qayerdan javob oladi); tasnif o'qi `Alias` ikkita hujjatni solishtirishdan chiqadi. | `app/release/plan.py` + `tests/test_release_plan_contract.py` (51 test). `FOREIGN` 1, `SPLIT` 1, `SHARED` 1, `REASSIGNED` 2; `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1; `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1, `EXTERNAL` 1 → `accurate` `False`. Eng jim topilma — `R0`: «регион активен» va «закрытый круг» bitta `is_active` bitini qarama-qarshi holatda talab qiladi, ikkinchi bayroq yo'q, va `03` ning eng qat'iy qoidasi («xarita gate yopilmasdan ochilmaydi») shu sababdan mexanizmsiz. Yagona `INSTRUMENTED` shart aynan o'sha bajarib bo'lmaydigan qatorda. Teskari yo'nalish — ommaviy API (E15) va moderatsiya (E8) §25 da umuman yo'q. 37 mutatsiya, 1 survivor tuzatildi (`03` §3 ning gantt va jadval nusxalari bog'lanmagan edi). 2130 passed (+51), migratsiyasiz. |

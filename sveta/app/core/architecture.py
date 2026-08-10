@@ -60,13 +60,17 @@ qaytish sharti — yagona asos». Ya'ni butun qaror **shartning
 o'lchanishiga** tayanadi. Uchala shart ham bugun o'lchanmaydi, lekin
 uch xil sababdan — va sabablar bir-biriga o'xshamaydi:
 
-* **Redis · `API p95 >300 ms` → `UNMEASURED`.** `sveta_http_requests_total`
-  faqat status sinfini sanaydi; javob vaqti uchun gistogramma yo'q.
-  67-run buni allaqachon ko'rgan (`app/release/measures.py`, `api_p95`,
-  `Coverage.ABSENT`) — lekin **reliz o'lchovi** sifatida. Hech kim
-  o'sha bo'shliq bir vaqtning o'zida Redis ni qaytaradigan **yagona
-  tetik** ekanini yozmagan. Bu qo'shimcha ish emas: gistogramma
-  qo'shilsa ikkala qator birdan yopiladi.
+* **Redis · `API p95 >300 ms` → `MEASURED`** (79-run da — `UNMEASURED`).
+  79-run ning bashorati to'g'ri chiqdi: bo'shliq bitta edi va uni
+  yopish ikkita qatorni birdan yopdi. 81-run `app.obs.latency` ni
+  qo'shdi va `app/release/measures.py` dagi `api_p95` ham `ABSENT` dan
+  `MEASURED` ga o'tdi. Ikkita tafsilot muhim: `0.3` — **chelak
+  chegarasi** (aks holda arxitektura qarori interpolyatsiyaga
+  tayanardi) va o'lchov `surface` bo'yicha ajratilgan (webhook bilan
+  `/health` ommaviy API ning p95 ini yaxshi tomonga tortardi).
+  ⚠️ Shart endi o'lchanadi, lekin hali **javob bermaydi**: yuklamasiz
+  gistogramma bo'sh va `meets_target()` `None` qaytaradi. Bu holat
+  `gates.py` ning `UNMEASURED` i bilan bir xil — «bajarildi» emas.
 * **Kafka · `klasterlash kechikishi >30 s` → `VOID`.** Shart o'lchanmaydi
   va **o'lchanishi ham mumkin emas**, chunki almashtirish o'sha
   kechikishni yo'q qilgan: `app.bot.service.submit_report` da
@@ -332,9 +336,22 @@ class Realization(StrEnum):
 class Trigger(StrEnum):
     """Rad etilgan tugunning qaytish sharti (`03` §9) bugun o'lchanadimi."""
 
+    #: Shartning o'zi o'lchanadi: metrika bor va u aynan shu sonni beradi.
+    #:
+    #: 81-run gacha bu qiymat kerak emas edi — uchala shartning hech
+    #: biri o'lchanmasdi. Endi Redis ning tetigi shu yerda
+    #: (`app.obs.latency`), va u `DERIVABLE` dan farq qiladi: chiqarish
+    #: kerak emas, son to'g'ridan-to'g'ri o'qiladi.
+    MEASURED = "measured"
     #: O'lchov bor yoki mavjud hisoblagichdan chiqariladi.
     DERIVABLE = "derivable"
     #: O'lchov yo'q, lekin qo'shilishi mumkin (gistogramma kerak).
+    #:
+    #: ⚠️ Bugun bu sinfda **birorta ham shart yo'q** va qiymat ataylab
+    #: qoldirilgan (`measures.Source.NONE` bilan bir xil sabab): u
+    #: 79-run ning topilmasini nomlaydi va yangi rad etilgan tugun
+    #: paydo bo'lganda yana kerak bo'ladi. Sinfni o'chirish tarixni
+    #: ham, ifodani ham yo'qotardi.
     UNMEASURED = "unmeasured"
     #: O'lchash **mumkin emas**: almashtirish o'lchanadigan narsani yo'q qilgan.
     VOID = "void"
@@ -444,11 +461,12 @@ CONTAINERS: tuple[Container, ...] = (
             "app.core.etag",
             "app.geo.registry",
         ),
-        conditions=(("API p95 >300 ms", Trigger.UNMEASURED),),
+        conditions=(("API p95 >300 ms", Trigger.MEASURED),),
         why=(
             "`ADR-05`: Redis o'rniga HTTP cache-header (`ETag`/`Cache-Control`) "
-            "va jarayon ichidagi kesh. Tetik o'lchanmaydi — javob vaqti uchun "
-            "gistogramma yo'q (67-run: `measures.api_p95` = `ABSENT`)."
+            "va jarayon ichidagi kesh. 81-run gistogramma qo'shdi "
+            "(`app.obs.latency`, `0.3` — chelak chegarasi), ya'ni tetik endi "
+            "o'lchanadi va qaror qaytarilishi kerakligini ma'lumot aytadi."
         ),
     ),
 )

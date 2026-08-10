@@ -255,6 +255,11 @@ LABEL_EXEMPT: dict[str, str] = {
         "emas (`/health` va `/metrics` ning o'zi hech qanday mintaqaga "
         "tegishli emas)."
     ),
+    metrics.HTTP_DURATION.name: (
+        "O'sha sabab: javob vaqti so'rovning xossasi, mintaqa esa emas — "
+        "u ba'zi endpointlarda so'rov parametri, `/regions`, `/map/config` "
+        "va `/health` da esa umuman yo'q (`app.obs.latency` modul izohi)."
+    ),
     metrics.ALERT_ACTIVE.name: (
         "Ogohlantirishning o'zi mahsulot o'lchovi emas; sharti esa "
         "mintaqalar bo'yicha maksimumdan hisoblanadi (`app.obs.alerts` "
@@ -297,10 +302,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
     Requirement(
         code="mahalla_unmatched_alert",
         layer=Layer.ALERT,
-        phrase=(
-            "Доля репортов без привязки к махалле >10% → дефект справочника "
-            "полигонов"
-        ),
+        phrase=("Доля репортов без привязки к махалле >10% → дефект справочника полигонов"),
         threshold=0.10,
         obstacles=(
             Obstacle(
@@ -329,10 +331,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
     Requirement(
         code="geocoding_failure_alert",
         layer=Layer.ALERT,
-        phrase=(
-            "Доля неудачных геокодирований >15% → риск R-13, переход в режим "
-            "«точка на карте»"
-        ),
+        phrase=("Доля неудачных геокодирований >15% → риск R-13, переход в режим «точка на карте»"),
         threshold=0.15,
         obstacles=(
             Obstacle(
@@ -432,9 +431,7 @@ def _check_alert_cap() -> None:
             f"`alerts.ALERTS` da {len(alerts.ALERTS)} ta"
         )
     conflicted = [
-        req.code
-        for req in REQUIREMENTS
-        if any(o.unblocks is Unblocks.SPEC for o in req.obstacles)
+        req.code for req in REQUIREMENTS if any(o.unblocks is Unblocks.SPEC for o in req.obstacles)
     ]
     if not conflicted:
         raise ValueError("ziddiyat yo'qolgan bo'lsa, `ALERT_CAP` ham keraksiz")

@@ -29,7 +29,7 @@ from app.admin.roles import Permission
 from app.api.deps import AdminActor, DbSession
 from app.core.config import settings
 from app.obs import alerts as alerts_mod
-from app.obs import collector, counters
+from app.obs import collector, counters, latency
 from app.obs import metrics as m
 from app.obs.readings import to_samples
 
@@ -55,9 +55,10 @@ def thresholds() -> alerts_mod.Thresholds:
 async def get_metrics(actor: AdminActor, session: DbSession) -> PlainTextResponse:
     actor.require(Permission.METRICS_READ)
     http_counts = counters.snapshot()
+    http_latency = latency.snapshot()
     readings = await collector.collect(session)
     states = alerts_mod.evaluate(readings, http_counts=http_counts, thresholds=thresholds())
-    samples = to_samples(readings, http_counts=http_counts)
+    samples = to_samples(readings, http_counts=http_counts, http_latency=http_latency)
     samples += [
         m.Sample(m.ALERT_ACTIVE.name, 1 if states[name] else 0, (("alert", name),))
         for name in alerts_mod.ALERTS

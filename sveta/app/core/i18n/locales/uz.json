@@ -216,5 +216,20 @@
   "release.measure.api_p95": "API javobining p95 vaqti",
   "release.measure.external_consumers": "Tashqi foydalanuvchilar soni",
   "release.measure.moderation_sla": "Moderatsiya SLA si",
-  "release.measure.autoconfirm_share": "Avtotasdiqlash ulushi"
+  "release.measure.autoconfirm_share": "Avtotasdiqlash ulushi",
+  "registry.data_model": "Ma'lumot modeli (ER diagrammasi)",
+  "registry.integrations": "Tashqi integratsiyalar",
+  "registry.channels": "Bildirishnoma kanallari",
+  "registry.security": "Xavfsizlik kafolatlari",
+  "registry.dashboards": "Dashboardlar",
+  "registry.monitoring": "Jurnal va kuzatuvchanlik",
+  "registry.acceptance": "Mintaqani qabul qilish mezonlari",
+  "registry.plan": "Reliz rejasi",
+  "registry.risks": "Risklar va допущение lar",
+  "registry.dependencies": "Bog'liqliklar",
+  "registry.architecture": "Arxitektura konteynerlari",
+  "registry.measures": "O'lchov qamrovi",
+  "registry.gates": "Reliz gate lari",
+  "registry.reason.doc_missing": "Spetsifikatsiya matni bu muhitda yo'q",
+  "registry.reason.needs_region": "Hisobot mintaqa bo'yicha alohida quriladi"
 }

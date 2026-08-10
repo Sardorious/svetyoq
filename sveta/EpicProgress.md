@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 78-run.
+**Oxirgi yangilanish:** 2026-08-10, 80-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -25,7 +25,7 @@ faqat havola qilinadi.
 | E5b | Tasdiqlash va masshtab (`06`) | ✅ | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58**, 61, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | 11, 62, 64, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | 11, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
-| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | `DIGEST_CHAT_IDS` (E8-b) |
+| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39, **80** | `DIGEST_CHAT_IDS` (E8-b) |
 | E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, **78** | ADR-08 (tayl manbasi) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | (64 — asbob) | E10 (**asbob tayyor**) |
@@ -52,13 +52,17 @@ faqat havola qilinadi.
 | DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` | **72** |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` | **73** |
 | ARCH — arxitektura konteynerlari (`01` §29 ↔ `03` §Q-1) | 🔄 | `app/core/architecture.py` | **79** |
+| VIT — reyestrlar vitrinasi (`GET /admin/registries`) | 🔄 | `app/admin/registries.py` | **80** |
 
 ---
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **130 ta test fayli**; oxirgi yurish (79-run): `pytest -q` (**bayroqsiz,
-ya'ni `requires_db` bilan birga**) → **2408 passed, 1 skipped**.
+Jami **131 ta test fayli**; oxirgi to'liq yurish (79-run): `pytest -q`
+(**bayroqsiz**) → **2408 passed, 1 skipped**. 80-run bazasiz yurgizdi
+(sandboxda PostGIS ko'tarilmadi) → **2210 passed, 232 skipped**, ya'ni
+`requires_db` ning 231 tasi bu runda **yurmadi** va CI ning tasdig'i
+kerak.
 
 ✅ **79-run: CI ni odam yurgizdi va u yashil.** 78-run ning yagona ochiq
 so'rovi shu edi — oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun
@@ -100,6 +104,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | DATA | `test_data_model_contract` |
 | INT | `test_integrations_contract` |
 | ARCH | `test_architecture_contract` |
+| VIT | `test_admin_registries` |
 
 ---
 
@@ -232,6 +237,7 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | ~~**CI ni qayta yurgizish.**~~ ✅ **yopildi (79-sessiya):** odam CI ning yashilligini tasdiqladi. Oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) ✅ ga o'tdi; qolgan epiclarning to'sig'idan «CI» olib tashlandi (E3/E13 — Telegram runi, E8 — `DIGEST_CHAT_IDS`, E9 — ADR-08, E14 — vitrina, E16 — zichlik, E19 — ikkinchi mintaqa) | (edi) E2, E5, E5b, E6, E7, E15 |
 | ⛔ **`.git/index.lock`** (78-run, 0 bayt, 16:26) — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | ~~`.\push.ps1` — 56-running 3- va 4-tuzatishi commit qilinmagan~~ ✅ **yopildi (74.5-sessiya):** `8b82603`, `7c91017`, `d3d3f5b` push qilindi, `main` = `origin/main` = `d3d3f5b`. ⚠️ Qolgani: `.git/index.lock` (0 bayt, 08-10 13:03) keyingi git yozuvini to'sadi — `del .git\index.lock`; `push.ps1` ning ikkita defekti `PROGRESS.md` ning «Ochiq savollar» ida | (edi) prod: SQL jurnali, CI: `NullPool` |
+| ~~Spetsifikatsiya hujjatlari obrazga qo'shiladimi~~ ✅ **yopildi (80-sessiya): YO'Q.** To'rtta `DOC_BOUND` reyestr (`data_model`, `integrations`, `channels`, `architecture`) shu sababdan faqat repoda va CI da javob beradi — ular ishlab chiqish asbobi, mahsulot vitrinasi emas; prodda `unavailable`/`doc_missing` va `complete: false` — **kutilgan** javob | (edi) VIT, DATA, INT, E13, ARCH |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
 | Telegram bot tokeni va haqiqiy run | E3, E13 |
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh), ANL (`01` §21 ning **ikkita** dashboardi) |
@@ -275,6 +281,41 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+
+- **80-run — o'n to'rtta rundan keyin ularning natijasini birinchi
+  marta odam ko'radi.** `GET /api/v1/admin/registries` — o'n uchta
+  spetsifikatsiya reyestri bitta indeksda (`app/admin/registries.py`).
+  Asosiy qaror — **bitta ustun yetmaydi**: reyestrlar bir xil savolga
+  javob bermaydi va `accurate: bool` ga siqish 74- va 76-runlar topgan
+  xatoning aynan o'zi bo'lardi. Ikkita o'q: `Verdict` (hujjat haqidagi
+  hukm; `UNSCORED` — qamrov hisoboti, yiqilish emas) × `Serving`
+  (hisobot **operator o'qiydigan joyda** qurilishi mumkinmi).
+  ⚠️ **Eng jim topilma — to'rtta reyestr prodda umuman ko'rinmaydi.**
+  `data_model`, `integrations`, `channels` va `architecture` hisobotni
+  `01_PRD_Samarkand.md` matnidan quradi; `Dockerfile` esa `app`,
+  `tools`, `tests`, `alembic` ni ko'chiradi va hujjat build
+  kontekstidan **tashqarida**. Buni hech narsa ko'rsatmasdi, chunki
+  hujjatni faqat testlar o'qiydi va testlar repoda yuriladi — to'rtta
+  modul CI da yashil va shu bilan birga serverdagi odamga hech qachon
+  javob bera olmaydi. **Odam o'sha kuni javob berdi: hujjatlar obrazga
+  qo'shilmaydi** — ya'ni `DOC_BOUND` doimiy chegara, va test tripwire
+  dan **kontrakt**ga aylandi
+  (`test_the_image_does_not_ship_the_spec_document`).
+  **Indeksning bugungi javobi: `accurate` — 0** (`inaccurate` 8,
+  `unscored` 4, `unavailable` 1; prodda `unavailable` 5).
+  **Ikkita son, bitta emas:** `flagged` (o'z qatorlaridan nechtasi
+  belgilangan, to'plamning **kuchi**) va `undeclared` (hujjatda umuman
+  yo'q, kodda bor) — `Probe` `flagged > total` ni taqiqlaydi.
+  **79-run ning ikkita qorovuli ishladi va ikkalasi ham haq edi:**
+  yangi modul birinchi kunidayoq `03` §Q-1 modul chegarasini buzdi
+  (`app.db.models` importi → `data_model.build_current_report`), va til
+  qoidasi uchinchi istisnoni talab qildi (`read_registries` —
+  `read_measures` bilan bir xil sinfdan). **Teskari yo'nalish
+  qorovuli:** `SPEC` konstantasi bo'lgan har bir modul indeksda
+  bo'lishi shart (`ast` skaneri). 2 yangi fayl, migratsiyasiz,
+  **2177 → 2210 passed** (bazasiz), ruff yashil. 👤 Uchta savol
+  (`PROGRESS.md`): hujjatlar obrazga qo'shiladimi; endpoint nomi;
+  nol `ACCURATE`.
 
 - **78-run — CI birinchi marta yashil, va o'n beshta yiqilishning
   to'rttasi test xatosi emas edi.** Sandboxda birinchi marta haqiqiy

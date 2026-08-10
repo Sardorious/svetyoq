@@ -13,15 +13,18 @@ E19 (ko'p mintaqalilik) dan keyin paydo bo'ladi: ikkinchi mintaqadagi
 buzilgan poligonlar yoki yiqilgan bildirishnomalar birinchisining sog'lom
 raqamiga qo'shilib, chegaraga umuman yetib bormaydi.
 
-Yorliqsiz qolgani ikkitasi va ikkalasi ham `05` §10 jadvalida yo'q:
+Yorliqsiz qolgani uchtasi va uchalasi ham `05` §10 jadvalida yo'q:
 `http_requests_total` — protsess hisoblagichi (mintaqa so'rov darajasida
-ma'lum emas) va `alert_active` — ogohlantirishning o'zi.
+ma'lum emas), `http_request_duration_seconds` — o'sha sabab
+(`app.obs.latency` modul izohi) va `alert_active` — ogohlantirishning
+o'zi.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app.obs import latency as lat
 from app.obs import metrics as m
 
 #: Snapshot qatori umuman yo'q bo'lganda `snapshot_age_seconds` shu qiymatni
@@ -97,8 +100,19 @@ class Readings:
         return max((r.geo_unmatched_ratio for r in self.regions), default=0.0)
 
 
-def to_samples(readings: Readings, *, http_counts: dict[str, int]) -> list[m.Sample]:
-    """O'lchovlar → namunalar. Ogohlantirishlar alohida qo'shiladi."""
+def to_samples(
+    readings: Readings,
+    *,
+    http_counts: dict[str, int],
+    http_latency: dict[str, lat.Histogram],
+) -> list[m.Sample]:
+    """O'lchovlar → namunalar. Ogohlantirishlar alohida qo'shiladi.
+
+    `http_latency` ning **standart qiymati yo'q** va bu ataylab:
+    ixtiyoriy argument bo'lganida yangi eksport yo'li gistogrammani
+    jimgina tashlab ketardi, `05` §10 ning qolgan qatorlari esa
+    joyida qolgani uchun buni hech kim sezmasdi.
+    """
     samples: list[m.Sample] = []
     for region in sorted(readings.regions, key=lambda r: r.code):
         label = (("region", region.code),)
@@ -112,9 +126,7 @@ def to_samples(readings: Readings, *, http_counts: dict[str, int]) -> list[m.Sam
             )
             for q, value in region.time_to_confirm
         ]
-        samples.append(
-            m.Sample(m.TIME_TO_CONFIRM_COUNT.name, region.time_to_confirm_count, label)
-        )
+        samples.append(m.Sample(m.TIME_TO_CONFIRM_COUNT.name, region.time_to_confirm_count, label))
         samples.append(m.Sample(m.SNAPSHOT_AGE.name, region.snapshot_age_s, label))
         samples.append(m.Sample(m.OUTBOX_LAG.name, region.outbox_lag_s, label))
         samples.append(m.Sample(m.GEO_UNMATCHED.name, region.geo_unmatched_ratio, label))
@@ -125,8 +137,51 @@ def to_samples(readings: Readings, *, http_counts: dict[str, int]) -> list[m.Sam
         m.Sample(m.HTTP_REQUESTS.name, count, (("status_class", cls),))
         for cls, count in sorted(http_counts.items())
     ]
+    samples += _latency_samples(http_latency)
+    return samples
+
+
+def _latency_samples(http_latency: dict[str, lat.Histogram]) -> list[m.Sample]:
+    """Gistogramma → `_bucket`/`_sum`/`_count` (`app.obs.latency` modul izohi).
+
+    Chelaklar **kümülativ** chiqadi (`le` — «shundan tez yoki teng»), va
+    `+Inf` har doim oxirgi qator: Prometheus uchun uning yo'qligi
+    taqsimotning yuqori uchi kesilgani degani, ya'ni `_count` bilan
+    chelaklar yig'indisi mos kelmasdi.
+    """
+    samples: list[m.Sample] = []
+    for surface in lat.SURFACES:
+        histogram = http_latency.get(surface)
+        if histogram is None:
+            continue
+        label = (("surface", surface),)
+        cumulative = histogram.cumulative
+        samples += [
+            m.Sample(
+                m.HTTP_DURATION.name,
+                cumulative[index],
+                label + (("le", _le_label(edge)),),
+                suffix="_bucket",
+            )
+            for index, edge in enumerate(lat.BUCKETS)
+        ]
+        samples.append(
+            m.Sample(
+                m.HTTP_DURATION.name,
+                histogram.total,
+                label + (("le", "+Inf"),),
+                suffix="_bucket",
+            )
+        )
+        samples.append(m.Sample(m.HTTP_DURATION.name, histogram.sum_s, label, suffix="_sum"))
+        samples.append(m.Sample(m.HTTP_DURATION.name, histogram.total, label, suffix="_count"))
     return samples
 
 
 def _quantile_label(value: float) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def _le_label(value: float) -> str:
+    """`0.025`, `0.3`, `1`, `10` — Prometheus dagi odatiy yozuv."""
+    return f"{value:g}"

@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from app.admin import audit, digest_service, service
 from app.admin import digest as digest_mod
+from app.admin import registries as registries_mod
 from app.admin.roles import Permission
 from app.api.deps import AdminActor, ClientLang, DbSession
 from app.api.openapi import NOT_FOUND
@@ -517,5 +518,103 @@ async def read_measures(
                 ],
             )
             for stage in measures_mod.STAGES
+        ],
+    )
+
+
+class RegistryOut(BaseModel):
+    code: str
+    label: str
+    #: Hujjat bo'limi (`01 §26 + §27`).
+    spec: str
+    #: Reyestr yashaydigan modul — hisobotni kim quradi.
+    module: str
+    #: `accurate` / `inaccurate` / `unscored`. `null` — o'lchanmadi.
+    verdict: str | None
+    serving: str
+    #: Reyestrning qatorlari soni va ulardan nechtasi belgilangan.
+    #: `null` — hisobot qurilmadi.
+    total: int | None
+    flagged: int | None
+    #: Hujjatda umuman yozilmagan, kodda bor narsalar soni. `flagged`
+    #: bilan qo'shilmaydi: bu boshqa turdagi da'vo.
+    undeclared: int | None
+    #: Hisobot nega qurilmadi, tarjima qilingan holda. Bo'sh satr —
+    #: qurildi.
+    reason: str
+    #: Reyestrni to'liq ko'rsatadigan **o'z** endpointi (prefikssiz).
+    #: `null` — yo'q, ya'ni uni faqat shu indeks ko'rsatadi.
+    endpoint: str | None
+
+
+class RegistryIndexOut(BaseModel):
+    #: Hukm kodi → nechta reyestr, `unavailable` bilan birga.
+    counts: dict[str, int]
+    total: int
+    #: Indeks shu muhitda **to'liq** javob beradimi. Bu maydon —
+    #: hisobotning javobi: `false` bo'lsa, quyidagi sonlar hammasi
+    #: emas.
+    complete: bool
+    #: Spetsifikatsiya matni shu muhitda topildimi. `complete` ning
+    #: bugungi yagona sababi aynan shu.
+    doc_present: bool
+    #: O'z endpointi yo'q reyestrlar soni.
+    unsurfaced: int
+    registries: list[RegistryOut]
+
+
+@router.get(
+    "/registries",
+    response_model=RegistryIndexOut,
+    summary="Spetsifikatsiya reyestrlari indeksi",
+)
+async def read_registries(
+    actor: AdminActor,
+    lang: ClientLang = None,
+) -> RegistryIndexOut:
+    """O'n uchta reyestr bitta ro'yxatda: hujjatning qaysi bo'limi kodga zid.
+
+    **Bazaga murojaat qilmaydi.** Har bir son o'z modulining sof
+    funksiyasidan keladi (`app/admin/registries.py`), ya'ni javob
+    mahsulotning ma'lumoti haqida emas, **kodning tuzilishi** haqida.
+
+    `verdict` ni ikkilik deb o'qish mumkin emas: `unscored` — yo'qlik
+    emas, **boshqa savol** (qamrov o'lchanadi, hujjatning rostligi
+    emas). `null` esa uchinchi narsa — hisobot bu muhitda umuman
+    qurilmadi, sababi `reason` da.
+
+    ⚠️ `complete: false` bo'lsa ro'yxat **to'liq emas**: bugun
+    spetsifikatsiya matni Docker obraziga kirmaydi, ya'ni matndan
+    quriladigan reyestrlar serverda ko'rinmaydi. Buni indeks
+    tuzatmaydi — u faqat ko'rsatadi.
+    """
+    actor.require(Permission.REGISTRIES_READ)
+    language = i18n.pick_language(client=lang, region_default=settings.default_language)
+    report = registries_mod.evaluate(registries_mod.read_doc())
+    return RegistryIndexOut(
+        counts=report.counts,
+        total=len(report.findings),
+        complete=report.complete,
+        doc_present=report.doc_present,
+        unsurfaced=len(report.unsurfaced),
+        registries=[
+            RegistryOut(
+                code=item.registry.code,
+                label=i18n.t(item.registry.key, language),
+                spec=item.registry.spec,
+                module=item.registry.module,
+                verdict=str(item.probe.verdict) if item.probe else None,
+                serving=str(item.registry.serving),
+                total=item.probe.total if item.probe else None,
+                flagged=item.probe.flagged if item.probe else None,
+                undeclared=item.probe.undeclared if item.probe else None,
+                reason=(
+                    i18n.t(f"{registries_mod.KEY_PREFIX}.reason.{item.reason}", language)
+                    if item.reason
+                    else ""
+                ),
+                endpoint=item.registry.endpoint,
+            )
+            for item in report.findings
         ],
     )

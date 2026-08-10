@@ -36,6 +36,10 @@ PREFIX = "sveta_"
 
 COUNTER = "counter"
 GAUGE = "gauge"
+#: Chelaklar bilan taqsimot. Oilaning namunalari `_bucket`, `_sum` va
+#: `_count` qo'shimchalari bilan chiqadi (`Sample.suffix`), `# HELP` va
+#: `# TYPE` esa bitta — bu Prometheus matn formatining talabi.
+HISTOGRAM = "histogram"
 
 #: Prometheus matn eksportining versiyasi — `Content-Type` da ko'rsatiladi.
 CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
@@ -56,11 +60,18 @@ class Family:
 
 @dataclass(frozen=True)
 class Sample:
-    """Bitta o'lchov. `labels` tartibi chiqishda saqlanadi (barqaror diff)."""
+    """Bitta o'lchov. `labels` tartibi chiqishda saqlanadi (barqaror diff).
+
+    `suffix` faqat `HISTOGRAM` uchun (`_bucket`/`_sum`/`_count`). U
+    `name` ga qo'shilmaydi, chunki namuna qaysi **oilaga** tegishli
+    ekani yo'qolmasligi kerak: `LABEL_EXEMPT` va `PRODUCT_FAMILIES`
+    tekshiruvlari aynan `name` bo'yicha yuradi.
+    """
 
     name: str
     value: float
     labels: tuple[tuple[str, str], ...] = field(default=())
+    suffix: str = ""
 
 
 #: `05` §10 jadvali, aynan o'sha tartibda.
@@ -73,9 +84,7 @@ TIME_TO_CONFIRM = Family(
     GAUGE,
     "Birinchi xabardan tasdiqlashgacha o'tgan vaqt, oynadagi kvantillar",
 )
-TIME_TO_CONFIRM_COUNT = Family(
-    "time_to_confirm_count", GAUGE, "Oynada tasdiqlangan hodisalar soni"
-)
+TIME_TO_CONFIRM_COUNT = Family("time_to_confirm_count", GAUGE, "Oynada tasdiqlangan hodisalar soni")
 SNAPSHOT_AGE = Family("snapshot_age_seconds", GAUGE, "Xarita snapshotining yoshi")
 OUTBOX_LAG = Family("outbox_lag_seconds", GAUGE, "Eng eski ishlanmagan outbox qatorining yoshi")
 GEO_UNMATCHED = Family(
@@ -91,6 +100,17 @@ HTTP_REQUESTS = Family(
     "http_requests_total", COUNTER, "HTTP javoblari status sinfi bo'yicha (protsess ichida)"
 )
 
+#: `05` §10 ro'yxatida yo'q. Sababi boshqa hujjatda: `03` §11 R2.0
+#: «API p95» ni kuzatishni talab qiladi va `03` §9 Redis ni qaytarishning
+#: yagona sharti sifatida o'sha sonni ko'rsatadi (`app.obs.latency`).
+#: Metrika qo'shildi, **ogohlantirish qo'shilmadi** — `05` §10 to'rttadan
+#: ko'piga ruxsat bermaydi.
+HTTP_DURATION = Family(
+    "http_request_duration_seconds",
+    HISTOGRAM,
+    "HTTP javob vaqti yuzalar bo'yicha (protsess ichida)",
+)
+
 #: Ogohlantirishning faolligi — `05` §10 ning to'rtta shartidan har biri.
 ALERT_ACTIVE = Family("alert_active", GAUGE, "Ogohlantirish faol (1) yoki yo'q (0)")
 
@@ -104,6 +124,7 @@ FAMILIES: tuple[Family, ...] = (
     GEO_UNMATCHED,
     NOTIFICATIONS_FAILED,
     HTTP_REQUESTS,
+    HTTP_DURATION,
     ALERT_ACTIVE,
 )
 
@@ -160,6 +181,7 @@ def render(samples: list[Sample]) -> str:
         lines.append(f"# HELP {family.full_name} {_escape_help(family.help)}")
         lines.append(f"# TYPE {family.full_name} {family.type}")
         lines += [
-            f"{family.full_name}{_format_labels(r.labels)} {_format_value(r.value)}" for r in rows
+            f"{family.full_name}{r.suffix}{_format_labels(r.labels)} {_format_value(r.value)}"
+            for r in rows
         ]
     return "\n".join(lines) + "\n" if lines else ""

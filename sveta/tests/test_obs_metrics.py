@@ -98,7 +98,7 @@ def test_readings_become_samples_with_region_labels() -> None:
             RegionReading("bukhara", outages_open=0),
         ),
     )
-    text = m.render(to_samples(readings, http_counts={"2xx": 5, "5xx": 1}))
+    text = m.render(to_samples(readings, http_counts={"2xx": 5, "5xx": 1}, http_latency={}))
     assert 'sveta_outages_open{region="samarkand"} 2' in text
     assert 'sveta_outages_open{region="bukhara"} 0' in text
     assert 'sveta_snapshot_age_seconds{region="bukhara"} +Inf' in text
@@ -115,9 +115,10 @@ def test_every_product_metric_carries_a_region_label() -> None:
     """`01` §23 ning 6-mezoni: «Метрики размечены `region`».
 
     Ro'yxat `05` §10 jadvalidan olingan — yettala metrika ham. Yorliqsiz
-    chiqadigan ikkitasi (`http_requests_total`, `alert_active`) o'sha
-    jadvalda yo'q: birinchisi protsess hisoblagichi (mintaqa so'rov
-    darajasida ma'lum emas), ikkinchisi ogohlantirishning o'zi.
+    chiqadigan uchtasi (`http_requests_total`,
+    `http_request_duration_seconds`, `alert_active`) o'sha jadvalda
+    yo'q: birinchi ikkitasi protsess o'lchovi (mintaqa so'rov darajasida
+    ma'lum emas), uchinchisi ogohlantirishning o'zi.
 
     Test aynan **hamma** metrikani tekshiradi, chunki defekt shu bilan
     boshlangan edi: ettitadan ikkitasi yorliqlangan, qolgani yo'q va uni
@@ -138,7 +139,7 @@ def test_every_product_metric_carries_a_region_label() -> None:
             RegionReading("samarkand", time_to_confirm=((0.5, 1.0),), time_to_confirm_count=1),
         ),
     )
-    samples = to_samples(readings, http_counts={"2xx": 1})
+    samples = to_samples(readings, http_counts={"2xx": 1}, http_latency={})
     seen = {s.name for s in samples if dict(s.labels).get("region") == "samarkand"}
     assert seen == spec
     assert not [s for s in samples if s.name in spec and "region" not in dict(s.labels)]
@@ -148,7 +149,7 @@ def test_regions_are_sorted_by_code() -> None:
     readings = Readings(
         regions=(RegionReading("samarkand", 1), RegionReading("bukhara", 1)),
     )
-    samples = to_samples(readings, http_counts={})
+    samples = to_samples(readings, http_counts={}, http_latency={})
     order = [s.labels[0][1] for s in samples if s.name == m.OUTAGES_OPEN.name]
     assert order == ["bukhara", "samarkand"]
 

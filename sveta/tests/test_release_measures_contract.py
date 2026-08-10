@@ -38,10 +38,9 @@ import importlib
 import re
 from pathlib import Path
 
-import pytest
-
 from app.admin.audit import AuditAction
 from app.clustering.models import Outage
+from app.obs import metrics
 from app.release import measures as m
 from app.reports.models import Report
 
@@ -192,19 +191,53 @@ def _spec_metrics() -> set[str]:
     return {match.group(1) for line in section.splitlines() if (match := row.match(line.strip()))}
 
 
+#: `05` §10 jadvalidan tashqarida, lekin bog'lanish uchun **baribir**
+#: ochiq. Shart bitta va u qat'iy: metrikani talab qiladigan hujjat —
+#: aynan shu modul amalga oshiradigan jadval (`measures.SPEC`, `03` §11).
+#: Ya'ni bog'lanish va'dani spetsifikatsiyadan tashqariga olib chiqmaydi,
+#: u boshqa **nomlangan** bo'limga olib boradi.
+#:
+#: `http_requests_total` ro'yxatda yo'q va bo'lmasligi ham kerak: uni
+#: talab qiladigan qator — `05` §10 ning ogohlantirishi, ko'rsatkich
+#: emas. 67-run uni aynan shuning uchun `near` deb yozgan edi.
+BOUND_OUTSIDE_THE_DESIGN_TABLE: dict[str, str] = {
+    "http_request_duration_seconds": m.SPEC,
+}
+
+
 def test_bound_metrics_come_from_the_design_table() -> None:
-    """Bog'langan metrika `05` §10 **jadvalida** bo'lishi shart.
+    """Bog'langan metrika `05` §10 **jadvalida** yoki `03` §11 talabida.
 
     Registrda §10 da yo'q metrikalar ham bor (`http_requests_total`,
     `alert_active` — `tests/test_metrics_spec_contract.py` ularni
     sabab bilan oqlaydi). Mahsulot va'dasini ana shunday metrikaga
     bog'lash uni jimgina spetsifikatsiyadan tashqariga chiqarardi.
+
+    81-run bitta istisno qo'shdi va uni **tor** qildi: javob vaqti
+    `05` §10 da yo'q, lekin `03` §11 ning o'zi — ya'ni shu modul
+    amalga oshiradigan jadval — uni talab qiladi. Istisno ro'yxatga
+    nom bilan yozilgan, shuning uchun ikkinchisi jimgina qo'shila
+    olmaydi.
     """
     spec = _spec_metrics()
     assert spec, "`05` §10 jadvali o'qilmadi"
     for measure in m.MEASURES:
         if measure.bound is not None and measure.bound.source is m.Source.METRIC:
-            assert measure.bound.ref in spec, measure.code
+            ref = measure.bound.ref
+            mandate = BOUND_OUTSIDE_THE_DESIGN_TABLE.get(ref)
+            assert ref in spec or mandate == m.SPEC, measure.code
+
+
+def test_the_exception_list_stays_narrow() -> None:
+    """Istisno faqat `03` §11 talab qiladigan metrika uchun.
+
+    Ro'yxatga `http_requests_total` yozib qo'yish — eng arzon
+    «tuzatish» va aynan u yuqoridagi testni ma'nosiz qilardi.
+    """
+    for name, mandate in BOUND_OUTSIDE_THE_DESIGN_TABLE.items():
+        assert name in {f.name for f in metrics.FAMILIES}, name
+        assert mandate == m.SPEC, name
+    assert "http_requests_total" not in BOUND_OUTSIDE_THE_DESIGN_TABLE
 
 
 def _resolve(ref: str) -> object:
@@ -298,12 +331,12 @@ def test_nobody_can_confirm_an_outage_by_hand() -> None:
     assert m.MEASURE_BY_CODE["autoconfirm_share"].coverage is m.Coverage.ABSENT
 
 
-@pytest.mark.parametrize("code", ["api_p95", "external_consumers"])
-def test_the_public_api_measures_are_absent(code: str) -> None:
-    """R2.0 ning ikkala ko'rsatkichi ham yangi mexanizm talab qiladi.
+def test_the_consumer_count_is_still_a_product_question() -> None:
+    """R2.0 ning ikkinchi ko'rsatkichi — kod emas, mahsulot qarori.
 
-    `http_requests_total` faqat status sinfini sanaydi — javob vaqti
-    umuman o'lchanmaydi; iste'molchining identifikatori esa ommaviy
-    API da yo'q.
+    81-run `api_p95` ni yopdi (gistogramma), lekin bu qatorga tegmadi
+    va tegishi ham mumkin emas: ommaviy API da iste'molchining
+    identifikatori yo'q — na kalit, na token. «Nechta tashqi
+    foydalanuvchi» degan savol avval mahsulot qarorini talab qiladi.
     """
-    assert m.MEASURE_BY_CODE[code].coverage is m.Coverage.ABSENT
+    assert m.MEASURE_BY_CODE["external_consumers"].coverage is m.Coverage.ABSENT

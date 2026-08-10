@@ -60,6 +60,14 @@ class Permission(StrEnum):
     #: yolg'onga aylantirardi va keyingi ajratish (masalan mahsulot
     #: menejeri uchun faqat qamrov) migratsiya talab qilardi.
     MEASURES_READ = "measures.read"
+    #: Spetsifikatsiya reyestrlari indeksini o'qish
+    #: (`app/admin/registries.py`). Yana bir alohida nom, `gates.read`
+    #: bilan bir xil sababdan — lekin bu yerda sabab kuchliroq: indeks
+    #: **hujjat kodga zid** degan da'volarni bir joyda to'playdi va
+    #: ularning aksariyati hali odam qaroriga bog'liq. Uni smena
+    #: moderatori o'qisa, u hali qabul qilinmagan qarorni bajarilgan
+    #: deb o'qishi mumkin.
+    REGISTRIES_READ = "registries.read"
 
 
 _MODERATOR: frozenset[Permission] = frozenset(
@@ -89,6 +97,7 @@ PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.AUDIT_READ,
             Permission.GATES_READ,
             Permission.MEASURES_READ,
+            Permission.REGISTRIES_READ,
         }
     ),
 }
