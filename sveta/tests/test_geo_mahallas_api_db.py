@@ -224,8 +224,17 @@ async def test_only_the_current_slice_is_returned(client, region) -> None:
     body = (await client.get("/api/v1/geo/mahallas", params={"region": code})).json()
     assert body["count"] == 2
     assert all(f["properties"]["valid_to"] is None for f in body["features"])
-    names = [f["properties"]["name_uz"] for f in body["features"]]
-    assert names == sorted(names), "tartib barqaror — `ETag` shunga tayanadi"
+    # Tartib **nom bo'yicha emas**: `queries.load_mahallas` uni
+    # `(tuman kodi, nom, davr boshi)` uchligi bilan beradi, chunki
+    # `mahallas` da o'z `code` ustuni yo'q va faqat nom takrorlanishi
+    # mumkin. `ETag` shu uchlikka tayanadi. Bu yerda `Registon` `a`
+    # tumanida, `Bogishamol` esa `b` da — ya'ni alifbo bo'yicha teskari
+    # ko'ringan tartib aslida shartnomaning o'zi.
+    keys = [
+        (f["properties"]["district_code"], f["properties"]["name_uz"])
+        for f in body["features"]
+    ]
+    assert keys == sorted(keys), "tartib barqaror — `ETag` shunga tayanadi"
 
 
 async def test_a_closed_district_keeps_its_mahallas(client, region) -> None:

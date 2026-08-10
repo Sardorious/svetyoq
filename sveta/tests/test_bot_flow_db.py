@@ -191,15 +191,16 @@ async def test_rate_limit_blocks_second_outage_report(region) -> None:
         await service.submit_report(
             session, tg_id=tg_id, lat=LAT, lon=LON, tg_update_id=906, now=NOW
         )
-    async with session_scope() as session, pytest.raises(RateLimitedError):
-        await service.submit_report(
-            session,
-            tg_id=tg_id,
-            lat=LAT,
-            lon=LON,
-            tg_update_id=907,
-            now=NOW + timedelta(minutes=1),
-        )
+    async with session_scope() as session:
+        with pytest.raises(RateLimitedError):
+            await service.submit_report(
+                session,
+                tg_id=tg_id,
+                lat=LAT,
+                lon=LON,
+                tg_update_id=907,
+                now=NOW + timedelta(minutes=1),
+            )
 
 
 async def test_restored_report_is_accepted_without_rate_limit(region) -> None:
@@ -221,10 +222,11 @@ async def test_restored_report_is_accepted_without_rate_limit(region) -> None:
 
 
 async def test_point_outside_region_is_rejected(region) -> None:
-    async with session_scope() as session, pytest.raises(OutOfRegionError):
-        await service.submit_report(
-            session, tg_id=_tg_id(), lat=48.0, lon=20.0, tg_update_id=910, now=NOW
-        )
+    async with session_scope() as session:
+        with pytest.raises(OutOfRegionError):
+            await service.submit_report(
+                session, tg_id=_tg_id(), lat=48.0, lon=20.0, tg_update_id=910, now=NOW
+            )
 
 
 async def test_language_is_stored_and_changed(region) -> None:
@@ -287,5 +289,6 @@ async def test_subscription_flow(region) -> None:
 
 async def test_subscription_outside_region_is_rejected(region) -> None:
     """Mintaqadan tashqaridagi obuna hech qachon ishlamasdi — darhol rad etiladi."""
-    async with session_scope() as session, pytest.raises(OutOfRegionError):
-        await service.add_subscription(session, tg_id=_tg_id(), lat=48.0, lon=20.0)
+    async with session_scope() as session:
+        with pytest.raises(OutOfRegionError):
+            await service.add_subscription(session, tg_id=_tg_id(), lat=48.0, lon=20.0)

@@ -21,6 +21,7 @@ from sqlalchemy import text as sql
 
 from app.bot import service
 from app.clustering.lookup import AreaVerdict
+from app.clustering.service import evaluate_open
 from app.core.config import settings
 from app.core.errors import OutOfRegionError
 from app.db.session import session_scope
@@ -86,6 +87,22 @@ def _tg_id() -> int:
     return int(uuid.uuid4().int % 1_000_000_000)
 
 
+async def _run_autoclose(now: datetime) -> None:
+    """`evaluate_outages` fon vazifasini bir marta yurgizadi (`05` §8).
+
+    Bu qator testda ataylab ko'rinib turadi. `find_open_at` da vaqt oynasi
+    **yo'q** (`05` §4.6): `pending`/`confirmed` statusning o'zi hodisa
+    ochiqligini bildiradi va jim qolgan hodisani onlayn yo'l emas,
+    aynan fon vazifasi yopadi. Ya'ni «eski xabar hududni ochiq
+    qoldirmaydi» degan da'vo mahsulotda **shu vazifa yurgani uchun**
+    rost — usiz 5-ssenariy («ma'lumot yetarli emas») hech qachon
+    qaytmaydi. Vazifasiz yozilgan test o'sha shartni jimgina o'tkazib
+    yuborardi.
+    """
+    async with session_scope() as session:
+        await evaluate_open(session, now=now)
+
+
 async def _report_count() -> int:
     async with session_scope() as session:
         return (await session.execute(sql("SELECT count(*) FROM reports"))).scalar_one()
@@ -132,6 +149,7 @@ async def test_coverage_threshold_flips_the_verdict(region) -> None:
                 now=NOW - timedelta(days=20),
             )
 
+    await _run_autoclose(NOW)
     async with session_scope() as session:
         status, _ = await service.area_status(session, lat=LAT, lon=LON, now=NOW)
     assert status.coverage.active_users == required - 1
@@ -146,6 +164,7 @@ async def test_coverage_threshold_flips_the_verdict(region) -> None:
             now=NOW - timedelta(days=20),
         )
 
+    await _run_autoclose(NOW)
     async with session_scope() as session:
         status, _ = await service.area_status(session, lat=LAT, lon=LON, now=NOW)
     # Eski xabarlar hodisani ochiq qoldirmaydi (autoclose 120 daqiqa), ya'ni
@@ -166,6 +185,7 @@ async def test_old_reports_fall_out_of_the_window(region) -> None:
             now=NOW - timedelta(days=settings.coverage_window_days + 1),
         )
 
+    await _run_autoclose(NOW)
     async with session_scope() as session:
         status, _ = await service.area_status(session, lat=LAT, lon=LON, now=NOW)
     assert status.coverage.active_users == 0
@@ -201,5 +221,10 @@ async def test_open_outage_is_reported_to_the_asker(region) -> None:
 
 async def test_point_outside_region_is_rejected(region) -> None:
     """So'rov ham xuddi xabar kabi mintaqa bbox i bilan cheklanadi."""
-    async with session_scope() as session, pytest.raises(OutOfRegionError):
-        await service.area_status(session, lat=48.0, lon=20.0, now=NOW)
+    # `pytest.raises` — sinxron kontekst menejeri; uni `async with` ning
+    # ro'yxatiga qo'shib bo'lmaydi (pytest 9 da `RaisesExc`). Ichkarida
+    # yozilgani semantikasi bir xil: istisno `session_scope` dan
+    # chiqmasdan ushlanadi.
+    async with session_scope() as session:
+        with pytest.raises(OutOfRegionError):
+            await service.area_status(session, lat=48.0, lon=20.0, now=NOW)

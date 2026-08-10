@@ -165,16 +165,43 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def floor_to(moment: datetime, quantum_s: int) -> datetime:
+    """Vaqtni `quantum_s` panjarasiga pastga qadaydi (epoxadan hisoblab)."""
+    if quantum_s <= 0:
+        return moment
+    epoch = int(moment.timestamp())
+    return datetime.fromtimestamp(epoch - epoch % quantum_s, tz=timezone.utc)
+
+
 def resolve_period(
-    start: datetime | None, end: datetime | None, *, now: datetime | None = None
+    start: datetime | None,
+    end: datetime | None,
+    *,
+    now: datetime | None = None,
+    quantum_s: int = 0,
 ) -> Period:
     """So'rov parametrlarini yopiq-ochiq oraliqqa keltiradi.
 
     Kelajakdagi `to` kesiladi: «ertangi kunga statistika» degan savol
     ma'noga ega emas va javobni tushunarsiz qilardi.
+
+    **`quantum_s` nima uchun bor.** Mijoz `to` ni bermasa oraliq oxiri
+    «hozir» bo'ladi, ya'ni mikrosoniyagacha aniq va har so'rovda boshqa.
+    Javob mazmunidan `ETag` quriladigan endpointda (`/heatmap`) bu
+    keshni butunlay o'ldiradi: ma'lumot bir xil bo'lsa ham `period.end`
+    o'zgaradi → `ETag` o'zgaradi → `304` **hech qachon** chiqmaydi,
+    holbuki o'sha javob `Cache-Control: max-age` bilan «shuncha vaqt
+    o'zgarmaydi» deb yuboriladi. Ikkala sarlavha bir-biriga zid edi.
+    Panjara aynan o'sha `max-age` ga teng olinadi, ya'ni yangi qiymat
+    kesh muddati tugagandagina paydo bo'ladi.
+
+    Mijoz `to` ni aniq bergan bo'lsa qadalmaydi: u so'ragan chegara
+    javobda o'zgarishsiz qolishi kerak.
     """
     moment = now or _utcnow()
     finish = min(end or moment, moment)
+    if end is None:
+        finish = floor_to(finish, quantum_s)
     begin = start or finish - timedelta(days=settings.stats_default_period_days)
     if begin >= finish:
         raise InvalidPeriodError("error.invalid_period")

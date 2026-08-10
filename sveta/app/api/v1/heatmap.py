@@ -162,7 +162,13 @@ async def get_heatmap(
     # Davr `app.stats.service` bilan bitta shartnomadan: `[from, to)`,
     # standart oyna va maksimal uzunlik `/stats` dagidek. Ikkinchi
     # parser ikkita turli `422` xabari degani bo'lardi.
-    period = stats_service.resolve_period(date_from, date_to)
+    #
+    # `quantum_s` — bu endpointning o'z qo'shimchasi: javob `ETag` bilan
+    # keshlanadi, `/stats` esa keshlanmaydi. Panjarasiz `to=now` har
+    # so'rovda yangi `ETag` berardi va `304` hech qachon chiqmasdi.
+    period = stats_service.resolve_period(
+        date_from, date_to, quantum_s=settings.heatmap_ttl_s
+    )
 
     code = region or settings.default_region_code
     row = await geo.find_region(session, code)

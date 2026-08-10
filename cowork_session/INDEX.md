@@ -12,6 +12,79 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **78-sessiya: CI BIRINCHI MARTA YASHIL — `pytest -q` (bayroqsiz)
+> 2363 passed, 1 skipped.** Bu run mavzuni o'zi tanlamadi: odam CI ning
+> chiqishini chatga tashladi — `15 failed, 2346 passed`. 73-rundan beri
+> «lokal yashil» iborasi faqat `not requires_db` degani edi, ya'ni
+> **231 ta test hech qachon yurmagan**.
+> **Birinchi qaror — sandboxda haqiqiy PostGIS ko'tarish**, CI
+> chiqishiga qarab ko'r-ko'rona tuzatish emas. Yo'l uzun: sandbox
+> obrazida Python **3.10** chiqdi (loyiha `StrEnum` ishlatadi) →
+> `uv python install 3.12`; `/sessions` **100% to'la** (18 MB) va `pip`
+> «No space left on device» bilan yiqildi → hamma narsa `/tmp` ga;
+> `pgserver` (PyPI) sinaldi va **yaramadi** (g'ildiragida PostGIS yo'q);
+> ishlagani — `micromamba` + `conda-forge` (`postgresql=16` + `postgis`
+> → PostGIS 3.5.0). `alembic upgrade head` toza o'tdi va **aynan o'sha
+> 15 ta yiqilish takrorlandi**. Retsept `sveta/EpicProgress.md` §6 da.
+> **O'n beshta yiqilishning to'rttasi test xatosi emas.**
+> (1) `ST_SimplifyPreserveTopology` **tipni saqlamaydi** — bir bo'lakli
+> `MultiPolygon` undan `Polygon` bo'lib chiqadi, ya'ni
+> `/geo/districts` va `/geo/mahallas` javobining **sxemasi `simplify`
+> parametriga bog'liq** edi, holbuki ustun `geometry(MultiPolygon,4326)`
+> va `app/api/v1/geo.py` `MultiPolygon` deb va'da qiladi; mijozga
+> jimgina yetadi (MapLibre ikkalasini ham chizadi) → `queries._multi()`.
+> (2) `/heatmap` ning `ETag` i **hech qachon `304` bermasdi**: ochiq
+> `to` mikrosoniyagacha aniq «hozir», ya'ni har so'rovda yangi `ETag` —
+> o'sha javobda `Cache-Control: max-age=900` bilan **birga**. Ikkala
+> sarlavha bir-biriga zid edi → `resolve_period(quantum_s=…)` ochiq
+> chegarani `max-age` panjarasiga qadaydi (mijozning `to` si
+> tegilmaydi, `/stats` o'zgarmaydi). (3) `test_inactive_region_stays_hidden`
+> bazadagi begona qatorga tayanardi: `region_for_point` ikkita xatoni
+> «umuman faol mintaqa bormi» savoli bilan ajratadi va test yolg'iz
+> yurganda o'z da'vosini **umuman o'lchamaydi**.
+> **Eng jim topilma — 20-run ning tuzog'i takrorlangan.**
+> `test_recluster_db` ning uchta yiqilishi bitta sababdan: `05` §4.3
+> `users.created_at < now − REPORTER_MIN_ACCOUNT_AGE_MIN` ni talab
+> qiladi, `submit_report` esa `now` ni foydalanuvchi yaratilishiga
+> **ataylab bermaydi** (`intake.get_or_create_user`: «botdan hech qachon
+> berilmaydi» — botda akkaunt aynan hozir tug'iladi). Muzlatilgan
+> `NOW = 2026-08-07` bilan bu «kelajakda yaratilgan akkaunt» degani →
+> xabar beruvchi hech qachon hisobga o'tmaydi → hodisa abadiy
+> `pending`, `confidence` `0`, keyin `faded`. 20-run buni **generator
+> uchun** topgan va `created_at` argumenti o'shanda qo'shilgan; DB
+> testlari uni bilmasdan yozilgan. Mahsulot to'g'ri — tuzatish `_seed` da.
+> **Ikkinchi jim topilma:** `05` §9.3 ning 5-ssenariysi
+> (`NOT_ENOUGH_DATA`) `evaluate_outages` **yurmasa bajarilmaydi** —
+> `find_open_at` da vaqt oynasi yo'q (ataylab) va jim qolgan hodisani
+> faqat fon vazifasi yopadi. **Uchinchi — vaqt bombasi:**
+> `outbox.publish` `available_at` ni haqiqiy soatdan oladi, test esa
+> `claim(now=NOW)` bilan chaqiradi; test **kalendar** `2026-08-07` dan
+> o'tgan kuni jimgina qizargan.
+> **Qolgani:** pytest 9 da `async with … , pytest.raises(...)`
+> ishlamaydi (`RaisesExc`, 4 joy); `notifications.id` ning server
+> standarti yo'q (`05` §2 da birorta jadvalda `gen_random_uuid()`
+> yozilmagan); `mahallas` tartibi nom bo'yicha emas, `(tuman kodi, nom,
+> davr boshi)` bo'yicha.
+> **Hisob:** 10 fayl (3 tasi mahsulot: `geo/queries.py`,
+> `stats/service.py`, `api/v1/heatmap.py`), migratsiyasiz,
+> **2130 → 2363 passed** (+231 birinchi marta yurgan `requires_db`,
+> +2 yangi panjara testi), ruff yashil.
+> 👤 **To'rtta savol:** PostGIS ni har run ko'tarish `sveta-net-build`
+> ko'rsatmasiga yozilsinmi; qolgan vaqt bombalari qidirilsinmi;
+> `/heatmap` ning 900 s panjarasi `01` §16 yoki `05` §7.2 ga
+> yoziladimi; `sveta/4wpi2gpv` (4 bayt, `.gitignore` ostida).
+> **Keyingi nomzodlar:** `GET /api/v1/admin/monitoring` (o'n ikkita
+> reyestr vitrinasiz), `01` §29/§30 (hech qachon o'qilmagan), yoki
+> `01` §24 «Product Roadmap» (P0-1…P0-7).
+>
+> ---
+>
+> 👤 **CI ni qayta yurgizing.** Oltita epic (`E2`, `E5`, `E5b`, `E6`,
+> `E7`, `E15`) uchun ✅ ga qolgan **yagona** shart — CI ning o'z
+> tasdig'i; lokal PostGIS da hammasi yashil.
+>
+> ---
+>
 > ✅ **77-sessiya: REL — `01` §25 «Release Plan» birinchi marta kodda.**
 > 76-run uchta nomzod qoldirgan edi; §25 tanlandi, chunki u repoda
 > **allaqachon javobi bor** savolga ikkinchi javob beradi: 66-run `03` §6
@@ -77,8 +150,14 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 >
 > ---
 >
-> ✅ **Push blokи yopiq:** 76-run commit qilingan (`bc09f12`),
-> `.git/index.lock` yo'q. `push.ps1` ning ikkita defekti hali ochiq —
+> ⛔ **`.git/index.lock` YANA PAYDO BO'LDI (78-run, 0 bayt, 16:26).**
+> Sabab aniq: sandboxdan `git status` chaqirilgan va Windows mountida
+> qulf faylini **o'chirib bo'lmaydi** (`Operation not permitted`) —
+> agent uni o'zi tozalay olmaydi. Push dan oldin: `del .git\index.lock`.
+> ⚠️ **Agentga saboq: repoda `git` ni umuman chaqirmang** — hatto
+> `git status` ham qulf qoldiradi va keyingi yozuvni to'sadi.
+> O'zgargan fayllarni bilish uchun `git` shart emas.
+> `push.ps1` ning ikkita defekti hali ochiq —
 > [74b](74b_push_index_lock_6136bad5.md).
 >
 > 👤 **Serverda hali bajarilmagan:** `git pull` →
@@ -86,17 +165,22 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > keyin `alembic upgrade head` (`0010` — `geom_exact` nullability,
 > usiz `purge_exact_geom` har yurishda yiqiladi). CI ni ham qayta
 > yurgizing.
-> 👤 **Sandbox:** `/tmp/sv75` **butun holda qoldi** — hech narsa
-> o'rnatilmadi, faqat `PYTHONPATH=/tmp/sv75 TMPDIR=/tmp/tmpdir
-> PATH=/tmp/sv75/bin:$PATH`. ⚠️ `/tmp` ga **yozib bo'lmaydi** —
-> vaqtinchalik skript `$HOME` ga yoziladi. `$HOME` 26 MB, `/` da
-> 1.3 GB bo'sh (76-runda 3.6 GB edi) — `cleanup-sessions.ps1` ni har
-> run oldidan yurgizing.
+> 👤 **Sandbox (78-run da butunlay yangilandi).** `/tmp/sv75` **yo'q** —
+> sandbox reset bo'lgan va obrazda **Python 3.10** chiqdi (loyiha
+> `StrEnum` ishlatadi, ya'ni 3.11+ shart). Endi retsept boshqa va u
+> `sveta/EpicProgress.md` **§6** da to'liq yozilgan: `uv` bilan
+> Python 3.12 + `/tmp/venv78`, `micromamba` + `conda-forge` bilan
+> `postgresql=16` + `postgis` → **`requires_db` testlari ham yuradi**.
+> ⚠️ **`/sessions` 100% to'la** (18 MB bo'sh) — `pip` o'sha yerga
+> yozganda «No space left on device» bilan yiqiladi; `TMPDIR`, `HOME`,
+> `--cache-dir` va `--target` ni **`/tmp` ga** qo'ying (`/` da 3.8 GB
+> bor). `cleanup-sessions.ps1` ni har run oldidan yurgizing.
 
 ## Sessiyalar
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 78 | [ci_yashil](78_ci_yashil_5ff5356c.md) | `local_5ff5356c` | **CI birinchi marta yashil.** Odam CI chiqishini tashladi (15 failed); sandboxda birinchi marta haqiqiy PostGIS ko'tarildi (`micromamba` + `conda-forge`, PostGIS 3.5.0) va o'n beshta yiqilish **takrorlandi**, keyin tuzatildi. Asosiy qaror — ko'r-ko'rona tuzatmaslik: yiqilishlarning kamida uchtasi mahsulot xatti-harakati haqida savol berardi. | 10 fayl, migratsiyasiz, **2130 → 2363 passed**, ruff yashil. Uchta mahsulot defekti: `ST_SimplifyPreserveTopology` `MultiPolygon` ni `Polygon` ga tushiradi (javob sxemasi `simplify` ga bog'liq edi); `/heatmap` ning `ETag` i `max-age=900` ga zid bo'lib hech qachon `304` bermasdi → `resolve_period(quantum_s=)`; `test_inactive_region_stays_hidden` begona qatorga tayanardi. Eng jim topilma — **20-run ning akkaunt yoshi tuzog'i takrorlangan** (`submit_report` `now` ni `get_or_create_user` ga ataylab bermaydi → muzlatilgan `NOW` da xabar beruvchi hech qachon hisobga o'tmaydi). Ikkinchisi — `05` §9.3 ning 5-ssenariysi `evaluate_outages` siz bajarilmaydi. Uchinchisi — `outbox` da **vaqt bombasi** (test kalendar `2026-08-07` dan o'tgan kuni qizargan). Qolgani: pytest 9 `RaisesExc`, `notifications.id`, `mahallas` tartibi. 👤 to'rtta savol. |
 | 77 | [reliz_rejasi](77_reliz_rejasi_9ecd3681.md) | `local_9ecd3681` | `01` §25 ning beshta relizi birinchi marta kod bilan solishtirildi. Asosiy qaror — **reliz identifikatori umumiy kalit emas**: `R2.0` va `R3.0` `01` va `03` da ikki xil relizni nomlaydi va kod `03` ni tanlagan (`G-8` → `MIN_ACTIVE_REGIONS`, `measures` ning `r20` → «Ochiqlik»). Ikkita o'q: `Ship` (mazmun qurilganmi) va `Gate` (shart qayerdan javob oladi); tasnif o'qi `Alias` ikkita hujjatni solishtirishdan chiqadi. | `app/release/plan.py` + `tests/test_release_plan_contract.py` (51 test). `FOREIGN` 1, `SPLIT` 1, `SHARED` 1, `REASSIGNED` 2; `BUILT` 1, `PARTIAL` 2, `ABSENT` 1, `CONTRADICTED` 1; `INSTRUMENTED` 1, `UNRECORDED` 2, `UNQUANTIFIED` 1, `EXTERNAL` 1 → `accurate` `False`. Eng jim topilma — `R0`: «регион активен» va «закрытый круг» bitta `is_active` bitini qarama-qarshi holatda talab qiladi, ikkinchi bayroq yo'q, va `03` ning eng qat'iy qoidasi («xarita gate yopilmasdan ochilmaydi») shu sababdan mexanizmsiz. Yagona `INSTRUMENTED` shart aynan o'sha bajarib bo'lmaydigan qatorda. Teskari yo'nalish — ommaviy API (E15) va moderatsiya (E8) §25 da umuman yo'q. 37 mutatsiya, 1 survivor tuzatildi (`03` §3 ning gantt va jadval nusxalari bog'lanmagan edi). 2130 passed (+51), migratsiyasiz. |
 | 76 | [bogliqliklar_reyestri](76_bogliqliklar_reyestri_0aa2716d.md) | `local_0aa2716d` | `01` §28 ning yettita bog'liqligi birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Блокирует` ustuni to'rt xil narsaga ishora qiladi** (bosqich, funksional talab, ochiq savol, mahsulot sirti) va repo faqat oxirgisiga to'liq guvoh bo'la oladi. Ikkita o'q: `Supply` (ta'minlanganmi) va `Hold` (to'siq ishlaydimi); yangi `Hold.VOID` — «to'siq yo'q» ham, «bor» ham emas, **da'voning manzili yo'q**. | `app/release/dependencies.py` + `tests/test_dependencies_contract.py` (43 test). `MET` 1, `PARTIAL` 1, `UNMET` 4, `MOOT` 1; `ENFORCED` 2, `LEAKY` 1, `VOID` 2, `UNSTATED` 2 → `accurate` `False`. `FR-804` butun `01` da faqat §28 da; `OQ-01` birorta hujjatda ta'riflanmagan — prefikssiz `FR-` §28 dan tashqarida har safar «наследует» belgili, §28 esa belgisiz. Eng jim topilma — `DP-1`: poligonlar «весь региональный запуск» ni to'sadi deb yozilgan, amalda qorovul `bbox` ni so'raydi va `district_id` `NULL` bo'la oladi; to'xtaydigani faqat statistika vitrinasi. Teskari yo'nalish — Telegram Bot API va OSM/ODbL reyestrda yo'q. 17 mutatsiya, 1 survivor tuzatildi. 2079 passed, ruff yashil. 👤 to'rtta savol. |
 | 75 | [risk_reyestri](75_risk_reyestri_3aa898cd.md) | `local_3aa898cd` | `01` §26 ning o'nta riski va §27 ning sakkizta допущение si birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Вероятность` bashorat ustuni va u sarflanadi**: to'rtta qatorda shart allaqachon bajarilgan (yoki, `RS-04` da, endi hech qachon bajarilmaydi), ya'ni ustun 100% yoki 0% ni ko'rsatadi va jadvalda ikkalasi bir xil ko'rinadi. Ikkita o'q: `Cover` (mitigatsiya **qayerda** ushlaydi) va `Onset` (shart bajarilganmi). | `app/release/risks.py` + `tests/test_risk_register_contract.py` (37 test). `MECHANISED` 4, `DISPLACED` 4, `DEGENERATE` 1, `INSTRUMENTED` 1, `SCHEDULED` 8; sarflangan bashorat 4, e'lon qilinmagan risk 1 → `accurate` `False`. Eng jim topilma — `RS-08` (yagona «Низкая»): «откат без релиза» API/vebda ishlaydi, **botda yo'q** (`pick_language` `app/bot/` da chaqirilmaydi), gipoteza esa botda o'lchanadi. `RS-02` ning «деградация до района» i ADR-07 dan keyin bitta bucketga tushadi. 14 ta band Faza 0 ga tayanadi va uning natijasi repoda saqlanmaydi. 31 mutatsiya, 0 survivor (4 tasi topilib tuzatildi, 1 o'lik shart olib tashlandi). 2036 passed, ruff yashil. 👤 to'rtta savol. |

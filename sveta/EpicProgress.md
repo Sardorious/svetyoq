@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 77-run.
+**Oxirgi yangilanish:** 2026-08-10, 78-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -18,25 +18,25 @@ faqat havola qilinadi.
 | # | Epic | Holat | Kod | Runlar | ✅ uchun nima kerak |
 |---|---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | 02, 40, 44, 45, 47 | — |
-| E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | 03, 27, 40, 60, **73** | CI yashil |
+| E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | 03, 27, 40, 60, 73, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | CI **va haqiqiy Telegram runi** |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | 02, 28, 41, 42 | — |
-| E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11, 57, **59** | CI yashil |
-| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58**, **61** | CI yashil |
-| E6 | Retrospektiv qayta hisob | 🔄 | `tools/recluster.py` | 11, 62, **64** | CI yashil |
-| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py` | 11 | CI yashil |
+| E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11, 57, 59, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
+| E5b | Tasdiqlash va masshtab (`06`) | 🔄 | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | 06, 33, 34, **49–58**, 61, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
+| E6 | Retrospektiv qayta hisob | 🔄 | `tools/recluster.py` | 11, 62, 64, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
+| E7 | «Ma'lumot yetarli emas» verdikti | 🔄 | `app/clustering/lookup.py` | 11, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39 | CI + `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13 | CI + ADR-08 (tayl manbasi) |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, **78** | CI + ADR-08 (tayl manbasi) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | (64 — asbob) | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | — | E10, E11 |
-| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43, **74** | CI **va haqiqiy Telegram runi** |
+| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43, 74, **78** | CI **va haqiqiy Telegram runi** |
 | E14 | Statistika + Coverage Index | 🔄 | `app/stats/` | 15, 22, 23, 25, 30, 32, 63, **65** | CI + vitrina sahifasi (E14-a) |
-| E15 | Ommaviy API + OpenAPI | 🔄 | `app/api/` | 16, 27, 48 | CI yashil |
-| E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22 | CI + haqiqiy zichlik (E10) |
+| E15 | Ommaviy API + OpenAPI | 🔄 | `app/api/` | 16, 27, 48, **78** | 👤 CI ni qayta yurgizish (78-run: lokal PostGIS da yashil) |
+| E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22, **78** | CI + haqiqiy zichlik (E10) |
 | E17 | Mahalla darajasi | ⬜ | — | — | 👤 **poligonlar** |
 | E18 | Rasmiy manba parsing | ⬜ | — | — | 👤 **H-4** |
-| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28 | CI + **ikkinchi mintaqani haqiqiy import** |
+| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28, **78** | CI + **ikkinchi mintaqani haqiqiy import** |
 | E20 | PWA + Web Push | ⬜ | — | — | E12 |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
@@ -56,10 +56,16 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **129 ta test fayli**; oxirgi yurish (77-run):
-`pytest -m "not requires_db"` → **2130 passed, 1 skipped**; **231 ta
-`requires_db`** testi (28 faylda) sandboxda ishlamaydi — ular
-Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
+Jami **129 ta test fayli**; oxirgi yurish (78-run): `pytest -q` (**bayroqsiz,
+ya'ni `requires_db` bilan birga**) → **2363 passed, 1 skipped**.
+
+⚡ **78-rundan beri `requires_db` sandboxda ham yuradi.** PostGIS
+`micromamba` bilan `conda-forge` dan o'rnatiladi va `/tmp` da ishlaydi
+(quyida §6). Shu paytgacha 231 ta test **hech qachon yurmagan** — ular
+sandboxda o'tkazib yuborilardi, CI esa 73-rundan beri qizil edi.
+Birinchi yurishda 15 tasi yiqildi va **uchtasi mahsulot defekti** bo'lib
+chiqdi (`ST_SimplifyPreserveTopology` tipni tushirishi, `/heatmap` ning
+`ETag` i `max-age` ga zidligi, `resolve_period` da panjara yo'qligi).
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri `ruff` ham,
 `pytest` ham har runda yashil). ⚠️ `ruff format --check` esa
 82 faylni qayta formatlashni so'raydi (repo bo'ylab eskirgan formatlash) —
@@ -217,6 +223,8 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 
 | Nima | Kimni bloklaydi |
 |---|---|
+| **CI ni qayta yurgizish.** 78-run 15 ta yiqilishning hammasini tuzatdi va lokal PostGIS da `pytest -q` to'liq yashil (2363 passed). Oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun ✅ ga qolgan **yagona** shart — CI ning o'z tasdig'i | E2, E5, E5b, E6, E7, E15 |
+| ⛔ **`.git/index.lock`** (78-run, 0 bayt, 16:26) — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | ~~`.\push.ps1` — 56-running 3- va 4-tuzatishi commit qilinmagan~~ ✅ **yopildi (74.5-sessiya):** `8b82603`, `7c91017`, `d3d3f5b` push qilindi, `main` = `origin/main` = `d3d3f5b`. ⚠️ Qolgani: `.git/index.lock` (0 bayt, 08-10 13:03) keyingi git yozuvini to'sadi — `del .git\index.lock`; `push.ps1` ning ikkita defekti `PROGRESS.md` ning «Ochiq savollar» ida | (edi) prod: SQL jurnali, CI: `NullPool` |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
 | Telegram bot tokeni va haqiqiy run | E3, E13 |
@@ -261,6 +269,45 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+
+- **78-run — CI birinchi marta yashil, va o'n beshta yiqilishning
+  to'rttasi test xatosi emas edi.** Sandboxda birinchi marta haqiqiy
+  PostGIS ko'tarildi (§6), ya'ni 231 ta `requires_db` testi **hech
+  qachon yurmagan** holatdan chiqdi. Uchta mahsulot defekti topildi:
+  (1) `ST_SimplifyPreserveTopology` **tipni saqlamaydi** — bir
+  bo'lakli `MultiPolygon` undan `Polygon` bo'lib chiqadi, ya'ni
+  `/geo/districts` va `/geo/mahallas` javobining sxemasi `simplify`
+  parametriga bog'liq edi, holbuki ustun `geometry(MultiPolygon,4326)`
+  va `app/api/v1/geo.py` `MultiPolygon` deb va'da qiladi →
+  `queries._multi()`; (2) `/heatmap` ning `ETag` i **hech qachon**
+  `304` bermasdi (ochiq `to` mikrosoniyagacha aniq «hozir») —
+  o'sha javobda `Cache-Control: max-age=900` bilan birga, ya'ni
+  ikkala sarlavha bir-biriga zid edi → `resolve_period(quantum_s=…)`;
+  (3) `test_inactive_region_stays_hidden` bazadagi begona qatorga
+  tayanardi va yolg'iz yurganda o'z da'vosini umuman o'lchamasdi.
+  ⚠️ **Eng jim topilma — 20-run ning tuzog'i takrorlangan.**
+  `test_recluster_db` ning uchta yiqilishi bitta sababdan: `05` §4.3
+  akkaunt yoshini talab qiladi, `submit_report` esa `now` ni
+  foydalanuvchi yaratilishiga **ataylab bermaydi**
+  (`intake.get_or_create_user`: «botdan hech qachon berilmaydi»), ya'ni
+  muzlatilgan `NOW` bilan akkaunt «kelajakda» yaratiladi va xabar
+  beruvchi hech qachon hisobga o'tmaydi → hodisa abadiy `pending`,
+  `confidence` `0`. 20-run buni generator uchun topgan va `created_at`
+  argumenti o'shanda qo'shilgan; DB testlari uni bilmasdan yozilgan.
+  ⚠️ **Ikkinchi jim topilma:** `05` §4.6 ning 5-ssenariysi
+  (`NOT_ENOUGH_DATA`) `evaluate_outages` **yurmasa bajarilmaydi** —
+  `find_open_at` da vaqt oynasi yo'q (ataylab) va jim qolgan hodisani
+  faqat fon vazifasi yopadi. **Uchinchi:** to'plamda vaqt bombasi bor
+  edi — `outbox.publish` `available_at` ni haqiqiy soatdan oladi,
+  test esa `claim(now=NOW)` bilan chaqiradi va `NOW` = `2026-08-07`;
+  test kalendar shu sanadan o'tgan kuni jimgina qizargan. Qolgani:
+  pytest 9 da `async with … , pytest.raises(...)` ishlamaydi
+  (`RaisesExc`), `notifications.id` ning server standarti yo'q
+  (`05` §2 da birorta jadvalda `gen_random_uuid()` yozilmagan) va
+  `mahallas` tartibi nom bo'yicha emas. 10 fayl, migratsiyasiz,
+  **2130 → 2363 passed**, ruff yashil. 👤 To'rtta savol
+  (`PROGRESS.md`): PostGIS ni har run ko'tarish; qolgan vaqt
+  bombalari; `/heatmap` panjarasi hujjatga yoziladimi; `4wpi2gpv`.
 
 - **77-run — reliz identifikatori umumiy kalit emas.** `01` §25 ning
   beshta relizi `app/release/plan.py` da uchta o'q bilan yozildi:
@@ -797,3 +844,38 @@ Har run oxirida, `PROGRESS.md` bilan **birga**:
 
 Bu fayl **hosila**: unda `PROGRESS.md` da yo'q ma'lumot bo'lmasligi kerak.
 Ziddiyat chiqsa — `PROGRESS.md` haq.
+
+---
+
+## 6. Sandboxda PostGIS ko'tarish (78-run)
+
+`requires_db` testlari endi sandboxda ham yuradi. Retsept `/tmp` da
+ishlaydi (`$HOME` va `/sessions` to'lib ketgan bo'lishi mumkin) va
+sessiya tugashi bilan yo'qoladi — ya'ni **har run qaytadan** bajariladi,
+~4–5 daqiqa.
+
+1. **Python 3.11+.** Sandbox obrazida 3.10 bo'lishi mumkin, loyiha esa
+   `StrEnum` ishlatadi. `pip install uv` → `uv python install 3.12`
+   (`UV_PYTHON_INSTALL_DIR=/tmp/pythons`) → `uv venv --python 3.12
+   /tmp/venv78` → `uv pip install` bilan `pyproject.toml` ning
+   bog'liqliklari + `pytest pytest-asyncio ruff`.
+2. **PostGIS.** `pgserver` (PyPI) **yaramaydi** — uning g'ildiragida
+   PostGIS yo'q. Ishlaydigan yo'l — `micromamba`:
+   `curl -sL https://micro.mamba.pm/api/micromamba/linux-64/latest`
+   → `micromamba create -p /tmp/pg -c conda-forge "postgresql=16" postgis`.
+3. **Klaster.** `initdb -U postgres -A trust` (`PGDATA=/tmp/pgdata2`),
+   `pg_ctl -o "-k /tmp -h 127.0.0.1 -p 5432" start`. ⚠️ Har `bash`
+   chaqiruvi mustaqil, shuning uchun serverni `setsid nohup` bilan
+   ko'tarish va har chaqiruv boshida `pg_isready` bilan tekshirish
+   kerak.
+4. **Baza.** `create role sveta login password 'sveta' superuser`,
+   `create database sveta_test owner sveta`, `create extension postgis`.
+   Keyin `DATABASE_URL=postgresql+asyncpg://sveta:sveta@127.0.0.1:5432/sveta_test`
+   va `alembic upgrade head`.
+
+`tests/conftest.py` qo'lda bayroq so'ramaydi: u portni `socket` bilan
+tekshiradi va port ochiq bo'lsa `requires_db` avtomatik yuriladi.
+
+**Nima uchun bu muhim.** 73-rundan 77-rungacha «lokal yashil» degani
+faqat `not requires_db` degani edi va CI qizil turardi. Birinchi to'liq
+yurish 15 ta yiqilish berdi, ularning **uchtasi mahsulot defekti**.

@@ -50,6 +50,34 @@ def test_period_boundary_is_half_open() -> None:
     assert first.end == second.start
 
 
+def test_quantum_makes_the_open_end_stable() -> None:
+    """`ETag` ni panjara ushlab turadi (`/heatmap`).
+
+    Panjarasiz `to=now` har chaqiruvda boshqa qiymat beradi, ya'ni
+    javob mazmuni o'zgarmasa ham `ETag` o'zgaradi va `304` hech qachon
+    chiqmaydi — bir javobda `Cache-Control: max-age=900` bilan birga
+    turgan holda.
+    """
+    quantum = 900
+    # Panjara chetiga bog'lanadi, aks holda ikkita «yaqin» moment
+    # tasodifan turli chelaklarga tushishi mumkin edi.
+    tick = stats.floor_to(NOW, quantum)
+    early = stats.resolve_period(None, None, now=tick + timedelta(seconds=1), quantum_s=quantum)
+    late = stats.resolve_period(None, None, now=tick + timedelta(seconds=899), quantum_s=quantum)
+    assert early.end == late.end == tick
+    assert int(early.end.timestamp()) % quantum == 0
+
+    beyond = stats.resolve_period(None, None, now=tick + timedelta(seconds=900), quantum_s=quantum)
+    assert beyond.end > early.end, "panjara muzlatmaydi — u faqat qadaydi"
+
+
+def test_explicit_end_is_never_quantised() -> None:
+    """Mijoz `to` ni aytgan bo'lsa, javobdagi chegara aynan o'sha bo'ladi."""
+    asked = NOW - timedelta(seconds=137)
+    period = stats.resolve_period(None, asked, now=NOW, quantum_s=900)
+    assert period.end == asked
+
+
 def index(value: int, quality: str = QUALITY_MEASURED) -> coverage.CoverageIndex:
     return coverage.CoverageIndex(
         index=value,

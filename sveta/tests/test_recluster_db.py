@@ -27,6 +27,7 @@ from app.clustering.params import DEFAULTS
 from app.core.config import settings
 from app.db.session import session_scope
 from app.geo import registry
+from app.reports import intake
 from tools import recluster
 
 pytestmark = pytest.mark.requires_db
@@ -95,13 +96,33 @@ def _tg_id() -> int:
 
 
 async def _seed(count: int = 4) -> None:
-    """Bir-biriga yaqin, har xil foydalanuvchidan kelgan xabarlar."""
+    """Bir-biriga yaqin, har xil **yetuk** foydalanuvchidan kelgan xabarlar.
+
+    Akkaunt oldindan yaratiladi. Sababi `05` §4.3 ning mustaqillik
+    filtri: `users.created_at < now - REPORTER_MIN_ACCOUNT_AGE_MIN`.
+    `submit_report` `now` ni foydalanuvchi yaratilishiga **bermaydi** va
+    bu ataylab (`intake.get_or_create_user` docstringi: «botdan hech
+    qachon berilmaydi» — botda akkaunt aynan hozir tug'iladi), ya'ni
+    `created_at` haqiqiy soatdan keladi. Muzlatilgan `NOW` bilan
+    birga bu «kelajakda yaratilgan akkaunt» degani va bunday xabar
+    beruvchi **hech qachon** hisobga o'tmaydi: hodisa abadiy
+    `pending`, `confidence` `0`, `confirmed` `0`.
+
+    Aynan shu tuzoqni 20-run `tools/simulate.py` uchun topgan va
+    `created_at` argumenti o'shanda qo'shilgan; bu yerda u
+    ishlatilmasdan qolgan edi.
+    """
     for i in range(count):
         lat, lon = offset(40.0 * i, 0)
         async with session_scope() as session:
+            await intake.get_or_create_user(
+                session,
+                tg_id=(tg_id := _tg_id()),
+                created_at=NOW - timedelta(days=1),
+            )
             await service.submit_report(
                 session,
-                tg_id=_tg_id(),
+                tg_id=tg_id,
                 lat=lat,
                 lon=lon,
                 tg_update_id=8000 + i,
@@ -279,12 +300,20 @@ async def test_notified_outage_blocks_the_run(region) -> None:
                 {"id": region_id},
             )
         ).one()
+        # `id` — sxemada `uuid PRIMARY KEY`, server standarti **yo'q**
+        # (`05` §2: birorta jadvalda `gen_random_uuid()` yozilmagan,
+        # UUID ni ilova beradi). Xom `INSERT` uni o'zi qo'yishi shart.
         await session.execute(
             sql(
-                "INSERT INTO notifications (user_id, outage_id, region_id, status) "
-                "VALUES (:user_id, :outage_id, :region_id, 'sent')"
+                "INSERT INTO notifications (id, user_id, outage_id, region_id, status) "
+                "VALUES (:id, :user_id, :outage_id, :region_id, 'sent')"
             ),
-            {"user_id": user_id, "outage_id": outage_id, "region_id": region_id},
+            {
+                "id": uuid.uuid4(),
+                "user_id": user_id,
+                "outage_id": outage_id,
+                "region_id": region_id,
+            },
         )
 
     with pytest.raises(recluster.ReclusterBlocked):

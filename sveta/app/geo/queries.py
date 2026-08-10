@@ -42,6 +42,23 @@ class TerritoryStatsRow:
     data_quality: str
 
 
+def _multi(geom_expr: Any) -> Any:
+    """Soddalashtirilgan geometriyani `MultiPolygon` ga qaytaradi.
+
+    `ST_SimplifyPreserveTopology` **tipni saqlamaydi**: bitta bo'lakli
+    `MultiPolygon` undan `Polygon` bo'lib chiqadi. Ustun esa
+    `geometry(MultiPolygon,4326)` (`05` §2.1) va `/geo/districts`,
+    `/geo/mahallas` javoblari hujjatda `MultiPolygon` deb va'da qilingan
+    (`app/api/v1/geo.py`). Ya'ni `simplify` **javob sxemasini**
+    o'zgartirardi: bir xil endpoint bir xil qator uchun `simplify=0` da
+    `MultiPolygon`, standart tolerantlikda esa `Polygon` berardi.
+
+    Mijozga bu jimgina yetadi (MapLibre ikkalasini ham chizadi), shuning
+    uchun buni faqat kontrakt testi ushlaydi.
+    """
+    return func.ST_Multi(geom_expr)
+
+
 async def load_region_config(
     session: AsyncSession, region_id: uuid.UUID
 ) -> dict[str, Any]:
@@ -518,7 +535,7 @@ async def district_boundaries(
     """
     geom_expr = District.geom
     if simplify_deg > 0:
-        geom_expr = func.ST_SimplifyPreserveTopology(District.geom, simplify_deg)
+        geom_expr = _multi(func.ST_SimplifyPreserveTopology(District.geom, simplify_deg))
 
     columns = [
         District.id,
@@ -719,7 +736,7 @@ async def mahalla_boundaries(
     """
     geom_expr = Mahalla.geom
     if simplify_deg > 0:
-        geom_expr = func.ST_SimplifyPreserveTopology(Mahalla.geom, simplify_deg)
+        geom_expr = _multi(func.ST_SimplifyPreserveTopology(Mahalla.geom, simplify_deg))
 
     columns = [
         Mahalla.id,

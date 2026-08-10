@@ -134,11 +134,21 @@ async def test_regions_endpoint_honours_if_none_match(client, two_regions) -> No
     assert again.headers["Vary"] == "Accept-Language"
 
 
-async def test_inactive_region_stays_hidden(client) -> None:
+async def test_inactive_region_stays_hidden(client, two_regions) -> None:
     """`region_admin add` dan keyin, `activate` gacha — ommaviy emas.
 
     Chegaralar import qilinayotgan mintaqani ro'yxatga chiqarish
     foydalanuvchini hali ishlamaydigan shaharga chaqirardi.
+
+    `two_regions` bu yerda **shart**, garchi test uning mintaqalariga
+    tegmasa ham: `pipeline.region_for_point` ikkita xatoni aynan
+    «umuman faol mintaqa bormi» degan savol bilan ajratadi
+    (`RegionNotConfiguredError` — operator xatosi,
+    `OutOfRegionError` — foydalanuvchi xatosi). Fikstyurasiz test
+    bazada boshqa testdan qolgan faol mintaqa borligiga bog'liq
+    bo'lib qolardi: yolg'iz yurganda u `RegionNotConfiguredError`
+    oladi va bu «yashirin mintaqa» haqidagi da'voni umuman
+    o'lchamaydi.
     """
     code = f"hidden-{uuid.uuid4().hex[:8]}"
     rid = await _add(code, box=(38.0, 65.0, 38.2, 65.2), active=False)

@@ -235,10 +235,15 @@ async def test_inactive_subscription_is_not_matched(region_id) -> None:
 async def test_claim_returns_only_mature_rows(region_id) -> None:
     async with session_scope() as session:
         oid = await make_outage(session, region_id)
+        # `available_at` ataylab aniq beriladi. `publish` uni bermaganda
+        # **haqiqiy soat** dan oladi, `claim` esa `now=NOW` bilan
+        # chaqiriladi — ya'ni qator «kelajakda» qolib, test kalendar
+        # `NOW` dan o'tgan kuni jimgina qizarardi. Aynan shunday bo'ldi.
         ready = await outbox.publish(
             session,
             topic=events.TOPIC_CONFIRMED,
             payload=make_event(oid, region_id).as_payload(),
+            available_at=NOW - timedelta(minutes=1),
         )
         later = await outbox.publish(
             session,
