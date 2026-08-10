@@ -206,6 +206,38 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 > qayta ishga tushirish shart emas. Tumanlar importsiz ham xabar qabul
 > qilinadi (`district_id` `NULL` bo'ladi, `geo_unmatched_ratio` o'sadi), lekin
 > `01` §23 ning qabul mezonlari uchun 3-qadam majburiy.
+>
+> **⚠️ 1- va 2-qadam prodda bajarildi** (`samarkand` qo'shildi, 17 ta
+> konfiguratsiya kaliti seed qilindi). **3-qadam defekt bilan to'xtadi va
+> defekt tuzatildi** — pastga qarang.
+
+> **🐞 2026-08-10, 74-run — PROD DEFEKT: Overpass so'rovi `User-Agent` siz
+> yuborilardi va `406 Not Acceptable` olardi.** `import_boundaries survey`
+> prodda traceback bilan yiqildi. So'rov matni **to'g'ri** edi:
+> `overpass-api.de` ning oldidagi proxy kutubxonaning standart satrini
+> (`python-httpx/…`) rad etadi — bu OSM ning umumiy talabi (har mijoz o'zini
+> nomlashi va bog'lanish manzilini berishi kerak), anonim mijoz bloklanadi.
+>
+> **Nima uchun hech qanday test buni ko'rmadi.** `app/geo/osm.py` ning
+> modul docstringi buni ochiq aytadi: «Bu modul tarmoqqa chiqmaydi — faqat
+> so'rov matnini yasaydi va javobni o'qiydi». So'rovni **yuboradigan** yagona
+> joy `tools/import_boundaries.py::_overpass` va u hech qachon o'lchanmagan:
+> chegara modul ichida to'g'ri chizilgan, lekin chegaradan tashqaridagi
+> uchta qator (mijoz, sarlavhalar, xatolik) hech kimniki emasdi. 73-run ning
+> geokoder topilmasi bilan bir sinf — testning kamchiligi emas, **chegarasi**.
+>
+> **Tuzatildi:** `app/geo/osm.py` da `OVERPASS_USER_AGENT` va
+> `OVERPASS_HEADERS` (so'rov matni bilan bir joyda — ikkalasi ham bitta
+> tashqi kelishuvning qismi); `_overpass` ularni yuboradi va `httpx` ning
+> xatosini `OverpassError` ga o'raydi (`406`/`403`/`429` uchun nima qilish
+> kerakligi bilan), `main()` esa uni `[BLOK] …` + `EXIT_BLOCKED` qilib
+> chiqaradi — traceback o'rniga o'qiladigan xabar.
+> `tests/test_geo_osm.py` da ikkita qulf: sarlavha kutubxonaning standarti
+> **emas** va manzil bor; `_overpass` ularni haqiqatan **yuboradi**.
+>
+> 👤 **Konteynerni qayta yig'ing** — `tools/` image ichida:
+> `docker compose build sveta-api && docker compose up -d sveta-api`,
+> keyin 3-qadamni takrorlang.
 
 > **⚠️ 2026-08-09, 55-run — `push.ps1` da poyga (race).** Odam `push.ps1` ni
 > agent hali fayllarni yozayotgan paytda ishga tushirdi: skript 16:21 da
@@ -251,6 +283,7 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 
 | Sana/vaqt | Epic | Nima qilindi | Keyingi qadam |
 |---|---|---|---|
+| 2026-08-10 | E2 | PROD defekti: Overpass so'rovi `User-Agent` siz ketardi va `406` olardi — `app/geo/osm.py` da `OVERPASS_HEADERS`, `_overpass` da `OverpassError` va o'qiladigan `[BLOK]` xabari; `regions` bo'shligi aniqlandi (migratsiya mintaqa yaratmaydi) | 👤 `docker compose build sveta-api` va `import_boundaries survey` ni takrorlash |
 | 2026-08-10 | E13 | `01` §19 «Notifications»: kanallar reyestri — reja (`Reach`) va siyosat (`Standing`) o'qlari, In-App banner `SURFACED`, uchta «Не входит» qatori bitta begona qorovulda, e'lon qilinmagan kunlik hisobot | 👤 uchta savol (quyida); keyingi nomzod — `01` §26/§27 «Risks»/«Assumptions» yoki `GET /api/v1/admin/monitoring` |
 | 2026-08-10 | E2 | `geom_exact` `NOT NULL` defekti: GeoAlchemy2 ning umumiy tip nusxasi `05` §3.2 ni bekor qilgan — `app/db/spatial.py` fabrikalari, to'rtta model + `0002` o'tkazildi, `0010` mavjud bazalarni tuzatadi, `tests/test_schema_spatial_nullability.py` sababni qulflaydi | 👤 CI ni qayta yurgizing; serverda `alembic upgrade head` |
 | 2026-08-10 | INT | integratsiyalar reyestri: `01` §18 birinchi marta kodda — toza `app/integrations/registry.py` (oltita qator, `Surface` × `Warrant`, `Статус` bilim da'vosi sifatida o'qiladi; jadval hujjatdan parse qilinadi, e'lon qilinmagan Overpass API alohida reyestrda) + `tests/test_integrations_contract.py` (50 ta test, 28 mutatsiya, 3 survivor tuzatildi) | 👤 uchta savol: `TELEGRAM_MODE` standarti, tasdiqlanmagan manbalarning `is_authoritative` i, Overpass §18 ga qo'shiladimi |

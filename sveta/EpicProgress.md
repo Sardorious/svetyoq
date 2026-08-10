@@ -486,6 +486,24 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
   «muammo yo'q» deb ko'rsatadigan hisobot esa o'sha yumshatishning eng arzon
   shakli bo'lardi.
 
+- **🐞 74-run (prod) — Overpass `User-Agent` siz `406` olardi, va buni hech
+  qanday test ko'ra olmasdi.** Odam prodda mintaqani yaratdi
+  (`region_admin add` ✅, `config --seed` ✅), `import_boundaries survey` esa
+  `406 Not Acceptable` bilan yiqildi. So'rov matni to'g'ri edi:
+  `overpass-api.de` kutubxonaning standart `User-Agent` ini rad etadi (OSM
+  talabi — mijoz o'zini nomlashi kerak). **Sabab test emas, chegara:**
+  `app/geo/osm.py` ning docstringi «bu modul tarmoqqa chiqmaydi» deydi va
+  bu rost; so'rovni yuboradigan uchta qator esa
+  `tools/import_boundaries.py::_overpass` da va hech kimniki emasdi
+  (73-run ning geokoder topilmasi bilan bir sinf). Tuzatildi:
+  `OVERPASS_USER_AGENT`/`OVERPASS_HEADERS` so'rov matni bilan bir joyda,
+  `OverpassError` + `[BLOK]` xabari traceback o'rniga, `test_geo_osm.py` da
+  ikkita qulf. 👤 `docker compose build sveta-api` kerak.
+  ⛔ **`regions` prodda bo'sh edi** — hech bir migratsiya mintaqa qatorini
+  yaratmaydi (`0005` faqat bbox ni `UPDATE` qiladi), E19 uni
+  `tools/region_admin.py` ga topshiradi. Botning «Hudud hali sozlanmagan»
+  javobi va `sveta-jobs` ning jimligi — bitta sababning ikki ko'rinishi.
+
 **⚙️ Infratuzilma:**
 
 - **CI (73-run) — `requires_db` birinchi marta haqiqatan yurdi va bitta
