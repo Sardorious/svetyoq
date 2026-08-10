@@ -14,7 +14,6 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from geoalchemy2 import Geography, Geometry
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -37,12 +36,8 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
+from app.db.spatial import multipolygon, point
 from app.geo.bbox import BBox, make_bbox
-
-# Spatial indekslar aniq e'lon qilinadi (GeoAlchemy2 avtomatik yaratmasin) —
-# shunda migratsiya va model bir xil nomlarni ishlatadi.
-_POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
-_MULTIPOLYGON = Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False)
 
 
 class Region(UUIDPrimaryKeyMixin, Base):
@@ -76,7 +71,7 @@ class Region(UUIDPrimaryKeyMixin, Base):
     name_uz: Mapped[str] = mapped_column(Text, nullable=False)
     name_ru: Mapped[str] = mapped_column(Text, nullable=False)
     default_language: Mapped[str] = mapped_column(Text, nullable=False, server_default="uz")
-    center = mapped_column(_POINT, nullable=False)
+    center = mapped_column(point(), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     bbox_min_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     bbox_min_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -109,7 +104,7 @@ class District(UUIDPrimaryKeyMixin, Base):
     code: Mapped[str] = mapped_column(Text, nullable=False)
     name_uz: Mapped[str] = mapped_column(Text, nullable=False)
     name_ru: Mapped[str] = mapped_column(Text, nullable=False)
-    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    geom = mapped_column(multipolygon(), nullable=False)
     valid_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -145,7 +140,7 @@ class Mahalla(UUIDPrimaryKeyMixin, Base):
     )
     name_uz: Mapped[str] = mapped_column(Text, nullable=False)
     name_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
-    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    geom = mapped_column(multipolygon(), nullable=False)
     valid_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -177,7 +172,7 @@ class BoundaryStaging(UUIDPrimaryKeyMixin, Base):
     name_uz: Mapped[str | None] = mapped_column(Text, nullable=True)
     name_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_tags: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
-    geom = mapped_column(_MULTIPOLYGON, nullable=False)
+    geom = mapped_column(multipolygon(), nullable=False)
     is_valid_geom: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # Maydon m² da — viloyat darajasida `integer` chegarasidan oshishi mumkin.
     area_m2: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

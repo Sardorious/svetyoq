@@ -12,80 +12,113 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-> ✅ **73-sessiya: INT — `01` §18 «Integrations» kodda.**
-> 72-run ikkita nomzod qoldirgan edi; §18 tanlandi, chunki
-> `admin/monitoring` `05` §7.2 endpoint sathini tahrirlaydi (48-run uni
-> qulflagan). §18 ning oltita qatoridan **beshtasi** hech qachon
-> o'qilmagan edi — 69-run faqat geokoder qatorini ko'rgan.
-> **Asosiy qaror — `Статус` bilim haqidagi da'vo, bajarilish haqida
-> emas.** `[ДАННЫЕ]` tekshirilgan bilim, qolgan uchtasi turli
-> darajadagi noaniqlik (`01` §0 ning belgilari). Shuning uchun §18 ni
-> «bajarilgan / bajarilmagan» ikkiligi bilan o'qish ikkita qatorni
-> **teskari** joyga qo'yadi: «Махаллинские чаты» (`Тип`
-> «Организационный», `Протокол` «Вне системы») kodsizligi qarz emas,
-> **qaror** — uni bo'shliq deb sanash ro'yxatni abadiy qizil
-> qoldirardi (67-run ning `EXTERNAL` sinfi); «1055» esa kodda **bor**
-> va shuning uchun sog'lomroq ko'rinadi, aslida eng xavflisi.
-> **Ikkita o'q.** `Surface` — kodda nima bor
-> (`OPERATING`/`PROVISIONED`/`NONE`). `Warrant` — o'sha narsa hujjat
-> e'lon qilgan bilim darajasiga haqlimi
-> (`EARNED`/`OVERSTATED`/`PRESUMED`/`DEFERRED`). Ular takrorlanmaydi
-> va aynan 1055 da ajraladi: `PROVISIONED` + `PRESUMED`. `assess()`
-> `Warrant` ni reyestrdan qabul qilmaydi — u belgi bilan `Surface`
-> ning **kesishmasi** bo'lishi shart.
-> **Eng jim topilma eng «sog'lom» qatorda.** Jadvaldagi yagona
-> `[ДАННЫЕ]` qatori — Telegram, `Протокол` ustunida «HTTPS webhook».
-> Webhook kodda to'liq bor (`05` §6.3), lekin `TELEGRAM_MODE` ning
-> standarti **uchala joyda ham** `polling`: `Settings`,
-> `.env.example`, `docker-compose.yml`. Ikkala rejim ham ishlagani
-> uchun buni hech narsa ushlamaydi; 44-run ning parity testi kalitning
-> **mavjudligini** o'lchaydi, qiymatining hujjatga ziddligini emas —
-> 66-run ning qoidasi bilan bir sinf.
-> **`PRESUMED` uchta qator.** 1055 va operator API si haqida kod
-> allaqachon uchta qaror qabul qilgan: `report_sources` qatori,
-> og'irlik `0.0`, `is_authoritative=True` — ya'ni bunday kod bilan
-> kelgan birinchi xabar hodisani **darhol** `confirmed` qiladi
-> (`06` §2.2), manba tasdiqlanishini kutmasdan; qarorlar migratsiya
-> `0003` ning seed ida muzlatilgan. ⚠️ Tuzoq: `'official'` literali
-> `app.clustering` da ham bor, lekin u `LAYER_OFFICIAL` — hodisaning
-> **qatlami**; shuning uchun test mavjudlikni emas, `source_code` ga
-> berilishini o'lchaydi.
-> **Teskari yo'nalish.** §18 da **Overpass API** yo'q, holbuki tuman
-> chegaralari tizimga faqat shu yo'l bilan kiradi
-> (`https://overpass-api.de/api/interpreter`, `05` §5.1) — butun E2
-> quvuri uchinchi tomon xizmatiga, uning tezlik cheklovlariga va ODbL
-> litsenziyasiga bog'liq. §28 dagi «Полигоны районов и махаллей —
-> Внешняя, **данные**» o'rnini bosmaydi: u ma'lumotni nomlaydi, §18
-> esa tizimlarni.
-> **Hisob:** `EARNED` 0, `OVERSTATED` 1, `PRESUMED` 3, `DEFERRED` 2;
-> +1 e'lon qilinmagan tizim → `accurate` `False`. Hech narsa
-> tuzatilmadi **ataylab**: uchala sabab ham hujjat yoki deploy
-> qarorini talab qiladi.
-> **28 mutatsiya, 0 survivor**; yo'l-yo'lakay **uchta survivor topildi
-> va tuzatildi** (tasdiqlangan qatorga `PRESUMED`/`DEFERRED` yozib
-> qo'yish o'lchanmasdi; ustun qorovuli ikki joyda **bir xil xabar**
-> bilan takrorlangan edi va birinchisini olib tashlash sezilmasdi;
-> `ahead_of_knowledge` hech qayerda `True` bo'lib tekshirilmasdi).
-> Beshta mutatsiya hujjatlarga, uchtasi konfiguratsiyaga qo'llandi —
-> hammasi ushlandi.
-> **Yon ta'sir:** 69-run ning `test_the_product_still_does_not_geocode`
-> tripwire i yangi reyestrni ko'rdi va yiqildi — to'plam yangilandi.
-> 1929 passed (+50), `requires_db` 231 (o'zgarmadi), migratsiyasiz,
+> ✅ **74-sessiya: E13 — `01` §19 «Notifications» kanallar jadvali kodda.**
+> 73-run uchta nomzod qoldirgan edi; §19 tanlandi, chunki
+> `admin/monitoring` `05` §7.2 ni tahrirlaydi (48-run qulflagan), §26/§27
+> esa kod bilan bog'lanishi qiyin ro'yxatlar. §19 ning **oxirgi jumlasi**
+> allaqachon kodda edi (43-run: radius `region_config` da), jadvalning
+> oltita qatori esa hech qachon o'qilmagan.
+> **Asosiy qaror — `Статус в регионе` bitta ustunda ikki xil da'vo
+> saqlaydi.** «MVP» va «Phase 2» — **reja** (*qachon*), «Не входит» —
+> **siyosat** (*hech qachon*, va sababi bilan). Ikkilik «qurilgan /
+> qurilmagan» o'qish ro'yxatni **teskari** tartibda ko'rsatadi: uchta
+> «Не входит» qatori 100% bajarilgan bo'lib chiqadi, «Phase 2» esa qarz
+> bo'lib — aslida «Phase 2» qatori buzila **olmaydi** (kelajak haqidagi
+> gapni bugungi commit yolg'onga aylantirmaydi), «Не входит» esa bitta
+> migratsiya bilan yolg'onga aylanadi.
+> **Ikkita o'q.** `Reach` — kanal bugun yeta oladimi
+> (`DELIVERS`/`SURFACED`/`NONE`). `Standing` — da'voni nimadir ushlab
+> turibdimi (`HELD`/`BORROWED`/`UNHELD`/`PREMATURE`). `BORROWED` **faqat**
+> «Не входит» qatorida bo'la oladi va sabab tuzilishda: mavjudlik
+> da'vosini ushlaydigan test ta'rifi bo'yicha o'sha kanal haqida
+> yozilgan, yo'qlik da'vosini ushlaydigan qorovul esa doim
+> **birovniki** — mavjud bo'lmagan narsa haqida hech kim test yozmaydi.
+> **Eng jim topilma MVP qatorida.** «In-App (веб-баннер) | MVP» uchun
+> `#banner` repoda **bor** (`web/index.html`, `web/app.js`) va qidiruv
+> uni topadi, lekin unga faqat xarita diagnostikasi chiqadi:
+> `map.tiles_missing`, `map.stale`, `map.empty`, `map.error`. Hodisa
+> bildirishnomasi u yerga tushmaydi **va tusha olmaydi**: §19 ning
+> qoidasi «при подтверждённом инциденте **в радиусе подписки**» deydi,
+> obuna esa `users.tg_id` ga bog'langan va faqat bot orqali yaratiladi;
+> vebda foydalanuvchi identifikatori yo'q va `01` §20 ga ko'ra
+> bo'lmaydi. Ya'ni ikkinchi MVP kanali tugallanmagan ish emas — u meros
+> qilib olgan qoidasi bilan **ziddiyatda** (70-run ning PG-S4 sinfi:
+> tuzatishning uchala yo'li ham hujjatni tahrirlaydi).
+> **Ikkinchi yarmi sxemada.** `notifications` da kanal ustuni yo'q va
+> `UNIQUE (user_id, outage_id)` (`05` §2.4) bir hodisa uchun bitta qator
+> beradi. Bitta kanal uchun bu aynan to'g'ri kafolat (outbox
+> `at-least-once`), ikkita kanal uchun esa **to'siq**: bir foydalanuvchi
+> bir hodisa haqida ikkala kanalda xabar ololmaydi va Web Push
+> migratsiyasiz qo'shilmaydi. Bugun hech narsa yiqilmaydi — defekt emas,
+> **narx**.
+> **`BORROWED` uchta qator, bitta qorovul, to'rtinchi sabab.** Email,
+> SMS va WhatsApp uchun hujjat **uchta boshqa** sabab keltiradi (ПДн
+> yo'q; narx; tasdiqlanmagan talab), repoda esa uchalasini **bitta**
+> mexanizm ushlab turibdi — 71-run ning `USERS_ALLOWED_COLUMNS` i, u har
+> uchala kanal talab qiladigan manzil ustunini to'sadi. Uning sababi
+> to'rtinchi narsa: `01` §20 ning ПДн qatori. Ya'ni §20 pozitsiyasi
+> qayta ko'rilsa (bugun ochiq savol — `tg_id` ning psevdonimligi),
+> §19 ning uchta qatori **bir vaqtda** qorovulsiz qoladi.
+> **Teskari yo'nalish:** §19 da **kunlik hisobot** yo'q —
+> `app/jobs/daily_digest.py` xuddi shu `Sender` bilan `DIGEST_CHAT_IDS`
+> ga yozadi. «Telegram (in-bot)» qatori uning o'rnini bosmaydi:
+> auditoriya obunachi emas, obuna ham radius ham yo'q, matn sutka
+> haqida. §19 kanallarni **auditoriya** bo'yicha sanaydi, transport
+> bo'yicha emas.
+> **Qoidaning uchala bandi** ham so'zma-so'z bog'landi
+> (`NOTIFIABLE_TOPICS`, `find_matching`, `params` ning `notify.*`
+> kalitlari). ⚠️ Mexanizm bor, **qiymat esa hali meros**:
+> `SUBSCRIPTION_DEFAULT_RADIUS_M` standarti — hujjat «могут не
+> соответствовать» degan aynan o'sha **500 m**, va u hujjatdan parse
+> qilinib solishtiriladi.
+> **Hisob:** `HELD` 1, `BORROWED` 3, `UNHELD` 1, `PREMATURE` 1, +1
+> e'lon qilinmagan yo'l → `accurate` `False`. Hech narsa tuzatilmadi
+> **ataylab**.
+> **26 mutatsiya, 0 survivor**; **ikkita survivor topildi va tuzatildi**
+> (jadvaldan qator yo'qolsa uning bahosi kimsasiz qolardi; `SURFACED`
+> uchun ikkala maydonning **alohida** majburiyligi o'lchanmasdi, ya'ni
+> `or` ni `and` ga aylantirish o'tib ketardi). **Bitta o'lik shart**
+> topilib olib tashlandi (`SURFACED` + «Не входит» ni alohida taqiqlash —
+> `Reach.NONE` sharti uni allaqachon to'sadi; 73-run ning survivori
+> bilan bir sinf).
+> 1997 passed (+61), `requires_db` 231 (o'zgarmadi), migratsiyasiz,
 > ruff yashil.
-> 👤 **Uchta savol:** `TELEGRAM_MODE` standarti; tasdiqlanmagan
-> manbalarning `is_authoritative` i; Overpass §18 ga qo'shiladimi.
-> **Keyingi nomzodlar:** `01` §19 «Notifications» (kanallar jadvali va
-> «радиус подлежит калибровке» qatori; 43-run §6.1 domenini
-> qulflagan, kanallar jadvalini emas), `01` §26/§27
-> «Risks»/«Assumptions» (hech qachon o'qilmagan), yoki
-> `GET /api/v1/admin/monitoring` (endi **sakkizta** reyestr vitrinasiz,
+> 👤 **To'rtta savol:** In-App qatorining taqdiri (qoida vebda boshqacha
+> o'qiladimi / qator «Phase 2» ga ko'chadimi / veb foydalanuvchini
+> taniydimi); `notifications` ga `channel` ustuni va
+> `UNIQUE (user_id, outage_id, channel)`; §19 uchun **o'z** qorovuli;
+> obuna radiusining meros standarti (500 m).
+> **Keyingi nomzodlar:** `01` §26/§27 «Risks»/«Assumptions» (hech qachon
+> o'qilmagan), `01` §25 «Release Plan», yoki
+> `GET /api/v1/admin/monitoring` (endi **to'qqizta** reyestr vitrinasiz,
 > lekin u `05` §7.2 ni tahrirlaydi).
+>
+> ---
+>
+> ⚠️ **73-rundan qolgan, hali bajarilmagan odam ishi.** CI birinchi marta
+> `requires_db` ni yurgizdi va **sxema defekti** topdi: `reports.geom_exact`
+> bazada `NOT NULL` bo'lgan (GeoAlchemy2 bitta `Geography(...)` nusxasini
+> ustunlar orasida holat tashuvchi qilib ishlatadi), ya'ni
+> `purge_exact_geom` har yurishda yiqilardi va uy koordinatasi hech qachon
+> o'chirilmasdi. Tuzatildi: `app/db/spatial.py`, to'rtta model + `0002`,
+> `0010` mavjud bazalarni tuzatadi,
+> `tests/test_schema_spatial_nullability.py` sababni qulflaydi.
+> 👤 **CI ni qayta yurgizing**; serverda `alembic upgrade head` (`0010`).
+> 👤 **`.\push.ps1`** — 56-rundan beri commit qilinmagan tuzatishlar
+> (SQL jurnali) hamon prodda emas; tartib: `push.ps1` → serverda
+> `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` →
+> `up -d`.
+> 👤 **Sandbox:** shu run davomida `/` ham 100% ga to'ldi va
+> `TMPDIR=/tmp/tmpdir` ishlamay qoldi (`No usable temporary directory`).
+> `/tmp` da boshqa loyihaning ~2.9 GB qoldig'i bor va u `nobody` ga
+> tegishli — o'chirib bo'lmaydi. Yechim: `TMPDIR=$HOME/tmpd`.
 
 ## Sessiyalar
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
-| 73 | [integratsiyalar_reyestri](73_integratsiyalar_reyestri_c7debe6d.md) | `local_c7debe6d` | `01` §18 «Integrations» oltita qatori birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Статус` bilim haqidagi da'vo, bajarilish haqida emas**, shuning uchun «bajarilgan/bajarilmagan» ikkiligi ikkita qatorni teskari joyga qo'yadi: «Махаллинские чаты» (`Вне системы`) kodsizligi qaror, «1055» esa kodda bor va shuning uchun sog'lomroq ko'rinadi. Ikkita o'q: `Surface` (`OPERATING`/`PROVISIONED`/`NONE`) va `Warrant` (`EARNED`/`OVERSTATED`/`PRESUMED`/`DEFERRED`); ular 1055 da ajraladi. | `app/integrations/registry.py` + `tests/test_integrations_contract.py` (50 test). `EARNED` 0, `OVERSTATED` 1, `PRESUMED` 3, `DEFERRED` 2, +1 e'lon qilinmagan tizim → `accurate` `False`. Eng jim topilma — Telegram: hujjat «HTTPS webhook» deydi, `TELEGRAM_MODE` ning standarti uchala joyda ham `polling`. Teskari yo'nalish — Overpass API §18 da yo'q. 28 mutatsiya, 0 survivor (3 tasi topilib tuzatildi). 1929 passed, ruff yashil. 👤 uchta savol. |
+| 74 | [bildirishnoma_kanallari](74_bildirishnoma_kanallari_cca44107.md) | `local_cca44107` | `01` §19 «Notifications» ning oltita kanali birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Статус в регионе` bitta ustunda reja va siyosat saqlaydi**: «MVP»/«Phase 2» *qachon* deydi, «Не входит» esa *hech qachon* — va aynan ikkinchisi bitta migratsiya bilan yolg'onga aylanadi. Ikkita o'q: `Reach` (`DELIVERS`/`SURFACED`/`NONE`) va `Standing` (`HELD`/`BORROWED`/`UNHELD`/`PREMATURE`); `BORROWED` faqat «Не входит» qatorida bo'la oladi, chunki yo'qlik da'vosini ushlaydigan qorovul doim birovniki. | `app/notifications/channels.py` + `tests/test_notification_channels_contract.py` (61 test). `HELD` 1, `BORROWED` 3, `UNHELD` 1, `PREMATURE` 1, +1 e'lon qilinmagan yo'l → `accurate` `False`. Eng jim topilma — In-App banner: artefakt repoda bor, lekin xarita diagnostikasini olib yuradi va §19 ning qoidasini vebda bajarib bo'lmaydi (obuna `tg_id` da). Uchta «Не входит» qatori 71-run ning `USERS_ALLOWED_COLUMNS` ida osilgan — qorovulning sababi §20 ning ПДн qatori. Teskari yo'nalish — kunlik hisobot §19 da yo'q. 26 mutatsiya, 0 survivor (2 tasi topilib tuzatildi, 1 o'lik shart olib tashlandi). 1997 passed, ruff yashil. 👤 to'rtta savol. |
+| 73 | [integratsiyalar_reyestri](73_integratsiyalar_reyestri_c7debe6d.md) | `local_c7debe6d` | `01` §18 «Integrations» oltita qatori birinchi marta kod bilan solishtirildi. Asosiy qaror — **`Статус` bilim haqidagi da'vo, bajarilish haqida emas**, shuning uchun «bajarilgan/bajarilmagan» ikkiligi ikkita qatorni teskari joyga qo'yadi: «Махаллинские чаты» (`Вне системы`) kodsizligi qaror, «1055» esa kodda bor va shuning uchun sog'lomroq ko'rinadi. Ikkita o'q: `Surface` (`OPERATING`/`PROVISIONED`/`NONE`) va `Warrant` (`EARNED`/`OVERSTATED`/`PRESUMED`/`DEFERRED`); ular 1055 da ajraladi. | `app/integrations/registry.py` + `tests/test_integrations_contract.py` (50 test). `EARNED` 0, `OVERSTATED` 1, `PRESUMED` 3, `DEFERRED` 2, +1 e'lon qilinmagan tizim → `accurate` `False`. Eng jim topilma — Telegram: hujjat «HTTPS webhook» deydi, `TELEGRAM_MODE` ning standarti uchala joyda ham `polling`. Teskari yo'nalish — Overpass API §18 da yo'q. 28 mutatsiya, 0 survivor (3 tasi topilib tuzatildi). 1929 passed, ruff yashil. 👤 uchta savol. **Ikkinchi yarmi — CI birinchi marta yurdi:** `requires_db` dan 42 tasi `geom_exact` `NOT NULL` bilan yiqildi. Sxema defekti, test xatosi emas — GeoAlchemy2 ning umumiy tip nusxasi `05` §3.2 ni bekor qilgan va `purge_exact_geom` bajarilmas edi. `app/db/spatial.py` + `0010` + `tests/test_schema_spatial_nullability.py`. 1936 passed. |
 | 72 | [malumot_modeli](72_malumot_modeli_e4af2f80.md) | `local_e4af2f80` | `01` §17 «Data Model» ER diagrammasi birinchi marta kod bilan solishtirildi. Asosiy qaror — **diagramma yiqila olmaydi**: DDL bajariladi, mermaid bloki esa yo'q, ya'ni savol «undan so'rov yozgan odam nima oladi». Tartib intuitivga teskari: `ABSENT` va `RENAMED` darhol `UndefinedColumn` beradi, `RELOCATED` (`districts.population` → `territory_stats.population`) esa **ishlaydigan** so'rov va boshqa ma'no; eng jimi `NARROWED` (`independent_reporters` `integer`→`smallint`). Ikkinchi o'q `Reliance` ikkala `ABSENT` ni ajratadi: `is_city_district` repoda yagona manbaga ega (`UNCLAIMED`, hujjatdan o'chirilsin), `coverage_zones` esa Toshkent `18_ERD.md` sidan meros va BRD IS-08 uni In Scope da ushlaydi (`CLAIMED_ELSEWHERE`) — 71-ning «наследуется» tuzog'i takrorlandi. Teskari yo'nalish: `region_id` `NOT NULL`, `REPORTS`/`OUTAGES` bloklarida yo'q. Reyestrda faqat ajralishlar; izohsiz drift `ValueError`. 22 mutatsiya, 0 survivor (3 tasi topildi va tuzatildi) | ✅ `01` §17; 1879 test (+46), `requires_db` 231 (o'zgarmadi), migratsiyasiz, ruff yashil; 👤 uchta savol |
 | 70 | [qabul_mezonlari](70_qabul_mezonlari_71ffc337.md) | `local_71ffc337` | REL — `01` §23 «Acceptance Criteria» birinchi marta kodda: toza `app/release/acceptance.py` (yettita mezon; `Scope.REGION`/`CODEBASE` × `Evidence.STRUCTURAL`/`RUNTIME`/`MANUAL`; beshta vitrinali `SHOWCASES` reyestri; `STRUCTURAL` javoblar tashqaridan berilmaydi) + `tests/test_region_acceptance_contract.py` (30 test; ro'yxat `01` dan parse qilinadi; `shows_index` bayroq emas — javob modellari, CSV sarlavhasi va `web/` fayllarining o'zi o'qiladi; 6-qator `monitoring` ga bog'langani `monkeypatch` bilan isbotlanadi). **Nima uchun `gates.py` emas:** gate loyiha fazasi bo'yicha va bir marta yopiladi, §23 esa har mintaqa uchun qaytadan yuriladi (`03` §6 G-8). **Topilma-1:** yettitadan **ikkitasigina** mintaqa haqida; bajarilgan uchala qator ham `CODEBASE`, ya'ni ikkinchi mintaqa uchun ro'yxat bittasini ham yangi tekshirmaydi (`restated_count`). **Topilma-2 (defekt):** `01` PG-S4 «100% витрин» talab qiladi, bugun 3/5 = 60% — `/map` va **ommaviy sahifaning standart ko'rinishi** indekssiz (`#heat-coverage` `#heat-legend` ichida, `heatOn = false`); shu sababdan §23 ning 7-qatori ham bajarilmagan. Tuzatilmadi ataylab: uchala yo'l ham `05` §7.1/§7.2 ni tahrirlaydi (66-run ning `answer_p90` sinfi) | 🔄 REL; 2 `UNMET`, 2 `UNMEASURED`, 3 `MET`; 1794 test (+30), `requires_db` 231 (o'zgarmadi), migratsiyasiz, ruff yashil; 20 mutatsiya, 0 survivor (2 tasi topilib tuzatildi); 👤 uchta savol |
 | 69 | [kuzatuv_talablari](69_kuzatuv_talablari_d7b6304c.md) | `local_d7b6304c` | OBS — `01` §22 «Logging & Monitoring» delta jadvali birinchi marta kodda: toza `app/obs/monitoring.py` (to'rtta talab, to'rtta holat `HELD`/`CONFLICTED`/`VACUOUS`/`BLOCKED`, to'siqlar narxi bilan, meros stek ro'yxati, `LABEL_EXEMPT` + `PRODUCT_FAMILIES`) + `tests/test_logging_monitoring_contract.py` (jadval hujjatdan parse qilinadi; `region` yorlig'i eksportning o'zida yuriladi; `PRODUCT_FAMILIES` `05` §10 dan olinadi; `05` §10 ning alert cheklovi ikki tomondan tekshiriladi) | 🔄 OBS; to'rttadan bittasi bajarilgan — ikkala yangi alert `05` §10 ning «faqat to'rttasiga» cheklovi bilan ziddiyatda, geokodlash alerti bo'sh o'lchov (mahsulotda geokoder yo'q, lekin u sozlamalarda, `01` §16 va §18 da bor), 1055 tekshiruvi H-4 ga bog'liq; 1764 test (+34), migratsiyasiz, ruff yashil; 15 mutatsiya, 0 survivor |

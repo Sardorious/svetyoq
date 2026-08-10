@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 73-run.
+**Oxirgi yangilanish:** 2026-08-10, 74-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -18,7 +18,7 @@ faqat havola qilinadi.
 | # | Epic | Holat | Kod | Runlar | ✅ uchun nima kerak |
 |---|---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | 02, 40, 44, 45, 47 | — |
-| E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | `app/geo/`, `tools/import_boundaries.py`, `0002` | 03, 27, 40, **60** | CI yashil |
+| E2 | Ma'lumot sxemasi + hudud yuklash | 🔄 | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | 03, 27, 40, 60, **73** | CI yashil |
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | 10, 37 | CI **va haqiqiy Telegram runi** |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | 02, 28, 41, 42 | — |
 | E5 | Klasterlash: biriktirish, statuslar | 🔄 | `app/clustering/` | 04, 11, 57, **59** | CI yashil |
@@ -30,7 +30,7 @@ faqat havola qilinadi.
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | (64 — asbob) | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | — | E10, E11 |
-| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43 | CI **va haqiqiy Telegram runi** |
+| E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | 14, 43, **74** | CI **va haqiqiy Telegram runi** |
 | E14 | Statistika + Coverage Index | 🔄 | `app/stats/` | 15, 22, 23, 25, 30, 32, 63, **65** | CI + vitrina sahifasi (E14-a) |
 | E15 | Ommaviy API + OpenAPI | 🔄 | `app/api/` | 16, 27, 48 | CI yashil |
 | E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22 | CI + haqiqiy zichlik (E10) |
@@ -56,8 +56,8 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **124 ta test fayli**; oxirgi yurish (73-run):
-`pytest -m "not requires_db"` → **1929 passed, 1 skipped**; **231 ta
+Jami **126 ta test fayli**; oxirgi yurish (74-run):
+`pytest -m "not requires_db"` → **1997 passed, 1 skipped**; **231 ta
 `requires_db`** testi (28 faylda) sandboxda ishlamaydi — ular
 Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri `ruff` ham,
@@ -69,7 +69,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | Epic | Test fayllari |
 |---|---|
 | E1 | `test_health`, `test_errors`, `test_config`, `test_migrations`, `test_schema`, `test_core_etag`, `test_env_example_parity`, `test_transaction_boundaries`, `test_api_commit_contract`, `test_schema_index_parity` |
-| E2 | `test_geo_osm`, `test_geo_quality`, `test_geo_h3`, `test_geo_jitter`, `test_geo_bbox`, `test_geo_mahallas`, `test_geo_pipeline_db`, `test_purge_exact_geom`, `test_privacy_jitter_contract` |
+| E2 | `test_geo_osm`, `test_geo_quality`, `test_geo_h3`, `test_geo_jitter`, `test_geo_bbox`, `test_geo_mahallas`, `test_geo_pipeline_db`, `test_purge_exact_geom`, `test_privacy_jitter_contract`, `test_schema_spatial_nullability` |
 | E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry`, `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
@@ -78,7 +78,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
 | E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil` |
-| E13 | `test_notifications_outbox`, `test_notifications_render`, `test_notifications_db`, `test_notify_params`, `test_notification_domain_contract` |
+| E13 | `test_notifications_outbox`, `test_notifications_render`, `test_notifications_db`, `test_notify_params`, `test_notification_domain_contract`, `test_notification_channels_contract` |
 | E14 | `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_boundaries`, `test_stats_maturity`, `test_stats_mahalla_coverage`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
 | E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
@@ -142,6 +142,7 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `01` §20 «Security» + BRD «Безопасность» NFR lari | `test_security_posture_contract.py` | **71** |
 | `01` §17 «Data Model» ER diagrammasi ↔ `metadata` | `test_data_model_contract.py` | **72** |
 | `01` §18 «Integrations» oltita qatori ↔ kod | `test_integrations_contract.py` | **73** |
+| `01` §19 «Notifications» kanallar jadvali + yetkazish qoidasi | `test_notification_channels_contract.py` | **74** |
 
 **Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning esa **butun hujjati** — §1–§10 ning hammasi (60-run §3
@@ -238,11 +239,59 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | `tg_id` «псевдонимизированный вид» — hujjatni tahrirlash yoki pepper li xesh | SEC (`01` §20) |
 | Ommaviy API da rate limit yo'q (`01` §16 uni meros qiladi) — ilovada yoki proxy da? | SEC (BRD NFR-S-03), E15 |
 | `01` §17 ning to'rtta eskirgan qatori (`h3_index` ikki joyda, `is_city_district`, `independent_reporters` tipi, `population` ning o'rni) | DATA |
+| `05` §2.2 DDL si `geom_exact` ni `NOT NULL` deydi, §3.2 esa `NULL` talab qiladi — hujjatning ichki ziddiyati (kod §3.2 ni tanladi) | E2, `05` §2.2 |
 | `TELEGRAM_MODE` standarti `polling`, `01` §18 esa «HTTPS webhook» deydi — standart o'zgaradimi yoki hujjat | INT, E3 |
 | Tasdiqlanmagan manbalar (`official`, `operator_api`) `is_authoritative=True` bilan seed qilingan — o'sha holicha qoladimi | INT, E5b, E18 |
 | Overpass API `01` §18 ga qator sifatida qo'shiladimi (ODbL litsenziyasi bilan) | INT, E2 |
 | `coverage_zones` BRD IS-08 da In Scope, jadval yo'q — ko'lam qisqartiriladimi | DATA, E14 |
 | `region_id` `01` ning ER rasmiga qo'shiladimi (`NOT NULL`, E19 unga tayanadi) | DATA, E19 |
+| `01` §19 ning In-App qatori «MVP», lekin yetkazish qoidasi vebda bajarilmaydi (obuna `tg_id` da) | E13, E9, `01` §19/§20 |
+| `notifications` da kanal ustuni yo'q; `UNIQUE (user_id, outage_id)` ikkinchi kanalni to'sadi | E13, E20, `05` §2.4 |
+| §19 ning uchta «Не входит» qatori `01` §20 ning ПДн qarorida osilgan — o'z qorovuli kerakmi | E13, SEC |
+| Obuna radiusining standarti hali Toshkentniki (500 m) — oraliq qiymat qo'yiladimi | E13, E11 |
+
+- **74-run — bitta ustunda ikki xil da'vo, va eng jimi eng «bajarilgan»
+  qatorda.** `01` §19 ning oltita kanali `app/notifications/channels.py`
+  da ikkita o'q bilan yozildi. Asosiy qaror — `Статус в регионе` ustuni
+  **reja** («MVP», «Phase 2» — *qachon*) va **siyosat** («Не входит» —
+  *hech qachon, va sababi bilan*) ni aralashtiradi, ya'ni ikkilik
+  «qurilgan / qurilmagan» o'qish ro'yxatni **teskari** tartibda
+  ko'rsatadi: uchta «Не входит» qatori 100% bajarilgan bo'lib chiqadi,
+  «Phase 2» esa qarz bo'lib — aslida «Phase 2» qatori buzila
+  **olmaydi**, «Не входит» esa bitta migratsiya bilan yolg'onga
+  aylanadi. Shuning uchun `Reach` (reja qatori uchun: yo'l bormi) va
+  `Standing` (siyosat qatori uchun: qorovul bormi). `BORROWED` faqat
+  «Не входит» qatorida bo'la oladi va sabab tuzilishda: mavjudlik
+  da'vosini ushlaydigan test o'sha kanal haqida yozilgan bo'ladi,
+  yo'qlik da'vosini ushlaydigan qorovul esa doim **birovniki**.
+  ⚠️ **Eng jim topilma MVP qatorida:** «In-App (веб-баннер)» uchun
+  `#banner` repoda **bor** (`web/index.html`, `web/app.js`) va qidiruv
+  uni topadi, lekin unga faqat xarita diagnostikasi chiqadi — hodisa
+  bildirishnomasi u yerga tushmaydi va **tusha olmaydi**: §19 ning
+  qoidasi «в радиусе подписки» deydi, obuna `users.tg_id` ga bog'langan
+  va faqat bot orqali yaratiladi, vebda esa foydalanuvchi
+  identifikatori yo'q (§20). Ya'ni ikkinchi MVP kanali tugallanmagan
+  ish emas, meros qilib olgan qoidasi bilan **ziddiyatda**. Ikkinchi
+  yarmi sxemada: `notifications` da kanal ustuni yo'q va
+  `UNIQUE (user_id, outage_id)` (`05` §2.4) bir kanal uchun to'g'ri
+  kafolat, ikki kanal uchun **to'siq**. `BORROWED` uchta qator: hujjat
+  uchta boshqa sabab keltiradi, repoda esa uchalasini 71-run ning
+  `USERS_ALLOWED_COLUMNS` i ushlab turibdi va uning sababi to'rtinchi
+  narsa (`01` §20 ning ПДн qatori) — §20 pozitsiyasi o'zgarsa uchala
+  qator bir vaqtda qorovulsiz qoladi. Teskari yo'nalish: §19 da
+  **kunlik hisobot** yo'q (`app/jobs/daily_digest.py` → `DIGEST_CHAT_IDS`,
+  boshqa auditoriya, obunasiz, radiussiz). Qoida paragrafining uchala
+  bandi ham so'zma-so'z bog'landi; ⚠️ radiusning **mexanizmi** bor
+  (43-run), **qiymati** esa hali Toshkentniki (500 m — hujjatning o'zi
+  «могут не соответствовать» deydi). Hisob: `HELD` 1, `BORROWED` 3,
+  `UNHELD` 1, `PREMATURE` 1, +1 e'lon qilinmagan yo'l → `accurate`
+  `False`; hech narsa tuzatilmadi **ataylab**. 26 mutatsiya, 0
+  survivor; **ikkita survivor topildi va tuzatildi** (jadvaldan qator
+  yo'qolsa uning bahosi kimsasiz qolardi; `SURFACED` uchun ikkala
+  maydonning alohida majburiyligi o'lchanmasdi) va bitta **o'lik
+  shart** olib tashlandi. 👤 **To'rtta savol:** In-App qatorining
+  taqdiri; `notifications` ga `channel` ustuni; §19 uchun o'z
+  qorovuli; obuna radiusining meros standarti.
 
 - **73-run — `Статус` bilim haqidagi da'vo, bajarilish haqida emas.** `01`
   §18 ning oltita qatori `app/integrations/registry.py` da ikkita o'q
@@ -439,8 +488,25 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 
 **⚙️ Infratuzilma:**
 
-- **CI hech qachon yurmagan** — hamma 🔄 epicning ✅ ga o'tishi shunga
-  bog'liq. 212 ta `requires_db` testi faqat CI da yuriladi.
+- **CI (73-run) — `requires_db` birinchi marta haqiqatan yurdi va bitta
+  haqiqiy defekt topdi.** `not requires_db` yashil, `requires_db` dan
+  **42 tasi** yiqildi, hammasi bitta sabab bilan: `reports.geom_exact`
+  bazada `NOT NULL`. Uchta mustaqil manba uni `nullable=True` deb
+  **yozadi** (model, `0002`, `0002` ning docstringi `05` §3.2 ga havola
+  bilan), chiqadigan DDL esa `NOT NULL` bo'lgan — GeoAlchemy2 tip
+  obyektiga ustunning `nullable` bayrog'ini yozadi va keyingi ustunda
+  qaytadan o'qiydi, ya'ni bitta `Geography(...)` nusxasi ustunlar
+  orasida **holat tashiydi**; `0002` uni o'n bitta jadvalga bergan.
+  ⚠️ **Oqibati maxfiylik defekti:** `purge_exact_geom` (`05` §3.2, §8)
+  bu cheklov bilan har yurishda yiqiladi — uy koordinatasi hech qachon
+  o'chirilmaydi. Parity testlari (40, 56) buni ko'ra olmasdi: ikkala
+  tomon ham to'g'ri yozilgan, ya'ni mos keladi va ikkalasi ham yolg'on.
+  Tuzatildi: `app/db/spatial.py` fabrikalari, to'rtta model + `0002`
+  o'tkazildi, `0010` mavjud bazalarni tuzatadi,
+  `tests/test_schema_spatial_nullability.py` **sababni** qulflaydi
+  (umumiy nusxa taqiqlanadi — modellarda `metadata`, migratsiyalarda
+  AST bo'yicha). 👤 CI ni qayta yurgizing; serverda
+  `alembic upgrade head`.
 - **CI (56-run) — birinchi marta yurdi.** `not requires_db` qismi yashil,
   `requires_db` ning hammasi yiqildi: global engine + har testga yangi event
   loop → `attached to a different loop`. Test muhitida engine endi `NullPool`

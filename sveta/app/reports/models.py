@@ -14,7 +14,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -31,9 +30,8 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
+from app.db.spatial import point
 from app.reports.sources import DEFAULT_SOURCE_CODE
-
-_POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
 
 #: `reports.kind` uchun ruxsat etilgan qiymatlar (`05` §2.2).
 REPORT_KINDS: tuple[str, ...] = ("outage", "restored")
@@ -96,8 +94,8 @@ class Report(UUIDPrimaryKeyMixin, Base):
     )
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     # HECH QACHON ommaga chiqmaydi. 90 kundan keyin NULL ga o'tkaziladi.
-    geom_exact = mapped_column(_POINT, nullable=True)
-    geom_public = mapped_column(_POINT, nullable=False)
+    geom_exact = mapped_column(point(), nullable=True)
+    geom_public = mapped_column(point(), nullable=False)
     h3_r9: Mapped[str] = mapped_column(Text, nullable=False)
     region_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("regions.id"), nullable=False

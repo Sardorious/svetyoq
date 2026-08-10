@@ -20,6 +20,28 @@ from typing import Any
 OVERPASS_DEFAULT_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_TIMEOUT_S = 180
 
+#: Overpass ga o'zini tanitadigan `User-Agent`.
+#:
+#: **Nima uchun majburiy.** `overpass-api.de` ning oldidagi proxy
+#: kutubxonaning standart satrini (`python-httpx/…`) rad etadi va
+#: **`406 Not Acceptable`** qaytaradi — so'rovning o'zi to'g'ri bo'lsa
+#: ham. Bu OSM ning umumiy talabi: har mijoz o'zini nomlashi va bog'lanish
+#: manzilini berishi kerak (Overpass API «Commons» qoidalari), aks holda
+#: so'rov anonim bot sifatida bloklanadi.
+#:
+#: 74-run: prodda `import_boundaries survey` aynan shu sabab bilan
+#: yiqildi va butun E2 quvuri to'xtab qoldi.
+OVERPASS_USER_AGENT = "SvetaNet/0.1 (+https://github.com/Sardorious/svetyoq)"
+
+#: Overpass so'rovining sarlavhalari. Lug'at shu yerda, chaqiruv joyida
+#: emas: `tools/import_boundaries.py` yagona mijoz bo'lsa ham, sarlavhalar
+#: so'rov matni bilan bir joyda turishi kerak — ikkalasi ham bitta tashqi
+#: kelishuvning qismi.
+OVERPASS_HEADERS: dict[str, str] = {
+    "User-Agent": OVERPASS_USER_AGENT,
+    "Accept": "application/json",
+}
+
 #: `05` §5.2: daraja oldindan taxmin qilinmaydi, 4..10 sanaladi va odam tanlaydi.
 SURVEY_LEVELS: tuple[int, ...] = (4, 5, 6, 7, 8, 9, 10)
 

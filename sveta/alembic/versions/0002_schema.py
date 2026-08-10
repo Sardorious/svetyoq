@@ -9,7 +9,9 @@ qilingan qo'shimcha:
 * `boundary_staging` — `05` §5.1 quvuridagi «staging jadvali» (u yerda
   ustunlari ko'rsatilmagan, shuning uchun bu yerda aniqlanadi);
 * `reports.geom_exact` `NULL` bo'la oladi — `05` §3.2: 90 kundan keyin ustun
-  `NULL` qilinadi, nolga tenglashtirilmaydi.
+  `NULL` qilinadi, nolga tenglashtirilmaydi. ⚠️ Bu niyat 73-rungacha **bajarilmagan**:
+  umumiy `POINT` nusxasi uni jimgina `NOT NULL` qilib qo'yardi (pastdagi izoh va
+  `0010`). Toza bazalar endi to'g'ri quriladi, mavjudlarini `0010` tuzatadi.
 
 Revision ID: 0002
 Revises: 0001
@@ -20,21 +22,25 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-import geoalchemy2
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
+from app.db import spatial
 
 revision: str = "0002"
 down_revision: str | None = "0001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-POINT = geoalchemy2.Geography(geometry_type="POINT", srid=4326, spatial_index=False)
-MULTIPOLYGON = geoalchemy2.Geometry(
-    geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False
-)
+# ⚠️ Konstanta EMAS, fabrika. GeoAlchemy2 tip obyektiga ustunning
+# `nullable` bayrog'ini yozadi va keyingi ustunda uni qaytadan o'qiydi, ya'ni
+# bitta nusxa ustunlar orasida holat tashiydi: `regions.center` (`NOT NULL`)
+# tipni «yopgandan» keyin `reports.geom_exact` (`nullable=True`) jimgina
+# `NOT NULL` bo'lib qolardi — aynan shu bo'lgan (73-run). Tafsiloti:
+# `app/db/spatial.py`.
+POINT = spatial.point
+MULTIPOLYGON = spatial.multipolygon
 
 
 def uid(name: str, *, nullable: bool = False) -> sa.Column:
@@ -67,7 +73,7 @@ def upgrade() -> None:
         txt("name_uz"),
         txt("name_ru"),
         txt("default_language", default="uz"),
-        sa.Column("center", POINT, nullable=False),
+        sa.Column("center", POINT(), nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="false", nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_regions"),
         sa.UniqueConstraint("code", name="uq_regions_code"),
@@ -80,7 +86,7 @@ def upgrade() -> None:
         txt("code"),
         txt("name_uz"),
         txt("name_ru"),
-        sa.Column("geom", MULTIPOLYGON, nullable=False),
+        sa.Column("geom", MULTIPOLYGON(), nullable=False),
         ts("valid_from", now=True),
         ts("valid_to", nullable=True),
         txt("source"),
@@ -104,7 +110,7 @@ def upgrade() -> None:
         uid("district_id"),
         txt("name_uz"),
         txt("name_ru", nullable=True),
-        sa.Column("geom", MULTIPOLYGON, nullable=False),
+        sa.Column("geom", MULTIPOLYGON(), nullable=False),
         ts("valid_from", now=True),
         ts("valid_to", nullable=True),
         txt("source"),
@@ -126,7 +132,7 @@ def upgrade() -> None:
         txt("name_uz", nullable=True),
         txt("name_ru", nullable=True),
         sa.Column("raw_tags", postgresql.JSONB(), server_default="{}", nullable=False),
-        sa.Column("geom", MULTIPOLYGON, nullable=False),
+        sa.Column("geom", MULTIPOLYGON(), nullable=False),
         sa.Column("is_valid_geom", sa.Boolean(), server_default="false", nullable=False),
         sa.Column("area_m2", sa.BigInteger(), nullable=True),
         txt("status", default="staged"),
@@ -165,7 +171,7 @@ def upgrade() -> None:
         uid("mahalla_id", nullable=True),
         txt("status"),
         txt("layer", default="crowd"),
-        sa.Column("centroid", POINT, nullable=False),
+        sa.Column("centroid", POINT(), nullable=False),
         sa.Column("radius_m", sa.Integer(), nullable=False),
         sa.Column(
             "independent_reporters", sa.SmallInteger(), server_default="0", nullable=False
@@ -198,8 +204,8 @@ def upgrade() -> None:
         txt("kind"),
         # `geom_exact` HECH QACHON API javobida chiqmaydi (`05` §7.3) va
         # 90 kundan keyin NULL ga o'tkaziladi (`05` §3.2).
-        sa.Column("geom_exact", POINT, nullable=True),
-        sa.Column("geom_public", POINT, nullable=False),
+        sa.Column("geom_exact", POINT(), nullable=True),
+        sa.Column("geom_public", POINT(), nullable=False),
         txt("h3_r9"),
         uid("region_id"),
         uid("district_id", nullable=True),
@@ -233,7 +239,7 @@ def upgrade() -> None:
         uid("id"),
         uid("user_id"),
         txt("label", nullable=True),
-        sa.Column("geom", POINT, nullable=False),
+        sa.Column("geom", POINT(), nullable=False),
         sa.Column("radius_m", sa.Integer(), server_default="500", nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         ts("created_at", now=True),

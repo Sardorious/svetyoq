@@ -58,11 +58,39 @@ EXIT_USAGE = 64
 # --- Overpass ----------------------------------------------------------------
 
 
+class OverpassError(RuntimeError):
+    """Overpass so'rovi bajarilmadi.
+
+    `httpx.HTTPStatusError` ni to'g'ridan-to'g'ri chiqarib yuborish
+    traceback beradi va nima qilish kerakligini aytmaydi. Bu asbob
+    operator qo'lida ishlaydi, ya'ni xato **o'qiladigan** bo'lishi kerak.
+    """
+
+
 async def _overpass(query: str, url: str) -> dict[str, Any]:
+    """So'rovni yuboradi. Sarlavhalar `app.geo.osm` dan (`OVERPASS_HEADERS`).
+
+    `User-Agent` siz `overpass-api.de` **`406 Not Acceptable`** qaytaradi —
+    so'rovning o'zi to'g'ri bo'lsa ham (74-run, prodda topildi).
+    """
     async with httpx.AsyncClient(timeout=osm.OVERPASS_TIMEOUT_S + 30) as client:
-        response = await client.post(url, data={"data": query})
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = await client.post(url, data={"data": query}, headers=osm.OVERPASS_HEADERS)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            hint = ""
+            if status in (406, 403, 429):
+                hint = (
+                    " Overpass mijozni rad etdi. Tekshiring: `User-Agent`"
+                    f" ({osm.OVERPASS_USER_AGENT!r}), tezlik cheklovi (bir necha"
+                    " daqiqadan keyin qayta urinib ko'ring) yoki boshqa oyna"
+                    " (`--overpass-url`)."
+                )
+            raise OverpassError(f"Overpass {status} — {url}.{hint}") from exc
+        except httpx.HTTPError as exc:
+            raise OverpassError(f"Overpass ga ulanib bo'lmadi: {exc}") from exc
 
 
 def _read_cache(cache: Path | None) -> dict[str, Any] | None:
@@ -393,6 +421,9 @@ async def _main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return await args.func(args)
+    except OverpassError as exc:
+        print(f"[BLOK] {exc}")
+        return EXIT_BLOCKED
     finally:
         await dispose_engine()
 

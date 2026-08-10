@@ -10,7 +10,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -29,8 +28,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
-
-_POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
+from app.db.spatial import point
 
 #: Outbox mavzulari (`05` §2.4).
 #:
@@ -73,7 +71,7 @@ class Subscription(UUIDPrimaryKeyMixin, Base):
         PgUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     label: Mapped[str | None] = mapped_column(Text, nullable=True)
-    geom = mapped_column(_POINT, nullable=False)
+    geom = mapped_column(point(), nullable=False)
     radius_m: Mapped[int] = mapped_column(Integer, nullable=False, server_default="500")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     created_at: Mapped[datetime] = mapped_column(

@@ -13,7 +13,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -34,8 +33,7 @@ from app.clustering.scale import Scale
 from app.clustering.status import OPEN_STATUSES as _OPEN
 from app.clustering.status import OutageStatus
 from app.db.base import Base, UUIDPrimaryKeyMixin
-
-_POINT = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
+from app.db.spatial import point
 
 #: `outages.status` — `05` §4.4 status mashinasi.
 #: Yagona manba `app.clustering.status`; bu yerda faqat satr ko'rinishi.
@@ -89,7 +87,7 @@ class Outage(UUIDPrimaryKeyMixin, Base):
     )
     status: Mapped[str] = mapped_column(Text, nullable=False)
     layer: Mapped[str] = mapped_column(Text, nullable=False, server_default="crowd")
-    centroid = mapped_column(_POINT, nullable=False)
+    centroid = mapped_column(point(), nullable=False)
     radius_m: Mapped[int] = mapped_column(Integer, nullable=False)
     independent_reporters: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, server_default="0"

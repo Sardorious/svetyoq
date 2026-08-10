@@ -2,7 +2,9 @@
 
 **Sana:** 2026-08-10 · **Sessiya:** `c7debe6d` · **Epic:** INT (epicdan tashqari)
 **Natija:** `app/integrations/registry.py` + `tests/test_integrations_contract.py`
-(50 test), 1929 passed, ruff yashil, migratsiyasiz.
+(50 test); ikkinchi yarmida — CI ning birinchi haqiqiy natijasi va undan chiqqan
+sxema defekti: `app/db/spatial.py`, `0010` migratsiyasi,
+`tests/test_schema_spatial_nullability.py`. 1936 passed, ruff yashil.
 
 ---
 
@@ -152,6 +154,102 @@ kutilgan ishlagan.
 2. Tasdiqlanmagan manbalarning `is_authoritative=True` seed i o'sha holicha
    qoladimi (o'zgartirish `06` §2.2 ni tahrirlaydi — u 50-run da qulflangan).
 3. Overpass API §18 ga qator sifatida qo'shiladimi (litsenziya izohi bilan).
+
+---
+
+# Running ikkinchi yarmi — CI birinchi marta yurdi va bitta defekt topdi
+
+Odam CI ni qayta yurgizdi. `not requires_db` yashil, `requires_db` dan **42 tasi**
+yiqildi va hammasi bitta xabar bilan:
+
+```
+null value in column "geom_exact" of relation "reports" violates not-null constraint
+```
+
+## Bu test xatosi emas
+
+Uchta mustaqil manba ustunni `nullable=True` deb **yozadi**:
+
+* `app/reports/models.py` — `geom_exact = mapped_column(..., nullable=True)`
+* `alembic/versions/0002_schema.py` — `sa.Column("geom_exact", POINT, nullable=True)`
+* `0002` ning **docstringi** — «`reports.geom_exact` `NULL` bo'la oladi — `05` §3.2»
+
+Chiqqan `CREATE TABLE` esa `NOT NULL`.
+
+## Sabab qo'shni ustundan keladi
+
+GeoAlchemy2 tip obyektiga ustunning `nullable` bayrog'ini **yozadi** va keyingi
+ustunda uni qaytadan **o'qiydi** (`geoalchemy2/admin/__init__.py`):
+
+```python
+if not getattr(column.type, "nullable", True):
+    column.nullable = column.type.nullable   # tip ustundan kuchliroq
+elif hasattr(column.type, "nullable"):
+    column.type.nullable = column.nullable   # ustun tipga yoziladi
+```
+
+Ya'ni bitta `Geography(...)` nusxasi ustunlar orasida **holat tashiydi**.
+`0002` o'sha nusxani (`POINT`) o'n bitta jadvalga bergan; `regions.center`
+(`NOT NULL`) tipni «yopgan», va shundan keyin `reports.geom_exact` uchun
+birinchi shox ishlagan — ustunning `nullable=True` bayrog'i **bekor
+qilingan**. Sandboxda reproduksiya qilindi va aynan shu chiqdi.
+
+Modellarda ham xuddi shu naqsh bor edi, lekin u yerda `geom_exact` `geom_public`
+dan **oldin** e'lon qilingani uchun tasodifan to'g'ri ishlagan — ya'ni ORM
+tomoni ustunlar tartibiga bog'liq holda rost edi.
+
+## Oqibati — maxfiylik kafolati bajarilmaydi
+
+`purge_exact_geom` (`05` §8, kuniga) `05` §3.2 ni bajaradi: 90 kundan keyin
+`geom_exact` → `NULL`. `NOT NULL` cheklovi bilan u **har yurishda yiqiladi**,
+ya'ni foydalanuvchining uyi koordinatasi hech qachon o'chirilmaydi. Bu
+ishlamaydigan funksiya emas — bajarilmaydigan va'da.
+
+## Nima uchun 72 run buni ko'rmadi
+
+40- va 56-run ning parity testlari **model bilan migratsiyani** solishtiradi.
+Bu yerda ikkala tomon ham to'g'ri yozilgan, ya'ni ular mos keladi va ikkalasi
+ham yolg'on. Farq faqat kompilyatsiya qilingan DDL da paydo bo'ladi. Bu
+parity testlarining kamchiligi emas, **chegarasi** — 69-run ning geokoder
+topilmasi bilan bir sinf.
+
+## Tuzatish — uch qatlamda
+
+1. **`app/db/spatial.py`** (yangi) — `point()` va `multipolygon()` fabrikalari,
+   har chaqiruvda **yangi** nusxa. GeoAlchemy2 ning xatti-harakati kod bilan
+   birga izohlangan.
+2. **To'rtta model moduli va `0002`** o'sha fabrikaga o'tkazildi — toza bazalar
+   (CI) endi to'g'ri quriladi. `0002` ning docstringi ⚠️ bilan yangilandi:
+   niyat 73-rungacha bajarilmagan edi.
+3. **`0010_geom_exact_nullable.py`** (yangi) — mavjud bazalar uchun
+   `ALTER COLUMN geom_exact DROP NOT NULL`. `downgrade` ataylab
+   `NotImplementedError`: `NOT NULL` ni qaytarish uchun bazada
+   `geom_exact IS NULL` qatori bo'lmasligi kerak, `purge_exact_geom` esa aynan
+   shundaylarni yaratadi.
+
+## Test — oqibatni emas, **sababni** qulflaydi
+
+`tests/test_schema_spatial_nullability.py` (7 test, bazasiz):
+
+* hech qanday geo-tip nusxasi ikkita ustunga berilmasligi — modellarda
+  `metadata` bo'yicha, migratsiyalarda **AST** bo'yicha (matn bo'yicha emas:
+  izohdagi «konstanta emas, fabrika» eslatmasi matnli qidiruvni yiqitardi);
+* `reports.geom_exact` kompilyatsiya qilingan DDL da `NULL` qabul qilishi,
+  `geom_public` esa `NOT NULL` bo'lib qolishi;
+* naqshning o'zi haqiqatan buzishi — sun'iy jadval bilan, aks holda «bu naqsh
+  xavfli» degan da'vo o'zini o'lchagan bo'lardi;
+* qulf bo'sh to'plamda yashil bo'lib qolmasligi.
+
+Ya'ni ertaga qo'shiladigan yangi geo-ustun ham himoyalangan.
+
+## 👤 To'rtinchi savol
+
+`05` §2.2 ning DDL si `geom_exact` ni **`NOT NULL`** deb yozadi, o'sha
+hujjatning §3.2 si esa uni `NULL` qilishni talab qiladi — hujjatning **ichki
+ziddiyati**. Kod §3.2 ni tanlagan (`0002` docstringi buni yozib qo'ygan) va
+73-run DDL ni o'sha niyatga keltirdi, aks holda `purge_exact_geom` bajarilmasdi.
+Demak bugun sxema `05` §2.2 dan **ataylab** farq qiladi. CLAUDE.md §2 bo'yicha
+spetsifikatsiya qonun, shuning uchun qaror odamga qoldirildi.
 
 ## Keyingi nomzodlar
 

@@ -48,6 +48,33 @@ PAYLOAD = {
 }
 
 
+def test_overpass_request_identifies_itself() -> None:
+    """`User-Agent` siz `overpass-api.de` `406 Not Acceptable` qaytaradi.
+
+    74-run, prodda topildi: so'rov matni to'g'ri edi, `httpx` ning
+    standart satri esa proxy tomonidan rad etilardi va butun E2 quvuri
+    to'xtab qolgan edi. Test uchta narsani talab qiladi — sarlavha bor,
+    u kutubxonaning standarti **emas**, va unda bog'lanish manzili bor
+    (OSM ning talabi: anonim mijoz bloklanadi).
+    """
+    agent = osm.OVERPASS_HEADERS["User-Agent"]
+    assert agent == osm.OVERPASS_USER_AGENT
+    assert "python-httpx" not in agent.lower()
+    assert "sveta" in agent.lower()
+    assert "http" in agent, "OSM bog'lanish manzilini talab qiladi"
+    assert osm.OVERPASS_HEADERS["Accept"] == "application/json"
+
+
+def test_the_importer_sends_those_headers() -> None:
+    """Sarlavhalar e'lon qilingan joyda emas, **so'rovda** bo'lishi kerak."""
+    import inspect
+
+    from tools import import_boundaries
+
+    source = inspect.getsource(import_boundaries._overpass)
+    assert "headers=osm.OVERPASS_HEADERS" in source
+
+
 def test_survey_query_asks_for_levels_4_to_10() -> None:
     """`05` §5.2: daraja oldindan taxmin qilinmaydi."""
     query = osm.survey_query(BBOX)
