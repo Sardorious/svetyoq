@@ -364,7 +364,10 @@ def test_the_product_still_does_not_geocode() -> None:
 
     73-run uchinchi faylni qo'shdi — `app.integrations.registry`, `01`
     §18 ning reyestri. U ham chaqiruv emas, izoh: o'sha bo'shliq
-    §22 dan tashqari §18 da ham qayd etilishi kerak edi.
+    §22 dan tashqari §18 da ham qayd etilishi kerak edi. 75-run
+    to'rtinchisini qo'shdi — `app.release.risks`: `01` §26 ning `RS-04`
+    qatori bugun **sodir bo'la olmaydi** aynan shu sababdan, ya'ni
+    bitta bo'shliq endi uchta reyestrda uch xil savolga javob beradi.
     """
     hits = {
         path.relative_to(SVETA_ROOT).as_posix()
@@ -375,6 +378,11 @@ def test_the_product_still_does_not_geocode() -> None:
         "app/core/config.py",
         "app/integrations/registry.py",
         "app/obs/monitoring.py",
+        # 76-run: `01` §28 ning `DP-3` qatori — bo'shliq endi to'rtta
+        # reyestrda to'rt xil savolga javob beradi. Bu yerda: «§28
+        # ning bog'liqligi hali ham voz kechilganmi».
+        "app/release/dependencies.py",
+        "app/release/risks.py",
     }
 
     fields = set(Settings.model_fields)

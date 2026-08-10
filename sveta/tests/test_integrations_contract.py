@@ -443,7 +443,13 @@ def test_no_call_path_feeds_the_unconfirmed_sources() -> None:
 
 
 def test_geocoder_has_no_call_site() -> None:
-    """69-run ning topilmasi qulflandi: geokoder faqat sozlama va hujjatda."""
+    """69-run ning topilmasi qulflandi: geokoder faqat sozlama va hujjatda.
+
+    75-run to'rtinchi faylni qo'shdi — `app.release.risks`, `01` §26 ning
+    reyestri. U ham chaqiruv emas, izoh: `RS-04` ning `FORECLOSED`
+    bahosi aynan geokoder yo'qligiga tayanadi va sabab `GEOCODER_*`
+    sozlamalarini nomlab o'tadi.
+    """
     hits = sorted(
         path.relative_to(SVETA_ROOT).as_posix()
         for path in _python_sources()
@@ -453,6 +459,9 @@ def test_geocoder_has_no_call_site() -> None:
         "app/core/config.py",
         "app/integrations/registry.py",
         "app/obs/monitoring.py",
+        # 76-run: `01` §28 ning geokoder qatori — beshinchi reyestr.
+        "app/release/dependencies.py",
+        "app/release/risks.py",
     ]
 
 

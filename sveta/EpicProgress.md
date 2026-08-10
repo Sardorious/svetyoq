@@ -8,7 +8,7 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 74-run.
+**Oxirgi yangilanish:** 2026-08-10, 75-run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -47,7 +47,7 @@ faqat havola qilinadi.
 | OBS — kuzatuvchanlik (`05` §10 + `01` §22) | 🔄 | `app/obs/`, `app/core/logging.py` | 21, 24, 47, 56, **69** |
 | ANL — analitika hodisalari va dashboardlari (`01` §21) | 🔄 | `app/analytics/` | 29, **68** |
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` | 45, 49, **56** |
-| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) | 🔄 | `app/release/` | 66, 67, **70** |
+| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) | 🔄 | `app/release/` | 66, 67, 70, 75, **76** |
 | SEC — xavfsizlik kafolatlari (`01` §20 + BRD «Безопасность» NFR) | 🔄 | `app/admin/security.py` | **71** |
 | DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` | **72** |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` | **73** |
@@ -56,8 +56,8 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **126 ta test fayli**; oxirgi yurish (74-run):
-`pytest -m "not requires_db"` → **1997 passed, 1 skipped**; **231 ta
+Jami **127 ta test fayli**; oxirgi yurish (75-run):
+`pytest -m "not requires_db"` → **2036 passed, 1 skipped**; **231 ta
 `requires_db`** testi (28 faylda) sandboxda ishlamaydi — ular
 Postgres/PostGIS talab qiladi va faqat CI da yuriladi.
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri `ruff` ham,
@@ -84,7 +84,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E19 | `test_region_registry`, `test_regions_api_db` |
 | TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf), `test_logging_setup` |
-| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract` |
+| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract` |
 | SEC | `test_security_posture_contract` |
 | DATA | `test_data_model_contract` |
 | INT | `test_integrations_contract` |
@@ -143,6 +143,7 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `01` §17 «Data Model» ER diagrammasi ↔ `metadata` | `test_data_model_contract.py` | **72** |
 | `01` §18 «Integrations» oltita qatori ↔ kod | `test_integrations_contract.py` | **73** |
 | `01` §19 «Notifications» kanallar jadvali + yetkazish qoidasi | `test_notification_channels_contract.py` | **74** |
+| `01` §26 «Risks» + §27 «Assumptions» | `test_risk_register_contract.py` | **75** |
 
 **Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning esa **butun hujjati** — §1–§10 ning hammasi (60-run §3
@@ -214,7 +215,8 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 
 | Nima | Kimni bloklaydi |
 |---|---|
-| `.\push.ps1` — **56-running 3- va 4-tuzatishi commit qilinmagan** (58-run tekshirdi: `git status -sb` → `main...origin/main`, ya'ni repo origin bilan **teng**; `HEAD` = `c184648`, 08-09 18:06, JOBS fiksi). ⚠️ «55 run push qilinmagan» degan eski qator **noto'g'ri edi** | prod: SQL jurnali (quyida), CI: `NullPool` tuzatishi |
+| ~~`.\push.ps1` — 56-running 3- va 4-tuzatishi commit qilinmagan~~ ✅ **yopildi (74.5-sessiya):** `8b82603`, `7c91017`, `d3d3f5b` push qilindi, `main` = `origin/main` = `d3d3f5b`. ⚠️ Qolgani: `.git/index.lock` (0 bayt, 08-10 13:03) keyingi git yozuvini to'sadi — `del .git\index.lock`; `push.ps1` ning ikkita defekti `PROGRESS.md` ning «Ochiq savollar» ida | (edi) prod: SQL jurnali, CI: `NullPool` |
+| Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
 | Telegram bot tokeni va haqiqiy run | E3, E13 |
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh), ANL (`01` §21 ning **ikkita** dashboardi) |
 | Rasmiy manba (H-4) kelishuvi | E18 |
@@ -249,6 +251,89 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | `notifications` da kanal ustuni yo'q; `UNIQUE (user_id, outage_id)` ikkinchi kanalni to'sadi | E13, E20, `05` §2.4 |
 | §19 ning uchta «Не входит» qatori `01` §20 ning ПДн qarorida osilgan — o'z qorovuli kerakmi | E13, SEC |
 | Obuna radiusining standarti hali Toshkentniki (500 m) — oraliq qiymat qo'yiladimi | E13, E11 |
+| `RS-08` ning «откат без релиза» i botga yetmaydi — bot mintaqani biladigan bo'ladimi yoki qator qayta yoziladimi | REL (`01` §26), E3, E4 |
+| `FR-S-802` (tuman) va `FR-S-804` (H3 r8–9) bir xil shart uchun ikki xil zaxira darajasini nomlaydi | REL, E14, E16, ADR-07 |
+| Faza 0 natijalari (P0-1…P0-6) qayerda qayd etiladi — reyestrning 14 ta bandi shu sababdan tekshirilmaydi | REL (`01` §26/§27, §23) |
+| `01` §26 ga aniq koordinata saqlanishi haqida qator qo'shiladimi (`RS-06` faqat hosila ma'lumot haqida) | REL, SEC, E2 |
+| `FR-804` (`01` §28) butun hujjatda faqat shu jadvalda — qator olib tashlanadimi, belgilanadimi yoki talab ko'chiriladimi | REL (`01` §28), E2 |
+| `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
+| §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
+| §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+
+- **76-run — `Блокирует` ustuni to'rt xil narsaga ishora qiladi.**
+  `01` §28 ning yettita qatori `app/release/dependencies.py` da ikkita
+  o'q bilan yozildi: `Supply` (ta'minlanganmi) va `Hold` (to'siq
+  ishlaydimi). Uchinchi ustun bir xil ko'rinadi, lekin bosqich,
+  funksional talab, ochiq savol va mahsulot sirtini aralashtiradi — va
+  repo faqat oxirgisiga to'liq guvoh bo'la oladi. Ikkita meros havola
+  (`FR-804`, `OQ-01`) manzilsiz chiqdi: birinchisi butun `01` da faqat
+  o'sha jadvalda, ikkinchisi hech bir hujjatda ta'riflanmagan → yangi
+  `Hold.VOID`, ya'ni «to'siq yo'q» ham, «to'siq bor» ham emas, balki
+  da'voning manzili yo'q. Eng jim topilma — jadvalning eng kuchli
+  qatori (`DP-1`, poligonlar) to'smaydi: ishga tushirish qorovuli
+  `region_admin._set_active` `bbox` ni so'raydi, `district_id` esa
+  `NULL` bo'la oladi; haqiqatan to'xtaydigani statistika vitrinasi.
+  Teskari yo'nalish — Telegram Bot API va OSM/ODbL reyestrda yo'q.
+  17 mutatsiya, 1 survivor tuzatildi. Hech narsa tuzatilmadi ataylab.
+
+- **75-run — `Вероятность` bashorat, va uning bir qismi allaqachon
+  sarflangan.** `01` §26 ning o'nta riski va §27 ning sakkizta
+  допущение si `app/release/risks.py` da ikkita o'q bilan yozildi.
+  Asosiy qaror — reyestrni `Вероятность` × `Влияние` bo'yicha o'qimaslik:
+  bu **kelajak** haqidagi tartib, repo esa boshqa savolga javob beradi
+  («shart bajarilganmi?») va to'rtta qatorda javob bor. `RS-02`/`AS-S3`
+  (mahalla poligonlari) 74-runda **prodda** sodir bo'ldi, `RS-09`
+  (rasmiy 1055 qatlami) bugungi holat, `RS-04` esa **teskari tomonga**
+  sarflangan: mahsulot manzilni umuman geokodlamaydi (69-run), ya'ni
+  «Вероятность: Высокая» qatori 0% va u `FORECLOSED`. Bunday qatorda
+  mitigatsiya ustuni reja emas, **bugungi xatti-harakatning tavsifi**.
+  Ikkinchi o'q `Onset` ni takrorlamaydi: `Cover` mitigatsiya riskni
+  **qayerda** ushlashini aytadi, va aynan shu o'qda `RS-02` bilan
+  `RS-10` ajraladi.
+  ⚠️ **Eng jim topilma eng tinch qatorda:** `RS-08` jadvaldagi yagona
+  «Вероятность: **Низкая**» va uning mitigatsiyasi eng ishonchli jumla
+  («Язык — параметр конфигурации, откат без релиза»). Mexanizm **bor**
+  va relizsiz ishlaydi (`regions.default_language` ↔
+  `region_admin update --lang` ↔ `i18n.pick_language`, 28-run), lekin u
+  **botga yetmaydi**: `/start` da koordinata yo'q → mintaqa yo'q →
+  `get_or_create_user` `normalize_language()` ga tushadi va uning
+  tayanchi mintaqa ham, `Settings` ham emas, **modul konstantasi**
+  `DEFAULT_LANGUAGE = "uz"`; `app/bot/` da `pick_language` umuman
+  chaqirilmaydi. Gipoteza esa (`AS-S2` ning «замер» i, `01` §21 ning
+  `bot_start` voronkasi) aynan botda o'lchanadi → `DISPLACED`.
+  ⚠️ **Ikkinchi topilma `RS-02` da:** «деградация до уровня района»
+  ishlaydi va **xatosiz** (`find_mahalla_id` → `None`;
+  `MAHALLA_POLYGON_MISSING` kodi repoda **yo'q** va `FR-S-802` ning AC si
+  aynan shuni talab qiladi — katakning ikki bandi bir-biriga zid), lekin
+  ADR-07 (`admin_level=6`) bo'yicha pilot shahri **bitta** `district`:
+  shahar ichidagi hamma xabar bitta bucketga tushadi → `DEGENERATE`.
+  Yon effekt: `FR-S-802` va `FR-S-804` bir xil shart uchun **ikki xil**
+  zaxira darajasini nomlaydi (tuman va H3 r8–9) va bugun ma'nolisi
+  ikkinchisi. **Uchinchi topilma:** 18 qatordan **14 ta band**
+  `SCHEDULED` va Faza 0 natijasi repoda saqlanmaydi — ya'ni reyestrning
+  yarmini yolg'onga chiqarib bo'lmaydi (70-run buni bitta qator uchun
+  ochiq savol qilgan edi; test tripwire ko'rinishida qulflaydi).
+  **Teskari yo'nalish:** §26 ning yagona maxfiylik qatori `RS-06`
+  **hosila** ma'lumot haqida (agregatdan reidentifikatsiya), qo'polrog'i
+  esa allaqachon sodir bo'lgan va reyestrda yo'q — aniq uy koordinatasi
+  90 kundan keyin o'chirilmasdi (73-run) va SQL jurnaliga tushardi
+  (56-run), ikkala tuzatish ham prodda hali tasdiqlanmagan. Hisob:
+  `MECHANISED` 4, `DISPLACED` 4, `DEGENERATE` 1, `INSTRUMENTED` 1,
+  `SCHEDULED` 8, sarflangan bashorat 4, e'lon qilinmagan risk 1 →
+  `accurate` `False`; hech narsa tuzatilmadi **ataylab**. 31 mutatsiya,
+  0 survivor; **to'rtta survivor topildi va tuzatildi** (`COVER_RANK` da
+  `DISPLACED`/`DEGENERATE` tartibi asossiz edi va **teskari** yozilgan
+  ekan; reyestrning qoidasi testda **takrorlangan** edi va nusxa
+  modulning qoidasi o'chirilganini ko'rmasdi — 57-run tuzog'i o'z
+  faylida; `RS-08` va `AS-S2` ning dalillari reyestrdan olinmasdi, ya'ni
+  bog'lanishni boshqa simvolga ko'chirish o'tib ketardi) va **bitta o'lik
+  shart** olib tashlandi (qatorlar sonini reyestr o'zidan o'lchardi,
+  holbuki kontrakt testi uni hujjatdan oladi). Yon ta'sir: 69- va
+  73-runlarning geokoder tripwirelari yangi reyestrni ko'rdi —
+  ro'yxatlar yangilandi. 1997 → **2036 passed** (+37+2), migratsiyasiz,
+  ruff yashil. 👤 **To'rtta savol:** `RS-08` ning botga yetmasligi;
+  `FR-S-802` ↔ `FR-S-804` ziddiyati; Faza 0 natijalarining joyi; §26 ga
+  koordinata qatori qo'shiladimi.
 
 - **74-run — bitta ustunda ikki xil da'vo, va eng jimi eng «bajarilgan»
   qatorda.** `01` §19 ning oltita kanali `app/notifications/channels.py`
@@ -570,6 +655,17 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
   barqaror: `/tmp/sv59` (104 paket + `ruff`), `$HOME` 100%.
   **65–73-runlar:** yettinchidan **o'n beshinchi** martagacha — o'zgarish
   yo'q. Retsept o'n besh run ketma-ket ishladi.
+  **75-run — `/tmp` birinchi marta BO'SH ko'tarildi.** `/tmp/sv59` ham,
+  `/tmp/wg-libs` ham yo'q edi, ya'ni «avval `/tmp` ni qidir» qadami
+  natijasiz tugadi va muhit noldan qurildi: `/tmp/sv75`, uchta partiya
+  (`pytest`+`ruff` → SQLAlchemy oilasi → FastAPI/aiogram/h3), keyin
+  **to'rtinchisi** — `asyncpg` (usiz `test_map_api`/`test_geo_api` ning
+  24 tasi `ModuleNotFoundError` bilan yiqiladi; oldingi runlarning
+  ro'yxatida u yo'q edi). O'zgargan sharoit: `/` da **3.8 GB** bo'sh
+  (73-runda 0 edi), `$HOME` (`/sessions`) esa 100% — ya'ni
+  `TMPDIR=/tmp/tmpdir` yana ishlaydi va 73-run ning
+  `TMPDIR=$HOME/tmpd` maslahati **kerak emas**. Python hamon 3.10,
+  `sitecustomize.py` shimi (`enum.StrEnum`, `datetime.UTC`) shart.
   👤 `cleanup-sessions.ps1` ni **har run oldidan** yurgizing.
 
 - **64-run — sweep va o'lchov asbobining o'zi.** Yangi qaror: sweep bitta
