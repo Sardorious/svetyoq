@@ -18,7 +18,7 @@ import csv
 import io
 
 from app.core.i18n import t
-from app.stats import aggregate
+from app.stats import aggregate, duration, methodology
 from app.stats.service import StatsReport
 
 HEADER: tuple[str, ...] = (
@@ -28,6 +28,16 @@ HEADER: tuple[str, ...] = (
     *(f"outages_{status}" for status in aggregate.REPORTED_STATUSES),
     "reports_total",
     "avg_duration_min",
+    # `03` §R1.2 uchinchi kesimi. CSV — jurnalist qo'liga tushadigan
+    # format, ya'ni mediana va P90 aynan shu yerda kerak: `01` §4 ularni
+    # kuzatiladigan ko'rsatkich deb sanaydi. `ongoing` ustuni ular
+    # nimadan hisoblanganini aytadi — ochiq hodisalar namunada yo'q.
+    "median_duration_min",
+    "p90_duration_min",
+    "duration_measured",
+    "duration_ongoing",
+    "duration_timeout_closed",
+    *(f"duration_{code}" for code in duration.BAND_CODES),
     "coverage_index",
     "coverage_band",
     "data_quality",
@@ -37,6 +47,23 @@ HEADER: tuple[str, ...] = (
     "valid_from",
     "valid_to",
 )
+
+
+def _duration_cells(cut: duration.DurationCut) -> list[object]:
+    """Davomiylik kesimining CSV kataklari.
+
+    Namuna yetarli bo'lmasa mediana va P90 **bo'sh** katak bo'ladi, nol
+    emas: elektron jadval nolni raqam sifatida o'qiydi va «bu hududda
+    uzilishlar bir zumda tugagan» degan xulosaga olib kelardi.
+    """
+    return [
+        "" if cut.median_min is None else cut.median_min,
+        "" if cut.p90_min is None else cut.p90_min,
+        cut.measured,
+        cut.ongoing,
+        cut.timeout_closed,
+        *(cut.bands[code] for code in duration.BAND_CODES),
+    ]
 
 
 def render(report: StatsReport, *, lang: str) -> str:
@@ -56,6 +83,7 @@ def render(report: StatsReport, *, lang: str) -> str:
                 *(statuses[status] for status in aggregate.REPORTED_STATUSES),
                 item.bucket.reports_total,
                 "" if item.bucket.avg_duration_min is None else item.bucket.avg_duration_min,
+                *_duration_cells(item.bucket.duration),
                 item.index.index,
                 str(item.index.band),
                 item.index.data_quality,
@@ -73,6 +101,7 @@ def render(report: StatsReport, *, lang: str) -> str:
             *(total[status] for status in aggregate.REPORTED_STATUSES),
             report.total.reports_total,
             "" if report.total.avg_duration_min is None else report.total.avg_duration_min,
+            *_duration_cells(report.total.duration),
             report.region_index.index,
             str(report.region_index.band),
             report.region_index.data_quality,
@@ -140,6 +169,21 @@ def render(report: StatsReport, *, lang: str) -> str:
             f" truncated={'yes' if mah.truncated else 'no'}"
         ]
     )
+
+    # Metodologiya — `03` §R1.2 ning to'rtinchi qatori. CSV aynan shu
+    # qatorga muhtoj: JSON javobini o'qigan dastur havolani ochib
+    # ko'radi, faylni esa odam **kontekstsiz** oladi — u qaysi usul va
+    # qaysi qiymatlar bilan hisoblanganini boshqa hech qayerdan bilmaydi.
+    #
+    # Bo'limlar to'liq ko'chirilmaydi, faqat **versiya va qiymatlar**:
+    # matn ikki tilda va uzun, CSV esa jadval. Versiya ikkita eksportni
+    # solishtirish uchun yetarli — qiymatlar o'zgargan bo'lsa u
+    # o'zgaradi, tarjima tuzatilgan bo'lsa o'zgarmaydi.
+    method = report.methodology
+    writer.writerow([f"# {t(methodology.TITLE_KEY, lang)}: {method.version}"])
+    for section in method.sections:
+        pairs = " ".join(f"{value.code}={value.value}" for value in section.values)
+        writer.writerow([f"# {section.code} ({section.spec}) {pairs}"])
     return buffer.getvalue()
 
 

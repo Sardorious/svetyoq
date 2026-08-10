@@ -3,9 +3,12 @@
 Nima uchun bu ro'yxat kodda kerak
 ---------------------------------
 
-`01` §21 o'nta hodisani **nom bilan** sanaydi va ularning ustiga to'rtta
-dashboard quriladi (§21 «Дашборды»), shu jumladan ishga tushirishning
-**asosiy metrikasi** — «данных недостаточно» verdiktlarining ulushi.
+`01` §21 o'nta hodisani **nom bilan** sanaydi va ularning ustiga §21
+«Дашборды» quriladi, shu jumladan ishga tushirishning **asosiy
+metrikasi** — «данных недостаточно» verdiktlarining ulushi.
+Dashboardlar ro'yxatining o'zi `app.analytics.dashboards` da: bu yerda
+u sanalmaydi, chunki izohdagi son hech qayerda o'lchanmaydi va aynan
+shu sababdan **noto'g'ri** edi (68-run: «to'rtta» → beshta).
 Ro'yxat faqat hujjatda qolsa, hodisaning nomi kodda tasodifan
 o'zgarganda dashboard **jimgina bo'shab qoladi**: xato yo'q, javob
 to'g'ri, faqat grafik tekislanadi. Bu 24-sessiyadagi (metrikalar) va

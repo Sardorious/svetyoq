@@ -22,6 +22,7 @@ def fact(
     status: str = "confirmed",
     reports: int = 5,
     resolved_after_min: int | None = None,
+    silence_min: int = 0,
 ) -> aggregate.OutageFact:
     return aggregate.OutageFact(
         id=uuid.uuid4(),
@@ -34,6 +35,13 @@ def fact(
             None if resolved_after_min is None else NOW + timedelta(minutes=resolved_after_min)
         ),
         report_count=reports,
+        # Oxirgi xabar yopilishdan `silence_min` oldin: standart holatda
+        # yopilish taymer artefakti emas.
+        last_report_at=(
+            NOW
+            if resolved_after_min is None
+            else NOW + timedelta(minutes=resolved_after_min - silence_min)
+        ),
     )
 
 
@@ -45,7 +53,7 @@ def test_buckets_sum_to_the_total() -> None:
         fact(district_id=D2, reports=4),
         fact(district_id=None, reports=3),
     ]
-    agg = aggregate.build(facts, min_reports=3)
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
 
     assert agg.reconciles is True
     assert sum(b.outages_total for b in agg.buckets) == agg.total.outages_total == 4
@@ -55,7 +63,7 @@ def test_buckets_sum_to_the_total() -> None:
 def test_unassigned_outages_are_not_silently_lost() -> None:
     """`05` §5.3 — `district_id = NULL` statistikadan tushib ketmaydi."""
     facts = [fact(district_id=D1)] * 3 + [fact(district_id=None)]
-    agg = aggregate.build(list(facts), min_reports=3)
+    agg = aggregate.build(list(facts), min_reports=3, autoclose_after_min=120)
 
     assert agg.unassigned is not None
     assert agg.unassigned.outages_total == 1
@@ -64,7 +72,11 @@ def test_unassigned_outages_are_not_silently_lost() -> None:
 
 
 def test_unassigned_bucket_is_last() -> None:
-    agg = aggregate.build([fact(district_id=None), fact(district_id=D1)], min_reports=3)
+    agg = aggregate.build(
+        [fact(district_id=None), fact(district_id=D1)],
+        min_reports=3,
+        autoclose_after_min=120,
+    )
     assert agg.buckets[-1].district_id is None
 
 
@@ -74,7 +86,9 @@ def test_small_outages_are_suppressed_but_counted() -> None:
     Lekin uning soni yo'qolmaydi: «nima uchun jami kam?» javobsiz
     qolmasligi kerak.
     """
-    agg = aggregate.build([fact(reports=2), fact(reports=5)], min_reports=3)
+    agg = aggregate.build(
+        [fact(reports=2), fact(reports=5)], min_reports=3, autoclose_after_min=120
+    )
 
     assert agg.total.outages_total == 1
     assert agg.suppressed_outages == 1
@@ -85,7 +99,7 @@ def test_small_outages_are_suppressed_but_counted() -> None:
 def test_moderation_artifacts_are_hidden() -> None:
     """`rejected` va `merged` — qaror, ma'lumot emas."""
     facts = [fact(status="rejected"), fact(status="merged"), fact(status="confirmed")]
-    agg = aggregate.build(facts, min_reports=3)
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
 
     assert agg.total.outages_total == 1
     assert agg.suppressed_outages == 2
@@ -93,7 +107,7 @@ def test_moderation_artifacts_are_hidden() -> None:
 
 def test_status_breakdown_always_lists_every_status() -> None:
     """Yo'q kalit «nol» dan boshqa narsani anglatardi."""
-    agg = aggregate.build([fact(status="pending")], min_reports=3)
+    agg = aggregate.build([fact(status="pending")], min_reports=3, autoclose_after_min=120)
     statuses = agg.total.statuses()
     assert set(statuses) == set(aggregate.REPORTED_STATUSES)
     assert statuses["pending"] == 1
@@ -109,12 +123,12 @@ def test_average_duration_uses_only_resolved_outages() -> None:
         fact(status="resolved", resolved_after_min=120),
         fact(status="confirmed"),
     ]
-    agg = aggregate.build(facts, min_reports=3)
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
     assert agg.total.avg_duration_min == 90
 
 
 def test_average_duration_is_none_without_resolved_outages() -> None:
-    agg = aggregate.build([fact(status="pending")], min_reports=3)
+    agg = aggregate.build([fact(status="pending")], min_reports=3, autoclose_after_min=120)
     assert agg.total.avg_duration_min is None
 
 
@@ -125,8 +139,77 @@ def test_negative_duration_is_clamped() -> None:
 
 
 def test_empty_input_reconciles() -> None:
-    agg = aggregate.build([], min_reports=3)
+    agg = aggregate.build([], min_reports=3, autoclose_after_min=120)
     assert agg.total.outages_total == 0
     assert agg.unassigned_ratio == 0.0
     assert agg.reconciles is True
     assert agg.needs_unassigned_warning is False
+
+
+# --- Davomiylik kesimi bilan bog'lanish (63-run) -----------------------
+
+
+def test_the_duration_cut_reconciles_with_the_bucket() -> None:
+    """Uchinchi kesim ham `03` §R1.2 mezoniga bo'ysunadi.
+
+    Chelakning `outages_total` i bilan davomiylik kesimining `total` i
+    ajralib ketsa, o'quvchi ikkita raqamni ko'rar va qaysi biri to'g'ri
+    ekanini bilmasdi.
+    """
+    facts = [
+        fact(district_id=D1, status="resolved", resolved_after_min=30),
+        fact(district_id=D1, status="confirmed"),
+        fact(district_id=D2, status="resolved", resolved_after_min=300),
+    ]
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
+
+    assert agg.reconciles is True
+    for bucket in agg.buckets:
+        assert bucket.duration.total == bucket.outages_total
+    assert agg.total.duration.measured == 2
+    assert agg.total.duration.ongoing == 1
+
+
+def test_a_timeout_closure_is_recognised_from_the_silence() -> None:
+    """`05` §4.2: oxirgi xabardan `autoclose_after` o'tgan bo'lsa — taymer.
+
+    Yangi ustun kerak emas: shart klasterlashdagining aynan o'zi.
+    """
+    item = fact(status="resolved", resolved_after_min=300, silence_min=120)
+    assert item.closed_by_timeout(autoclose_after_min=120) is True
+
+
+def test_a_reported_restoration_is_not_a_timeout() -> None:
+    """`restored` yopilishi darhol sodir bo'ladi — sukut oralig'i yo'q."""
+    item = fact(status="resolved", resolved_after_min=300, silence_min=0)
+    assert item.closed_by_timeout(autoclose_after_min=120) is False
+
+
+def test_the_timeout_boundary_belongs_to_the_timeout() -> None:
+    """Aynan `autoclose_after` — taymer: `evaluate_status` dagi `>=`."""
+    exact = fact(status="resolved", resolved_after_min=300, silence_min=120)
+    below = fact(status="resolved", resolved_after_min=300, silence_min=119)
+    assert exact.closed_by_timeout(autoclose_after_min=120) is True
+    assert below.closed_by_timeout(autoclose_after_min=120) is False
+
+
+def test_an_open_outage_is_never_a_timeout_closure() -> None:
+    assert fact(status="confirmed").closed_by_timeout(autoclose_after_min=120) is False
+
+
+def test_the_timeout_threshold_comes_from_the_caller() -> None:
+    """Sozlama o'zgarsa kesim ham o'zgaradi — modulda nusxa yo'q."""
+    item = fact(status="resolved", resolved_after_min=300, silence_min=90)
+    assert item.closed_by_timeout(autoclose_after_min=120) is False
+    assert item.closed_by_timeout(autoclose_after_min=60) is True
+
+
+def test_suppressed_outages_are_absent_from_the_duration_cut_too() -> None:
+    """`05` §7.3 filtri uchala kesimga birdek tegishli."""
+    agg = aggregate.build(
+        [fact(reports=2, status="resolved", resolved_after_min=30)],
+        min_reports=3,
+        autoclose_after_min=120,
+    )
+    assert agg.suppressed_outages == 1
+    assert agg.total.duration.total == 0

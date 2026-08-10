@@ -12,8 +12,9 @@ import pytest
 
 from app.clustering.scale import QUALITY_ESTIMATED, QUALITY_MEASURED, QUALITY_UNKNOWN
 from app.core.config import settings
-from app.stats import aggregate, boundaries, coverage, mahalla_coverage, maturity
+from app.stats import aggregate, boundaries, coverage, duration, mahalla_coverage, maturity
 from app.stats import service as stats
+from tests.conftest import default_methodology
 
 NOW = datetime(2026, 8, 7, 12, 0, tzinfo=timezone.utc)
 
@@ -92,6 +93,7 @@ def report(
     band: int = 90,
     changed: bool = False,
     mahallas: mahalla_coverage.MahallaCoverage | None = None,
+    total: aggregate.Bucket | None = None,
 ) -> stats.StatsReport:
     period = stats.resolve_period(None, None, now=NOW)
     facts = [
@@ -107,7 +109,7 @@ def report(
     return stats.StatsReport(
         region_code="samarkand",
         period=period,
-        total=aggregate.Bucket(district_id=None),
+        total=total or aggregate.Bucket(district_id=None),
         districts=[],
         region_index=index(band),
         region_maturity=maturity.compute(
@@ -125,6 +127,7 @@ def report(
         # bloki bu yerda jim turishi kerak. `missing()` holati o'zining
         # alohida testida (`test_mahalla_warning_follows_region_coverage`).
         mahallas=mahallas or mahalla_coverage.summarize([], available=True),
+        methodology=default_methodology(),
         suppressed_outages=0,
         suppressed_reports=0,
         unassigned_ratio=0.0,
@@ -170,3 +173,51 @@ def test_boundary_change_inside_the_period_raises_a_warning() -> None:
 def test_stable_boundaries_leave_the_showcase_clean() -> None:
     """Ogohlantirish doimiy bo'lsa u ma'nosini yo'qotardi."""
     assert "stats.warning.boundaries_changed" not in report(young=False).warnings
+
+
+# --- Davomiylik ogohlantirishlari vitrinada (63-run) -------------------
+
+
+def bucket_with(*durations: int | None, timeout: int = 0) -> aggregate.Bucket:
+    """Davomiylik kesimi to'ldirilgan chelak.
+
+    `Bucket.add` orqali emas, to'g'ridan-to'g'ri: bu yerda tekshirilayotgan
+    narsa yig'ish emas, kesimning **vitrinaga chiqishi**.
+    """
+    left = timeout
+    facts = []
+    for value in durations:
+        facts.append(
+            duration.DurationFact(
+                duration_min=value,
+                closed_by_timeout=value is not None and left > 0,
+            )
+        )
+        if value is not None:
+            left -= 1
+    return aggregate.Bucket(district_id=None, outages_total=len(facts), duration_facts=facts)
+
+
+def test_duration_warnings_reach_the_showcase() -> None:
+    """`03` §R1.2: kesim ogohlantirishsiz nashr etilmaydi.
+
+    Ogohlantirish `DurationCut` da hisoblanadi, lekin vitrinada
+    ko'rinishi kerak: ular orasidagi sim uzilsa, javobda mediana qoladi
+    va uni qanday o'qish kerakligi haqidagi izoh yo'qoladi.
+    """
+    item = report(young=False, total=bucket_with(10, 20, 30, 40, 50, timeout=4))
+    assert duration.WARNING_TIMEOUT in item.warnings
+
+
+def test_a_clean_duration_cut_adds_no_warning() -> None:
+    item = report(young=False, total=bucket_with(10, 20, 30, 40, 50))
+    assert duration.WARNING_TIMEOUT not in item.warnings
+    assert duration.WARNING_ONGOING not in item.warnings
+
+
+def test_district_level_skew_does_not_warn_the_whole_showcase() -> None:
+    """Ogohlantirish **mintaqa** kesiminiki; tuman o'z blokida qoladi."""
+    item = report(young=False, total=bucket_with(10, 20, 30, 40, 50))
+    skewed = bucket_with(10, 20, 30, 40, 50, timeout=5)
+    assert duration.WARNING_TIMEOUT in skewed.duration.warnings
+    assert duration.WARNING_TIMEOUT not in item.warnings

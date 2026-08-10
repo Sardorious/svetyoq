@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.clustering.status import OutageStatus
+from app.stats import duration as duration_cut
 
 #: Ommaviy ko'rinishdan yashiriladigan statuslar. `app.api.v1.outages` dagi
 #: ro'yxat bilan bir xil sabab: moderatsiya artefakti ma'lumot emas,
@@ -68,6 +69,12 @@ class OutageFact:
     started_at: datetime
     resolved_at: datetime | None
     report_count: int
+    #: Oxirgi xabar vaqti. Davomiylik kesimi uchun kerak: yopilish
+    #: taymer artefaktimi yoki kuzatuvmi — faqat shu ikki vaqt orasidagi
+    #: masofadan bilinadi (`app.stats.duration` modul izohi). Standart
+    #: qiymati **yo'q** va ataylab: unutilgan maydon jimgina «taymer
+    #: yo'q» degan javob berardi va hech qanday test yiqilmasdi.
+    last_report_at: datetime
 
     @property
     def duration_min(self) -> int | None:
@@ -82,6 +89,19 @@ class OutageFact:
         delta = (self.resolved_at - self.started_at).total_seconds()
         return max(0, int(delta // 60))
 
+    def closed_by_timeout(self, *, autoclose_after_min: int) -> bool:
+        """Yopilish `05` §4.2 taymeri bilan bo'lganmi.
+
+        Shart `app.clustering.status.evaluate_status` dagining aynan
+        o'zi: oxirgi xabardan `autoclose_after` o'tgan bo'lsa hodisa
+        o'z-o'zidan yopiladi. `restored` va `faded` yopilishlari undan
+        oldinroq sodir bo'ladi, ya'ni bu oraliqqa tushmaydi.
+        """
+        if self.resolved_at is None:
+            return False
+        silence = (self.resolved_at - self.last_report_at).total_seconds()
+        return silence >= autoclose_after_min * 60
+
 
 @dataclass
 class Bucket:
@@ -93,14 +113,28 @@ class Bucket:
     reports_total: int = 0
     resolved_count: int = 0
     duration_sum_min: int = 0
+    #: Davomiylik kesimining xom materiali (`03` §R1.2 uchinchi kesimi).
+    #: Chelak faktlarni saqlaydi, kesimni esa `app.stats.duration`
+    #: hisoblaydi: bu yerda tartiblash ham, persentil ham yo'q.
+    duration_facts: list[duration_cut.DurationFact] = field(default_factory=list)
 
     @property
     def avg_duration_min(self) -> int | None:
+        """O'rtacha davomiylik.
+
+        Qoldirildi, lekin **yolg'iz emas**: taqsimot uchun `duration`
+        ga qarang. Sababi `app.stats.duration` modul izohida.
+        """
         if self.resolved_count == 0:
             return None
         return round(self.duration_sum_min / self.resolved_count)
 
-    def add(self, fact: OutageFact) -> None:
+    @property
+    def duration(self) -> duration_cut.DurationCut:
+        """Davomiylik kesimi: mediana, P90, pog'onalar, ochiqlar."""
+        return duration_cut.summarize(self.duration_facts)
+
+    def add(self, fact: OutageFact, *, autoclose_after_min: int) -> None:
         self.outages_total += 1
         self.by_status[fact.status] = self.by_status.get(fact.status, 0) + 1
         self.reports_total += fact.report_count
@@ -108,6 +142,14 @@ class Bucket:
         if duration is not None:
             self.resolved_count += 1
             self.duration_sum_min += duration
+        self.duration_facts.append(
+            duration_cut.DurationFact(
+                duration_min=duration,
+                closed_by_timeout=fact.closed_by_timeout(
+                    autoclose_after_min=autoclose_after_min
+                ),
+            )
+        )
 
     def statuses(self) -> dict[str, int]:
         """Barcha ko'rsatiladigan statuslar, nol bo'lsa ham."""
@@ -144,10 +186,20 @@ class Aggregation:
 
         Bu **invariant**, sozlanadigan chegara emas: `03` §R1.2 dagi ≤5%
         mezoni shu yerda 0% bilan bajariladi.
+
+        Uchinchi shart — davomiylik kesimi ham moslashadi: o'lchangan va
+        davom etayotgan hodisalar yig'indisi chelakning umumiy soniga
+        teng. U shu yerda tekshiriladi, chunki mezon **kesimga** emas,
+        vitrinaga qo'yilgan: `03` §R1.2 uchala kesimni bir xil hodisalar
+        ro'yxatidan quradi va ularning biri boshqasidan ajralib ketsa,
+        o'quvchi buni javobdan bilmasdi.
         """
-        return sum(b.outages_total for b in self.buckets) == self.total.outages_total and sum(
-            b.reports_total for b in self.buckets
-        ) == self.total.reports_total
+        return (
+            sum(b.outages_total for b in self.buckets) == self.total.outages_total
+            and sum(b.reports_total for b in self.buckets) == self.total.reports_total
+            and all(b.duration.total == b.outages_total for b in self.buckets)
+            and self.total.duration.total == self.total.outages_total
+        )
 
     @property
     def needs_unassigned_warning(self) -> bool:
@@ -163,7 +215,9 @@ def is_public(fact: OutageFact, *, min_reports: int) -> bool:
     return fact.status not in HIDDEN_STATUSES and fact.report_count >= min_reports
 
 
-def build(facts: list[OutageFact], *, min_reports: int) -> Aggregation:
+def build(
+    facts: list[OutageFact], *, min_reports: int, autoclose_after_min: int
+) -> Aggregation:
     """Hodisalar ro'yxatidan agregat.
 
     Filtrlangan hodisalar **yo'qolmaydi**: ularning soni `suppressed_*` da
@@ -184,8 +238,8 @@ def build(facts: list[OutageFact], *, min_reports: int) -> Aggregation:
         if bucket is None:
             bucket = Bucket(district_id=fact.district_id)
             buckets[fact.district_id] = bucket
-        bucket.add(fact)
-        total.add(fact)
+        bucket.add(fact, autoclose_after_min=autoclose_after_min)
+        total.add(fact, autoclose_after_min=autoclose_after_min)
 
     ordered = sorted(
         buckets.values(),

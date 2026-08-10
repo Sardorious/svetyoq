@@ -1,6 +1,7 @@
 """Statistika endpointi (`05` §7.2, E14).
 
-`GET /api/v1/stats` — hudud va davr kesimida + Coverage Index.
+`GET /api/v1/stats` — hudud, davr va davomiylik kesimida + Coverage Index
+(`03` §R1.2 uchala kesimni ham talab qiladi).
 `GET /api/v1/stats.csv` — o'sha javobning CSV ko'rinishi (`03` §R1.2).
 
 Ommaviy endpoint, ya'ni `05` §7.3 to'liq kuchda: `geom_exact` ham,
@@ -31,7 +32,7 @@ from app.core.errors import NotFoundError
 from app.core.i18n import t
 from app.geo import pipeline as geo
 from app.geo import registry
-from app.stats import aggregate, export
+from app.stats import aggregate, export, methodology
 from app.stats import service as stats_service
 
 router = APIRouter(tags=["public"])
@@ -72,11 +73,33 @@ class MaturityOut(BaseModel):
     min_events: int
 
 
+class DurationOut(BaseModel):
+    """Davomiylik kesimi — `03` §R1.2 ning uchinchi kesimi.
+
+    `avg_duration_min` ni almashtirmaydi, uni **to'ldiradi**: `01` §4
+    kuzatiladigan ko'rsatkich sifatida medianani va P90 ni nomi bilan
+    sanaydi, ularning ikkalasi ham o'rtachadan chiqmaydi.
+    """
+
+    measured: int = Field(description="Davomiyligi o'lchangan hodisalar")
+    ongoing: int = Field(description="Hali ochiq — davomiyligi noma'lum")
+    timeout_closed: int = Field(description="O'lchanganlardan taymer bilan yopilganlari")
+    median_min: int | None
+    p90_min: int | None
+    bands: dict[str, int] = Field(description="Pog'onalar bo'yicha taqsimot")
+    #: Namuna kichik bo'lsa mediana ham, P90 ham `None`. Maydon uni
+    #: `null` dan ajratadi: «o'lchanmadi» va «hodisa yo'q» bir xil emas.
+    sufficient: bool
+    min_sample: int
+    warnings: list[str]
+
+
 class BucketOut(BaseModel):
     outages_total: int
     by_status: dict[str, int]
     reports_total: int
     avg_duration_min: int | None
+    duration: DurationOut
 
 
 class BoundariesOut(BaseModel):
@@ -151,6 +174,44 @@ class PeriodOut(BaseModel):
     days: int
 
 
+class MethodologyValueOut(BaseModel):
+    """Ochib beriladigan bitta qiymat."""
+
+    code: str = Field(description="Parametrning haqiqiy nomi, yorlig'i emas")
+    value: str = Field(description="Kanonik matn ko'rinishi")
+
+
+class MethodologySectionOut(BaseModel):
+    """Metodologiyaning bitta bo'limi: matn **va** qiymatlar."""
+
+    code: str
+    spec: str = Field(description="Birlamchi manba, masalan `06 §4`")
+    title: str
+    body: str
+    values: list[MethodologyValueOut]
+
+
+class MethodologyOut(BaseModel):
+    """To'liq metodologiya bo'limi (`03` §R1.2)."""
+
+    region: str
+    version: str
+    title: str
+    sections: list[MethodologySectionOut]
+
+
+class MethodologyRefOut(BaseModel):
+    """Vitrinadan metodologiyaga havola.
+
+    `url` — nisbiy: xostni javobga yozish uni reverse-proxy sozlamasiga
+    bog'lab qo'yardi, `API_PREFIX` esa sozlama bo'lgani uchun qo'lda
+    yozilgan `/api/v1` birinchi o'zgarishdayoq yolg'onga aylanardi.
+    """
+
+    version: str
+    url: str
+
+
 class StatsOut(BaseModel):
     region: str
     period: PeriodOut
@@ -166,6 +227,12 @@ class StatsOut(BaseModel):
     #: versiya «qaysi chegaralar bo'yicha», bu esa «qaysi darajada
     #: ishonish mumkin».
     mahallas: MahallaCoverageOut
+    #: `03` §R1.2 — «metodologiya bo'limi bilan bog'lanish». Havola, to'liq
+    #: bo'lim emas: `/stats` javobi allaqachon katta va metodologiya har
+    #: so'rovda bir xil. Muhimi — vitrinani metodologiyasiz **ko'rsatib
+    #: bo'lmasligi**: `version` javobning ichida turadi, ya'ni saqlangan
+    #: yoki eksport qilingan kesim keyinchalik ham usulga bog'lanadi.
+    methodology: MethodologyRefOut
     suppressed_outages: int
     suppressed_reports: int
     unassigned_ratio: float
@@ -257,12 +324,68 @@ def mahallas_out(block, *, lang: str) -> MahallaCoverageOut:
     )
 
 
+def duration_out(cut) -> DurationOut:
+    """`DurationCut` → javob modeli.
+
+    `coverage_out` bilan bir xil sababdan ommaviy: kesim har bir
+    chelakda bir xil shaklda chiqadi.
+    """
+    return DurationOut(
+        measured=cut.measured,
+        ongoing=cut.ongoing,
+        timeout_closed=cut.timeout_closed,
+        median_min=cut.median_min,
+        p90_min=cut.p90_min,
+        bands=dict(cut.bands),
+        sufficient=cut.sufficient,
+        min_sample=cut.min_sample,
+        warnings=list(cut.warnings),
+    )
+
+
 def _bucket_out(bucket: aggregate.Bucket) -> BucketOut:
     return BucketOut(
         outages_total=bucket.outages_total,
         by_status=bucket.statuses(),
         reports_total=bucket.reports_total,
         avg_duration_min=bucket.avg_duration_min,
+        duration=duration_out(bucket.duration),
+    )
+
+
+#: Metodologiya endpointining yo'li, prefikssiz. `METHODOLOGY_PATH` alohida
+#: konstanta, chunki u ikki joyda kerak: dekoratorda va havolada — ikkinchi
+#: nusxa qayta nomlashda jimgina eskirib qolardi.
+METHODOLOGY_PATH = "/stats/methodology"
+
+
+def methodology_ref(method: methodology.Methodology, *, region: str) -> MethodologyRefOut:
+    """Vitrinadan metodologiyaga havola (`03` §R1.2)."""
+    return MethodologyRefOut(
+        version=method.version,
+        url=f"{settings.api_prefix}{METHODOLOGY_PATH}?region={region}",
+    )
+
+
+def methodology_out(method: methodology.Methodology, *, region: str, lang: str) -> MethodologyOut:
+    """`Methodology` → javob modeli. Matn faqat katalogdan (`04` §6)."""
+    return MethodologyOut(
+        region=region,
+        version=method.version,
+        title=t(methodology.TITLE_KEY, lang),
+        sections=[
+            MethodologySectionOut(
+                code=section.code,
+                spec=section.spec,
+                title=t(section.title_key, lang),
+                body=t(section.body_key, lang),
+                values=[
+                    MethodologyValueOut(code=value.code, value=value.value)
+                    for value in section.values
+                ],
+            )
+            for section in method.sections
+        ],
     )
 
 
@@ -301,7 +424,7 @@ async def _report(
 @router.get(
     "/stats",
     response_model=StatsOut,
-    summary="Hudud/davr kesimi + Coverage Index",
+    summary="Hudud/davr/davomiylik kesimi + Coverage Index",
     responses={404: NOT_FOUND},
 )
 async def get_stats(
@@ -341,6 +464,7 @@ async def get_stats(
         maturity=maturity_out(report.region_maturity),
         boundaries=boundaries_out(report.boundaries),
         mahallas=mahallas_out(report.mahallas, lang=lang),
+        methodology=methodology_ref(report.methodology, region=report.region_code),
         suppressed_outages=report.suppressed_outages,
         suppressed_reports=report.suppressed_reports,
         unassigned_ratio=round(report.unassigned_ratio, 4),
@@ -349,6 +473,35 @@ async def get_stats(
         warnings=report.warnings,
         warning_texts=[t(key, lang) for key in report.warnings],
     )
+
+
+@router.get(
+    METHODOLOGY_PATH,
+    response_model=MethodologyOut,
+    summary="Raqamlar qanday hisoblanadi (`03` §R1.2)",
+    responses={404: NOT_FOUND},
+)
+async def get_methodology(
+    session: DbSession,
+    client_lang: ClientLang,
+    region: RegionQuery = "",
+) -> MethodologyOut:
+    """Metodologiya bo'limi — mintaqaning **jonli** qiymatlari bilan.
+
+    Davr parametri yo'q va bu ataylab: metodologiya kesimga emas,
+    mintaqaga tegishli. Uni davrga bog'lash «o'sha davrda qanday
+    hisoblangan» degan va'da bo'lardi, tarixiy qiymatlar esa hech
+    qayerda saqlanmaydi — `version` aynan shu bo'shliqni ochiq
+    ko'rsatadi: eski eksportdagi versiya bugungisidan farq qilsa,
+    demak sozlamalar o'zgargan.
+    """
+    code = region or settings.default_region_code
+    row = await geo.find_region(session, code)
+    if row is None:
+        raise NotFoundError("error.not_found", region=code)
+    lang = await registry.language_for(session, client=client_lang, region_code=code)
+    method = await stats_service.region_methodology(session, region_id=row.id)
+    return methodology_out(method, region=code, lang=lang)
 
 
 @router.get(

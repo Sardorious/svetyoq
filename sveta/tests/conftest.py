@@ -12,8 +12,22 @@ import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
 
+from app.clustering.params import DEFAULT_PARAMS  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.stats import methodology as methodology_mod  # noqa: E402
+from app.stats import service as stats_service  # noqa: E402
+
+
+def default_methodology() -> methodology_mod.Methodology:
+    """`StatsReport` fikstyuralari uchun metodologiya (`03` §R1.2).
+
+    Chegaralar `service.public_limits()` dan olinadi, qayta yozilgan
+    nusxadan emas: nusxa bo'lsa fikstyura mahsulotdagidan jimgina
+    ajralib ketishi va testlar haqiqatda bo'lmaydigan metodologiyani
+    tekshirishi mumkin edi.
+    """
+    return methodology_mod.build(DEFAULT_PARAMS, stats_service.public_limits())
 
 
 @pytest.fixture(scope="session")

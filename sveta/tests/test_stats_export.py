@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from app.clustering.scale import QUALITY_MEASURED
 from app.stats import aggregate, boundaries, coverage, export, mahalla_coverage, maturity
 from app.stats import service as stats
+from tests.conftest import default_methodology
 
 NOW = datetime(2026, 8, 7, 12, 0, tzinfo=timezone.utc)
 DISTRICT = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -79,7 +80,11 @@ def make_mahallas(*, available: bool = False) -> mahalla_coverage.MahallaCoverag
 
 
 def make_report(
-    *, unassigned: bool = False, young: bool = False, mahallas: bool = False
+    *,
+    unassigned: bool = False,
+    young: bool = False,
+    mahallas: bool = False,
+    durations_min: tuple[int, ...] = (60,),
 ) -> stats.StatsReport:
     facts = [
         aggregate.OutageFact(
@@ -89,11 +94,14 @@ def make_report(
             scale="local",
             confidence=80,
             started_at=NOW - timedelta(hours=2),
-            resolved_at=NOW - timedelta(hours=1),
+            resolved_at=NOW - timedelta(hours=2) + timedelta(minutes=minutes),
             report_count=4,
+            # Sukut oralig'i yo'q: yopilish taymer artefakti emas.
+            last_report_at=NOW - timedelta(hours=2) + timedelta(minutes=minutes),
         )
+        for minutes in durations_min
     ]
-    agg = aggregate.build(facts, min_reports=3)
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
     index = coverage.CoverageIndex(
         index=60,
         band=coverage.CoverageBand.MEDIUM,
@@ -136,6 +144,7 @@ def make_report(
         region_maturity=make_maturity(young=young),
         boundaries=make_boundaries(),
         mahallas=make_mahallas(available=mahallas),
+        methodology=default_methodology(),
         suppressed_outages=0,
         suppressed_reports=0,
         unassigned_ratio=0.0,
@@ -253,3 +262,67 @@ def test_filename_contains_region_and_period() -> None:
     assert name.startswith("sveta-stats-samarkand-")
     assert name.endswith(".csv")
     assert "2026-08-07" in name
+
+
+def test_duration_columns_carry_the_values_they_are_named_after() -> None:
+    """Ustun nomi bilan qiymati bir joyda turadi.
+
+    CSV da sarlavha va katak ikki xil joyda quriladi (`HEADER` va
+    `_duration_cells`). Ular joy almashsa, fayl baribir to'g'ri
+    ko'rinardi — faqat mediana P90 deb, P90 esa mediana deb o'qilardi.
+    Shuning uchun qator **nomi bo'yicha** o'qiladi.
+    """
+    # Mediana bilan P90 **har xil** bo'lishi shart: teng bo'lsa ikkala
+    # ustunni almashtirib qo'ygan xatolik ko'rinmasdi.
+    report = make_report(durations_min=(10, 20, 30, 40, 300))
+    rows = list(csv.DictReader(io.StringIO(export.render(report, lang="uz"))))
+    total_row = next(row for row in rows if row["district_code"] == "TOTAL")
+    cut = report.total.duration
+
+    assert total_row["duration_measured"] == str(cut.measured)
+    assert total_row["duration_ongoing"] == str(cut.ongoing)
+    assert cut.median_min != cut.p90_min
+    assert total_row["median_duration_min"] == str(cut.median_min)
+    assert total_row["p90_duration_min"] == str(cut.p90_min)
+
+
+def test_export_carries_the_methodology_version_and_values() -> None:
+    """`03` §R1.2 — «metodologiya bo'limi bilan bog'lanish», CSV da ham.
+
+    JSON javobini o'qigan dastur havolani ochib ko'radi; faylni esa odam
+    **kontekstsiz** oladi — u qaysi qiymatlar bilan hisoblanganini
+    boshqa hech qayerdan bilmaydi. Aynan shu holat uchun `03` §R1.2
+    Coverage Index ni ham majburiy qilgan edi.
+    """
+    report = make_report()
+    body = rows(export.render(report, lang="uz"))
+    comments = [r[0] for r in body if r and r[0][:1] == "#"]
+
+    assert any(report.methodology.version in line for line in comments), (
+        "eksportda metodologiya versiyasi yo'q — ikkita eksportni solishtirib bo'lmaydi"
+    )
+    # Har bo'lim o'z bandi bilan; qiymatlar `kod=qiymat` juftligida.
+    for section in report.methodology.sections:
+        line = next(
+            (c for c in comments if c.startswith(f"# {section.code} ({section.spec})")),
+            None,
+        )
+        assert line is not None, f"CSV da `{section.code}` bo'limi yo'q"
+        for value in section.values:
+            assert f"{value.code}={value.value}" in line
+
+
+def test_export_does_not_copy_the_methodology_text() -> None:
+    """CSV — jadval, ikki tilli uzun matn uning formati emas.
+
+    Versiya va qiymatlar yetarli: qiymat o'zgargan bo'lsa versiya
+    o'zgaradi, tarjima tuzatilgan bo'lsa o'zgarmaydi. Matnni ham
+    ko'chirish faylni ikki barobar kattalashtirib, undan yangi
+    ma'lumot bermasdi.
+    """
+    from app.core.i18n import t
+    from app.stats import methodology
+
+    body = export.render(make_report(), lang="uz")
+    for section_code in methodology.SECTION_ORDER:
+        assert t(f"{methodology.KEY_PREFIX}.{section_code}.body", "uz") not in body

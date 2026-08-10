@@ -10,7 +10,7 @@ so'rovlar shu yerda, qaytariladigan tiplar esa **neytral** — `app.geo`
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -421,6 +421,35 @@ async def upsert_territory_stats(
         )
     )
     await session.execute(stmt)
+
+
+async def override_region_config(
+    session: AsyncSession, region_id: uuid.UUID, values: Mapping[str, Any]
+) -> int:
+    """`region_config` kalitlarini yozadi yoki qayta yozadi; sonini qaytaradi.
+
+    `_seed_config` (`tools/region_admin.py`) dan **ataylab farq qiladi**: u
+    mavjud kalitga tegmaydi, bu esa aynan uni bosadi. Chaqiruvchi bitta —
+    `tools/recluster.py` ning ssenariy rejimi, u «boshqa parametrlarda nima
+    bo'lardi?» degan savolga javob beradi va shuning uchun bazadagi qiymatni
+    o'z yurishi doirasida almashtirishi shart.
+
+    Yozuv **chaqiruvchining tranzaksiyasida** qoladi: quruq yurish uni
+    rollback qiladi, ya'ni ssenariy prod konfiguratsiyasini o'zgartirmaydi.
+    Shuning uchun `commit` shu yerda qilinmaydi.
+    """
+    if not values:
+        return 0
+    stmt = (
+        pg_insert(RegionConfig)
+        .values([{"region_id": region_id, "key": k, "value": v} for k, v in values.items()])
+        .on_conflict_do_update(
+            index_elements=[RegionConfig.region_id, RegionConfig.key],
+            set_={"value": pg_insert(RegionConfig).excluded.value},
+        )
+    )
+    await session.execute(stmt)
+    return len(values)
 
 
 def _period_filter(valid_from, valid_to, at: datetime | None):  # noqa: ANN001, ANN202

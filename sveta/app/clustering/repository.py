@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clustering.geometry import Point
 from app.clustering.models import OPEN_STATUSES, Outage
+from app.clustering.status import OutageStatus
 
 _OPEN = OPEN_STATUSES
 
@@ -415,6 +416,11 @@ class StatsRow:
     confidence: int
     started_at: datetime
     resolved_at: datetime | None
+    #: Davomiylik kesimi uchun: `resolved_at` bilan birgalikda yopilish
+    #: taymer artefaktimi yoki kuzatuvmi degan savolga javob beradi
+    #: (`app.stats.duration`). Joy ham, shaxs ham emas — `05` §7.3
+    #: cheklovi buzilmaydi.
+    last_report_at: datetime
 
 
 async def stats_rows_started_between(
@@ -444,6 +450,7 @@ async def stats_rows_started_between(
             Outage.confidence,
             Outage.started_at,
             Outage.resolved_at,
+            Outage.last_report_at,
         )
         .where(
             Outage.region_id == region_id,
@@ -462,6 +469,7 @@ async def stats_rows_started_between(
             confidence=int(row[4]),
             started_at=row[5],
             resolved_at=row[6],
+            last_report_at=row[7],
         )
         for row in (await session.execute(stmt)).all()
     ]
@@ -572,6 +580,43 @@ async def status_counts_started_between(
         .group_by(Outage.status)
     )
     return {row[0]: int(row[1]) for row in (await session.execute(stmt)).all()}
+
+
+async def confirmable_counts(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    min_reporters: int,
+) -> tuple[int, int]:
+    """`03` §6 G-4: `(kuzatilgan hodisalar, ulardan ≥min_reporters xabarlisi)`.
+
+    **`rejected` va `merged` sanalmaydi.** G-4 «kuzatilgan uzilish
+    hodisalari» haqida gapiradi, bu ikkitasi esa hodisa emas: birinchisi
+    moderator tomonidan rad etilgan, ikkinchisi boshqasining ichiga
+    kirgan. Ularni maxrajga qo'shish gate ni **pasaytirardi** —
+    moderatsiya qanchalik yaxshi ishlasa, zichlik shunchalik yomon
+    ko'rinardi. Shu sababli `aggregate.REPORTED_STATUSES` bilan bir xil
+    to'plam ishlatiladi.
+
+    Chegara chaqiruvchidan keladi: u `region_config` dagi
+    `confirm.min_users` emas, `app.release.gates` dagi literal
+    (o'sha modulning docstringiga qarang).
+    """
+    reported = [
+        str(s)
+        for s in (OutageStatus.PENDING, OutageStatus.CONFIRMED, OutageStatus.RESOLVED)
+    ]
+    stmt = select(
+        func.count(),
+        func.count().filter(Outage.independent_reporters >= min_reporters),
+    ).where(
+        Outage.region_id == region_id,
+        Outage.started_at >= since,
+        Outage.status.in_(reported),
+    )
+    row = (await session.execute(stmt)).one()
+    return int(row[0]), int(row[1])
 
 
 async def count_open(

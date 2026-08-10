@@ -21,10 +21,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import text
 
+from app.clustering import params
 from app.db.session import session_scope
 from app.geo.h3_cells import cell_of
 from app.jobs import refresh_coverage
-from app.stats import coverage
+from app.stats import coverage, methodology
 
 pytestmark = pytest.mark.requires_db
 
@@ -167,6 +168,7 @@ async def make_outage(
     reports: int = 3,
     started: datetime | None = None,
     resolved: datetime | None = None,
+    last: datetime | None = None,
 ) -> uuid.UUID:
     oid = uuid.uuid4()
     await session.execute(
@@ -186,7 +188,7 @@ async def make_outage(
             "lon": LON,
             "started": started or NOW - timedelta(hours=2),
             "resolved": resolved,
-            "last": NOW - timedelta(hours=1),
+            "last": last or NOW - timedelta(hours=1),
         },
     )
     for step in range(reports):
@@ -283,6 +285,69 @@ async def test_average_duration_counts_only_resolved(client, region) -> None:
     assert body["total"]["avg_duration_min"] == 90
     assert body["total"]["by_status"]["resolved"] == 1
     assert body["total"]["by_status"]["confirmed"] == 1
+
+
+async def test_the_showcase_carries_the_duration_cut(client, region) -> None:
+    """`03` §R1.2 uchinchi kesimi ommaviy javobda (63-run).
+
+    Beshta yopilgan hodisa — `duration.MIN_SAMPLE` ning aynan o'zi, ya'ni
+    mediana va P90 hisoblanadigan eng kichik namuna.
+    """
+    region_id, code = region
+    started = NOW - timedelta(hours=6)
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        for minutes in (10, 20, 30, 40, 300):
+            await make_outage(
+                session,
+                region_id,
+                district_id=district,
+                status="resolved",
+                reports=3,
+                started=started,
+                resolved=started + timedelta(minutes=minutes),
+                # Yopilish oxirgi xabar bilan bir vaqtda: taymer emas.
+                last=started + timedelta(minutes=minutes),
+            )
+        await make_outage(session, region_id, district_id=district, reports=3)
+
+    body = (await client.get("/api/v1/stats", params={"region": code})).json()
+    cut = body["total"]["duration"]
+
+    assert cut["measured"] == 5
+    assert cut["ongoing"] == 1
+    assert cut["timeout_closed"] == 0
+    assert cut["sufficient"] is True
+    assert cut["median_min"] == 30
+    assert cut["bands"]["under_30m"] == 2
+    assert cut["bands"]["2h_6h"] == 1
+    # Kesim moslashadi: o'lchanganlar + ochiqlar = umumiy son.
+    assert cut["measured"] + cut["ongoing"] == body["total"]["outages_total"]
+    assert body["reconciles"] is True
+    # Tuman kesimida ham bor — vitrina bitta shaklda gapiradi.
+    assert body["districts"][0]["stats"]["duration"]["measured"] == 5
+
+
+async def test_a_timeout_closure_is_marked_in_the_showcase(client, region) -> None:
+    """`05` §4.2 taymeri bilan yopilgan hodisa kesimda ko'rinadi."""
+    region_id, code = region
+    started = NOW - timedelta(hours=6)
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        await make_outage(
+            session,
+            region_id,
+            district_id=district,
+            status="resolved",
+            reports=3,
+            started=started,
+            resolved=started + timedelta(minutes=200),
+            # Oxirgi xabar yopilishdan 120 daqiqa oldin — aynan taymer.
+            last=started + timedelta(minutes=80),
+        )
+
+    body = (await client.get("/api/v1/stats", params={"region": code})).json()
+    assert body["total"]["duration"]["timeout_closed"] == 1
 
 
 async def test_disclaimer_is_always_present(client, region) -> None:
@@ -629,3 +694,64 @@ async def test_csv_export_carries_the_registry_version(client, region) -> None:
     lines = body.strip().splitlines()
     assert lines[0].endswith("valid_from,valid_to")
     assert any("boundary_versions=1" in line for line in lines)
+
+
+async def test_stats_response_links_to_the_methodology(client, region) -> None:
+    """`03` §R1.2 — vitrinani metodologiyasiz ko'rsatib bo'lmaydi.
+
+    Havola javobning majburiy qismi, `warnings` bilan bir toifada: uni
+    ixtiyoriy qilish «raqamlar bor, usul esa qayerdadir» degan holatga
+    olib kelardi — `03` §R1.2 Coverage Index ni aynan shu sababdan
+    majburiy qilgan.
+    """
+    region_id, code = region
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        await make_outage(session, region_id, district_id=district, reports=3)
+
+    body = (await client.get("/api/v1/stats", params={"region": code})).json()
+    ref = body["methodology"]
+    assert ref["version"]
+    assert ref["url"].endswith(f"/stats/methodology?region={code}")
+
+
+async def test_methodology_endpoint_discloses_the_live_values(client, region) -> None:
+    """`GET /api/v1/stats/methodology` — mintaqaning **jonli** qiymatlari.
+
+    `region_config` ga yozilgan qiymat javobda ko'rinishi kerak: aks
+    holda bo'lim koddagi standartlarni ko'rsatib, mintaqa boshqa
+    sozlama bilan ishlashda davom etardi.
+    """
+    _, code = region
+    body = (await client.get("/api/v1/stats/methodology", params={"region": code})).json()
+
+    assert body["region"] == code
+    assert body["version"]
+    assert [s["code"] for s in body["sections"]] == list(methodology.SECTION_ORDER)
+    values = {v["code"]: v["value"] for s in body["sections"] for v in s["values"]}
+    assert values["confirm.min_users"] == str(params.DEFAULTS["confirm.min_users"])
+    for section in body["sections"]:
+        assert section["title"] and section["body"] and section["spec"]
+        assert section["values"]
+
+
+async def test_methodology_version_matches_the_showcase(client, region) -> None:
+    """Ikkita endpoint bitta metodologiyani ko'rsatadi.
+
+    Ajralib ketsa vitrinadagi versiya boshqa bo'limga ishora qilardi va
+    havolaning butun ma'nosi yo'qolardi.
+    """
+    region_id, code = region
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        await make_outage(session, region_id, district_id=district, reports=3)
+
+    stats = (await client.get("/api/v1/stats", params={"region": code})).json()
+    method = (await client.get("/api/v1/stats/methodology", params={"region": code})).json()
+    assert stats["methodology"]["version"] == method["version"]
+
+
+async def test_methodology_is_unknown_for_an_unknown_region(client) -> None:
+    """Nomaʼlum mintaqa — `404`, standart mintaqaning metodologiyasi emas."""
+    response = await client.get("/api/v1/stats/methodology", params={"region": "nowhere"})
+    assert response.status_code == 404

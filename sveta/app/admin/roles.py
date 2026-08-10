@@ -44,6 +44,22 @@ class Permission(StrEnum):
     #: Metrikalarni o'qish (`05` §10). Ular faqat agregat sonlar, ya'ni
     #: hisobot bilan bir xil darajada xavfsiz.
     METRICS_READ = "metrics.read"
+    #: Reliz gate lari hisobotini o'qish (`03` §6). Metrikalar bilan bir
+    #: xil darajada xavfsiz (agregat sonlar), lekin **ma'nosi** boshqa:
+    #: bu — «nimani chiqarish mumkin emas» ro'yxati, ya'ni uni
+    #: hisobotning muallifi emas, qaror qabul qiladigan odam o'qiydi.
+    #: Shuning uchun alohida ruxsat: metrikalarni ko'radigan smena
+    #: moderatori uchun gate hisoboti kerak emas.
+    GATES_READ = "gates.read"
+    #: `03` §11 «Nima o'lchanadi» qamrovi hisobotini o'qish. Bugun
+    #: `GATES_READ` bilan **bir xil** rolga beriladi va shunday
+    #: bo'lishi ham kutiladi: ikkala hisobot bitta qarorni qo'llab
+    #: quvvatlaydi — gate hisobotidagi `UNMEASURED` mezonning sababi
+    #: aynan shu yerda yozilgan. Alohida nom kerak, chunki
+    #: `gates.read` bilan boshqa endpointni ochish ruxsat nomini
+    #: yolg'onga aylantirardi va keyingi ajratish (masalan mahsulot
+    #: menejeri uchun faqat qamrov) migratsiya talab qilardi.
+    MEASURES_READ = "measures.read"
 
 
 _MODERATOR: frozenset[Permission] = frozenset(
@@ -66,7 +82,15 @@ PERMISSIONS: dict[Role, frozenset[Permission]] = {
         {Permission.OUTAGE_READ, Permission.DIGEST_READ, Permission.METRICS_READ}
     ),
     Role.MODERATOR: _MODERATOR,
-    Role.ADMIN: _MODERATOR | frozenset({Permission.USER_TRUST, Permission.AUDIT_READ}),
+    Role.ADMIN: _MODERATOR
+    | frozenset(
+        {
+            Permission.USER_TRUST,
+            Permission.AUDIT_READ,
+            Permission.GATES_READ,
+            Permission.MEASURES_READ,
+        }
+    ),
 }
 
 

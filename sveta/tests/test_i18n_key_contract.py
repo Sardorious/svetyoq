@@ -96,7 +96,8 @@ from app.clustering.scale import Scale
 from app.clustering.status import OutageStatus
 from app.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
 from app.notifications import render as notify_render
-from app.stats import coverage, heatmap, maturity
+from app.release import gates, measures
+from app.stats import coverage, heatmap, maturity, methodology
 
 APP_ROOT = Path(app_pkg.__file__).resolve().parent
 LOCALES = APP_ROOT / "core" / "i18n" / "locales"
@@ -205,6 +206,25 @@ KEY_TABLES: dict[str, tuple[str, ...]] = {
     "stats.coverage.BAND_KEYS": tuple(coverage.BAND_KEYS.values()),
     "stats.heatmap.DISCLAIMER_KEYS": tuple(heatmap.DISCLAIMER_KEYS),
     "stats.maturity.MESSAGE_*": (maturity.MESSAGE_YOUNG, maturity.MESSAGE_MATURE),
+    # Metodologiya bo'limlarining sarlavha va matn kalitlari
+    # (`03` §R1.2). Ular `MethodologySection.title_key`/`body_key` da
+    # f-satrdan yig'iladi, ya'ni skaner ularni ko'rmaydi; `SECTION_KEYS`
+    # esa `SECTION_ORDER` dan chiqadi, ya'ni yangi bo'lim qo'shilishi
+    # bilan bu ro'yxat o'zi kengayadi va yangi kalit darhol talab
+    # qilinadi.
+    "stats.methodology.SECTION_KEYS": methodology.SECTION_KEYS,
+    # Reliz gate lari (`03` §6). Ikkala ro'yxat ham `GATES` reyestridan
+    # chiqadi: yangi gate yoki yangi mezon qo'shilgan zahoti uning
+    # kaliti talab qilinadi, chunki `t()` chaqiruvi `api/v1/admin.py`
+    # da f-satr emas, **atribut** orqali beriladi (`summary_key`,
+    # `blocks_key`, `Criterion.key`) va skaner uni ko'rmaydi.
+    "release.gates.GATE_KEYS": gates.GATE_KEYS,
+    "release.gates.CRITERION_KEYS": gates.CRITERION_KEYS,
+    # O'lchov qamrovi (`03` §11). Gate lar bilan bir xil sabab:
+    # `t()` ga kalit `Measure.key` / `Stage.key` atributi orqali
+    # beriladi, ya'ni skaner uni ko'rmaydi.
+    "release.measures.MEASURE_KEYS": measures.MEASURE_KEYS,
+    "release.measures.STAGE_KEYS": measures.STAGE_KEYS,
 }
 
 

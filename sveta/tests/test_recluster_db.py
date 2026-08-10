@@ -6,10 +6,14 @@ Uchta da'vo tekshiriladi:
    beradi — ya'ni asbob boshqa algoritm emas, o'shaning o'zi;
 2. Ikki marta ishga tushirish bir xil iz beradi (determinizm);
 3. Quruq yurish bazani o'zgartirmaydi.
+
+Oxirgi bo'lim — sweep (`04` §E11): o'q bo'ylab bir necha yurish. Uning
+bazasiz qismi `tests/test_recluster_sweep.py` da.
 """
 
 from __future__ import annotations
 
+import argparse
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -19,6 +23,7 @@ from sqlalchemy import text as sql
 
 from app.bot import service
 from app.clustering import repository as cluster_repo
+from app.clustering.params import DEFAULTS
 from app.core.config import settings
 from app.db.session import session_scope
 from app.geo import registry
@@ -77,6 +82,9 @@ async def region(monkeypatch):
         )
         await session.execute(sql("DELETE FROM outages WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM users WHERE region_id = :id"), {"id": region_id})
+        await session.execute(
+            sql("DELETE FROM region_config WHERE region_id = :id"), {"id": region_id}
+        )
         await session.execute(sql("DELETE FROM districts WHERE region_id = :id"), {"id": region_id})
         await session.execute(sql("DELETE FROM regions WHERE id = :id"), {"id": region_id})
     registry.invalidate()
@@ -109,7 +117,7 @@ async def _fingerprint(region_id: uuid.UUID) -> str:
     return recluster.fingerprint(rows)
 
 
-async def _run(region_id: uuid.UUID, code: str, *, apply: bool):
+async def _run(region_id: uuid.UUID, code: str, *, apply: bool, overrides=None):
     async with recluster._scope(apply=apply) as session:
         return await recluster.recluster(
             session,
@@ -118,7 +126,19 @@ async def _run(region_id: uuid.UUID, code: str, *, apply: bool):
             since=SINCE,
             until=UNTIL,
             applied=apply,
+            overrides=overrides,
         )
+
+
+async def _config(region_id: uuid.UUID) -> dict[str, object]:
+    async with session_scope() as session:
+        rows = (
+            await session.execute(
+                sql("SELECT key, value FROM region_config WHERE region_id = :id"),
+                {"id": region_id},
+            )
+        ).all()
+    return {key: value for key, value in rows}
 
 
 async def test_recluster_is_deterministic(region) -> None:
@@ -180,9 +200,7 @@ async def test_reports_are_never_deleted(region) -> None:
     async with session_scope() as session:
         after = (
             await session.execute(
-                sql(
-                    "SELECT count(*), count(outage_id) FROM reports WHERE region_id = :id"
-                ),
+                sql("SELECT count(*), count(outage_id) FROM reports WHERE region_id = :id"),
                 {"id": region_id},
             )
         ).one()
@@ -190,6 +208,60 @@ async def test_reports_are_never_deleted(region) -> None:
     assert after[0] == before
     # Hammasi qaytadan biriktirilgan — yetim xabar qolmadi.
     assert after[1] == before
+
+
+async def test_overrides_reach_the_clustering_module(region) -> None:
+    """`04` §E6 ning yadrosi: boshqa parametrda boshqa natija chiqadi.
+
+    Ikkita chekka ssenariy olinadi, chunki standart qiymatda natija qanday
+    bo'lishi seedga bog'liq: past chegara (`confirm.* = 1`) da kamida bitta
+    hodisa **tasdiqlanishi shart**, juda yuqorisida (`= 99`) esa
+    **birortasi ham** tasdiqlanmasligi kerak.
+    """
+    region_id, code = region
+    await _seed()
+
+    lax = await _run(
+        region_id,
+        code,
+        apply=False,
+        overrides={"confirm.min_users": 1, "confirm.floor": 1, "confirm.ceil": 1},
+    )
+    strict = await _run(
+        region_id,
+        code,
+        apply=False,
+        overrides={"confirm.min_users": 99, "confirm.floor": 99, "confirm.ceil": 99},
+    )
+
+    assert lax.summary.confirmed >= 1
+    assert strict.summary.confirmed == 0
+    assert lax.fingerprint != strict.fingerprint
+    # Hodisalarning o'zi ikkala ssenariyda ham yaratiladi — farq statusda.
+    assert lax.summary.outages == strict.summary.outages >= 1
+
+
+async def test_scenario_never_touches_the_stored_configuration(region) -> None:
+    """Ssenariy — gipoteza; prod parametri faqat `region_admin` orqali o'zgaradi."""
+    region_id, code = region
+    await _seed()
+    before = await _config(region_id)
+
+    await _run(region_id, code, apply=False, overrides={"confirm.min_users": 7})
+
+    assert await _config(region_id) == before
+
+
+async def test_empty_overrides_reproduce_the_baseline(region) -> None:
+    """Bo'sh override — bazaviy yurishning o'zi; taqqoslashning nol nuqtasi."""
+    region_id, code = region
+    await _seed()
+
+    baseline = await _run(region_id, code, apply=False)
+    same = await _run(region_id, code, apply=False, overrides={})
+
+    assert baseline.fingerprint == same.fingerprint
+    assert recluster.Comparison(baseline, same, {}).changed is False
 
 
 async def test_notified_outage_blocks_the_run(region) -> None:
@@ -222,3 +294,73 @@ async def test_notified_outage_blocks_the_run(region) -> None:
         await session.execute(
             sql("DELETE FROM notifications WHERE outage_id = :id"), {"id": outage_id}
         )
+
+
+# --- sweep (`04` §E11) --------------------------------------------------------
+
+
+def _sweep_args(code: str) -> argparse.Namespace:
+    return recluster.build_parser().parse_args(
+        ["--region", code, "--from", SINCE.isoformat(), "--to", UNTIL.isoformat()]
+    )
+
+
+async def _sweep(code: str, values: list[float], **over) -> recluster.Sweep:
+    return await recluster.run_sweep(
+        _sweep_args(code), key="confirm.min_users", values=values, background=over.pop("bg", {})
+    )
+
+
+async def test_sweep_visits_every_value_and_reads_the_current_one(region) -> None:
+    """O'q to'liq yuriladi va joriy qiymat `region_config`/`DEFAULTS` dan olinadi."""
+    _, code = region
+    await _seed()
+
+    axis = await _sweep(code, [1.0, 3.0, 99.0])
+
+    assert [p.value for p in axis.points] == [1.0, 3.0, 99.0]
+    assert axis.baseline_value == DEFAULTS["confirm.min_users"]
+    # Har qadam **to'liq** yurish: bir xil xabarlar, bir xil oyna.
+    assert {p.result.reports for p in axis.points} == {axis.baseline.reports}
+    assert all(p.result.applied is False for p in axis.points)
+
+
+async def test_sweep_proves_its_own_stability_on_real_data(region) -> None:
+    """`04` §E11 mezoni: joriy qiymatdagi qadam bazaviy iz bilan mos kelishi kerak.
+
+    Bu yagona tekshiruv bo'lib, u sweepning qolgan xulosalarini ma'noli
+    qiladi: bazaviy o'zi qimirlab tursa, «bu qiymatda boshqacha chiqdi»
+    degan qatorning hech qanday kuchi yo'q.
+    """
+    _, code = region
+    await _seed()
+
+    axis = await _sweep(code, [1.0, DEFAULTS["confirm.min_users"], 99.0])
+
+    assert axis.stable is True
+    assert axis.points[1].changed_from_baseline is False
+
+
+async def test_sweep_finds_the_turning_point_between_lax_and_strict(region) -> None:
+    """Chekka qiymatlar orasida iz albatta o'zgaradi — o'q shuni ko'rsatishi kerak."""
+    _, code = region
+    await _seed()
+
+    axis = await _sweep(code, [1.0, 99.0], bg={"confirm.floor": 1, "confirm.ceil": 1})
+
+    assert axis.turning_points == [99.0]
+    assert axis.plateaus == []
+    assert axis.points[0].result.summary.confirmed >= 1
+    assert axis.points[1].result.summary.confirmed == 0
+    assert axis.confirmed_direction == "o'smaydi"
+
+
+async def test_sweep_never_touches_the_stored_configuration(region) -> None:
+    """Har qadam ham, fon ham quruq yurish ichida qoladi (`06` §9)."""
+    region_id, code = region
+    await _seed()
+    before = await _config(region_id)
+
+    await _sweep(code, [1.0, 99.0], bg={"confirm.floor": 1})
+
+    assert await _config(region_id) == before

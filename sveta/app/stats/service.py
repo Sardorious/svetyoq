@@ -27,6 +27,7 @@ from app.core.errors import ValidationError
 from app.geo import queries as geo_q
 from app.reports import queries as reports_q
 from app.stats import aggregate, boundaries, coverage, mahalla_coverage, maturity
+from app.stats import methodology as methodology_mod
 
 
 class InvalidPeriodError(ValidationError):
@@ -107,6 +108,12 @@ class StatsReport:
     #: versiyasidan farqli, davrga bog'liq emas: qamrov «hozir» degan
     #: savolga javob beradi (`region_coverage` bilan bir xil qaror).
     mahallas: mahalla_coverage.MahallaCoverage
+    #: Raqamlar qaysi usul va qaysi qiymatlar bilan hisoblangani
+    #: (`03` §R1.2 «metodologiya bo'limi bilan bog'lanish»). Vitrinaning
+    #: qismi, ilova emas: `01` §5 jurnalist uchun qiymatni «statistika
+    #: **ochilgan metodologiya** va qamrov indeksi bilan» deb ta'riflaydi,
+    #: ya'ni ikkalasi ham bitta javobda bo'lishi kerak.
+    methodology: methodology_mod.Methodology
     suppressed_outages: int
     suppressed_reports: int
     unassigned_ratio: float
@@ -141,6 +148,12 @@ class StatsReport:
             keys.append(boundaries.WARNING_CHANGED)
         if self.unassigned_ratio > aggregate.MAX_UNASSIGNED_RATIO:
             keys.append("stats.warning.unassigned")
+        # Davomiylik ogohlantirishlari **mintaqa** kesimidan olinadi:
+        # ular `total.duration` ni qanday o'qish kerakligini aytadi.
+        # Bitta tumanning kesimi qiya bo'lsa, bu vitrinaning umumiy
+        # ogohlantirishi emas — u o'sha tumanning `duration` bloki
+        # ichida ko'rinadi.
+        keys.extend(self.total.duration.warnings)
         if self.suppressed_outages:
             keys.append("stats.warning.suppressed")
         if self.truncated:
@@ -398,6 +411,44 @@ async def region_maturity(
     )
 
 
+def public_limits() -> methodology_mod.PublicLimits:
+    """`settings` → metodologiyaning deploy darajasidagi qiymatlari.
+
+    Alohida funksiya, chunki uni testlarning fikstyurasi ham chaqiradi.
+    Ikkita nusxa bo'lsa ular ajralib ketishi mumkin edi va o'shanda
+    testlar mahsulotda umuman bo'lmaydigan metodologiyani tekshirardi —
+    yashil suite bilan.
+    """
+    return methodology_mod.PublicLimits(
+        h3_resolution=settings.h3_resolution,
+        min_reports=settings.public_min_reports,
+        time_rounding_min=settings.public_time_rounding_min,
+        coverage_window_days=settings.coverage_window_days,
+        target_penetration=settings.stats_target_penetration,
+        autoclose_after_min=settings.cluster_autoclose_after_min,
+    )
+
+
+async def region_methodology(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+) -> methodology_mod.Methodology:
+    """Mintaqaning metodologiyasi — jonli `region_config` bilan (`03` §R1.2).
+
+    **Nima uchun alohida funksiya, `region_coverage` ning ichida emas.**
+    Metodologiya vitrinaning bir qismi sifatida ham (`build_report`),
+    o'zi yolg'iz ham (`/stats/methodology`) so'raladi, va ikkinchi holatda
+    hech qanday agregat hisoblanmaydi: metodologiyani o'qish uchun
+    statistika so'rashga majbur qilish uni «qo'shimcha» ga aylantirardi.
+
+    `settings` dan keladigan qiymatlar aynan shu yerda yig'iladi —
+    `methodology` moduli toza qoladi (`coverage.py` bilan bir xil qoida).
+    """
+    config = await geo_q.load_region_config(session, region_id)
+    return methodology_mod.build(cluster_params.from_mapping(config), public_limits())
+
+
 async def build_report(
     session: AsyncSession,
     *,
@@ -431,14 +482,23 @@ async def build_report(
             started_at=row.started_at,
             resolved_at=row.resolved_at,
             report_count=counts.get(row.id, 0),
+            last_report_at=row.last_report_at,
         )
         for row in rows
     ]
-    agg = aggregate.build(facts, min_reports=settings.public_min_reports)
+    agg = aggregate.build(
+        facts,
+        min_reports=settings.public_min_reports,
+        # Taymer chegarasi klasterlashniki: davomiylik kesimi «taymer
+        # bilan yopilgan» ni **o'sha** qoida bo'yicha sanashi kerak,
+        # o'zining nusxasi bo'yicha emas (`05` §4.2).
+        autoclose_after_min=settings.cluster_autoclose_after_min,
+    )
 
     snapshot = await region_coverage(session, region_id=region_id, now=moment)
     depth = await region_maturity(session, region_id=region_id, now=moment)
     mahallas = await mahalla_index(session, region_id=region_id, now=moment)
+    method = await region_methodology(session, region_id=region_id)
 
     # Vitrina **davrning** chegaralari bo'yicha quriladi, joriylari
     # bo'yicha emas (`01` FR-S-803: «применяются старые границы»).
@@ -510,6 +570,7 @@ async def build_report(
         region_maturity=depth,
         boundaries=boundary_set,
         mahallas=mahallas,
+        methodology=method,
         suppressed_outages=agg.suppressed_outages,
         suppressed_reports=agg.suppressed_reports,
         unassigned_ratio=agg.unassigned_ratio,

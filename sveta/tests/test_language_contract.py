@@ -36,6 +36,13 @@ NO_REGION_PARAM: dict[str, str] = {
         "«qaysi mintaqaning tili» degan savolning javobi yo'q. "
         "`DEFAULT_REGION_CODE` mintaqasining tili ishlatiladi."
     ),
+    "read_measures": (
+        "`03` §11 qamrovi butun mahsulot uchun bir xil — u kodning "
+        "tuzilishidan chiqadi, jonli ma'lumotdan emas, ya'ni endpoint "
+        "bazaga umuman murojaat qilmaydi va mintaqa kesimi yo'q. "
+        "`?region=` ni qabul qilish har mintaqada boshqacha javob "
+        "bo'lishi mumkinligini anglatardi."
+    ),
 }
 
 
@@ -198,10 +205,16 @@ def test_the_check_catches_a_real_regression() -> None:
 
 @pytest.mark.parametrize("name", sorted(NO_REGION_PARAM))
 def test_exemption_list_is_minimal(name: str) -> None:
-    """Istisnolar bitta — ro'yxat o'sib ketmasin.
+    """Istisnolar ikkita — ro'yxat o'sib ketmasin.
 
     O'sish o'zi xato emas, lekin u sezilmay bo'lmasligi kerak: yangi
     qator qo'shgan odam shu testni ham yangilaydi va shunda sabab
     o'ylab topiladi.
+
+    Ikkalasining sababi ham bir xil sinfdan va u **mintaqasizlik**:
+    `get_regions` mintaqa tanlashdan oldin so'raladi, `read_measures`
+    esa umuman jonli ma'lumotga qaramaydi (`03` §11 qamrovi kodning
+    tuzilishidan chiqadi). Uchinchi istisno boshqa sababdan kelsa —
+    demak til qoidasining o'zi qayta ko'rib chiqilishi kerak.
     """
-    assert name in {"get_regions"}
+    assert name in {"get_regions", "read_measures"}

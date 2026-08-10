@@ -261,6 +261,31 @@ def test_statistics_showcase_states_the_mahalla_coverage(schema) -> None:
     assert {"available", "total", "measured", "coverage", "bands"} <= set(block)
 
 
+def test_statistics_showcase_links_to_the_methodology(schema) -> None:
+    """`03` §R1.2: «Metodologiya bo'limi bilan bog'lanish».
+
+    `boundaries` va `mahallas` bilan bir xil toifadagi talab va u ham
+    bitta jumlada yozilgani uchun 15-rundan beri e'tibordan chetda
+    qolgan edi: `03` §R1.2 ning to'rtta qatoridan uchtasi bajarilib,
+    to'rtinchisi «✅» ostida turardi.
+
+    **Maydon `required` bo'lishi shart.** Ixtiyoriy bo'lsa u javobda
+    ba'zan bo'lib, ba'zan bo'lmasdi — ya'ni vitrinani metodologiyasiz
+    ko'rsatish yana mumkin bo'lardi, va aynan shu holat `03` §R1.2 ni
+    yozdirgan.
+
+    `version` alohida tekshiriladi: havolaning o'zi **bugungi**
+    qiymatlarga olib boradi, saqlangan yoki eksport qilingan kesim esa
+    o'zi hisoblangan paytdagi usulga bog'lanishi kerak.
+    """
+    schemas = schema["components"]["schemas"]
+    stats = schemas["StatsOut"]
+    assert "methodology" in stats["properties"]
+    assert "methodology" in stats.get("required", [])
+    ref = schemas["MethodologyRefOut"]["properties"]
+    assert {"version", "url"} <= set(ref)
+
+
 def test_mahalla_showcase_carries_no_incident_counts(schema) -> None:
     """`05` §7.3: ommaviy javobda kichik hududning tafsiloti yo'q.
 

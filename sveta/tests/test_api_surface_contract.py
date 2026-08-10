@@ -78,6 +78,10 @@ BEYOND_SPEC: dict[str, str] = {
         "bo'lishi uchun kirish nuqtasi"
     ),
     "/stats.csv": "`/stats` bilan bir xil ma'lumot, CSV eksporti (yuklab olish uchun)",
+    "/stats/methodology": (
+        "`03` §R1.2 «metodologiya bo'limi bilan bog'lanish» — raqamlar qaysi "
+        "qiymatlar bilan hisoblangani; `/stats` javobida faqat versiya va havola"
+    ),
 }
 
 #: `05` §7.2 jadvalidan keyingi jumla: «`region_id` barcha geo-so'rovlarda

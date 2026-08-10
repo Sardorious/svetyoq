@@ -40,6 +40,75 @@ Eslatmalar:
 
 ---
 
+## `recluster.py`
+
+Xabarlar birlamchi ma'lumot, hodisalar esa **ulardan chiqarilgan xulosa**.
+Xulosa parametrlarga bog'liq (`06` §9), parametrlar esa E11 da haqiqiy
+ma'lumotda sozlanadi — shuning uchun asbob ikkita savolga javob beradi.
+
+**«Bugungi kod o'sha oynani qanday hisoblagan bo'lardi?»** — oddiy yurish.
+Oynadagi hodisalar o'chiriladi va xabarlar `(created_at, id)` tartibida
+qaytadan `clustering.assign` ga beriladi.
+
+```bash
+python -m tools.recluster --region samarkand --from 2026-08-01 --to 2026-08-08
+python -m tools.recluster --region samarkand --from 2026-08-01 --to 2026-08-08 --apply
+```
+
+**«Boshqa parametrda nima bo'lardi?»** — ssenariy rejimi (`04` §E6 ning
+ta'rifi). `--set`/`--params` berilsa, asbob **ayni o'sha oynani ikki marta**
+yurgizadi — bazadagi konfiguratsiya bilan va uning ustiga yozilgan
+qiymatlar bilan — va natijalarni yonma-yon qo'yadi.
+
+```bash
+python -m tools.recluster --from 2026-08-01 --to 2026-08-08 \
+    --set confirm.min_users=4 --set confirm.coef=0.6
+python -m tools.recluster --from 2026-08-01 --to 2026-08-08 --params scenario.json
+```
+
+- **Kalit `06` §9 ro'yxatidan bo'lishi shart.** Notanish kalit jimgina
+  o'tkazib yuborilsa, asbob bazaviy yurishni ikki marta bajarib «farq yo'q»
+  deb yozardi — E11 da bu «parametr ta'sir qilmaydi» degan soxta xulosa.
+- **Ikkala yurish ham quruq**, shuning uchun `--set` bilan `--apply` birga
+  berilmaydi. Tartib: ssenariyni ko'ring → `region_admin config --set` →
+  keyin `--apply` bilan tarixni qayta quring.
+- Hisobotda `changed` bor: u **izga** (`fingerprint`) qaraydi, kesimga emas.
+  Bir xil sondagi va bir xil statusdagi hodisalar boshqa joyda turgan
+  bo'lishi mumkin.
+**«Bu parametrni qayerda sozlash kerak?»** — sweep rejimi (`04` §E11 ning
+mezoni: «qayta hisoblashda **barqaror** natija»). Bitta ssenariy «4 da
+boshqacha chiqdi» deydi, sozlash uchun esa parametrning butun o'qi kerak.
+
+```bash
+python -m tools.recluster --from 2026-08-01 --to 2026-08-08 \
+    --sweep confirm.min_users=2,3,4,5,6
+# fon bilan: `scale.coef` hamma yurishda 0.4 da qotiriladi
+python -m tools.recluster --from 2026-08-01 --to 2026-08-08 \
+    --set scale.coef=0.4 --sweep confirm.coef=0.4,0.5,0.6
+```
+
+- **Bitta bazaviy va har qiymat uchun bitta yurish** (narx qiymatlar soniga
+  chiziqli). Bazaviyni har qadamda takrorlash o'sha ishni bekorga qilish
+  bo'lardi: oyna ham, xabarlar ham o'zgarmaydi.
+- Uchta xulosa: **burilish nuqtalari** (iz qaysi qadamda o'zgardi),
+  **plato** (iz o'zgarmaydigan oraliq — u yerda sozlashning ma'nosi yo'q)
+  va **determinizm**.
+- **Determinizm tekin tekshiriladi:** ro'yxatga joriy (`region_config`)
+  qiymatni ham qo'shsangiz, uning izi bazaviy yurishning izi bilan
+  solishtiriladi. Farq chiqsa — chiqish kodi `3` va hisobotning qolgan
+  qatorlariga ishonib bo'lmaydi.
+- **Bitta yurishda bitta kalit.** Ikkita kalit beshtadan qiymat bilan 25 ta
+  to'liq qayta hisoblash beradi va jadval farqning qaysi sababdan
+  kelganini ko'rsata olmaydi. `--set`/`--params` esa **fon** bo'lib
+  qoladi: u bazaviyga ham, har bir variantga ham qo'llanadi.
+- Qiymatlar o'sish tartibida saralanadi (plato va burilish nuqtasi
+  qo'shni qadamlarni solishtiradi), takrorlangan qiymat esa — xato.
+- Chiqish kodi: `0` — muvaffaqiyat, `2` — bildirishnoma tufayli bloklandi,
+  `3` — sweep o'zini barqaror deb ko'rsata olmadi, `64` — parametr yoki
+  oyna xatosi.
+
+---
+
 ## `simulate.py`
 
 Haqiqiy ma'lumot E10 gacha yo'q, shuning uchun `05` §9 test infratuzilmasini

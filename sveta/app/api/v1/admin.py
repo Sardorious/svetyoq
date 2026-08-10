@@ -27,13 +27,17 @@ from pydantic import BaseModel, Field
 from app.admin import audit, digest_service, service
 from app.admin import digest as digest_mod
 from app.admin.roles import Permission
-from app.api.deps import AdminActor, DbSession
+from app.api.deps import AdminActor, ClientLang, DbSession
 from app.api.openapi import NOT_FOUND
 from app.clustering import repository as outages_repo
 from app.clustering.status import OPEN_STATUSES
+from app.core import i18n
 from app.core.config import settings
 from app.core.errors import NotFoundError, ValidationError
 from app.geo import pipeline as geo
+from app.release import collector as gate_collector
+from app.release import gates as gates_mod
+from app.release import measures as measures_mod
 from app.reports import moderation as users_mod
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -335,3 +339,183 @@ async def read_audit(
 def _plain(payload: dict[str, object]) -> dict[str, Any]:
     """`uuid`/`datetime` ni JSON ga tushadigan ko'rinishga o'giradi."""
     return audit.jsonable(payload)
+
+
+class GateCriterionOut(BaseModel):
+    code: str
+    label: str
+    kind: str
+    unit: str
+    spec: str
+    threshold: float | None
+    direction: str
+    value: float | None
+    status: str
+
+
+class GateOut(BaseModel):
+    code: str
+    release: str
+    summary: str
+    blocks: str
+    status: str
+    criteria: list[GateCriterionOut]
+
+
+class GatesOut(BaseModel):
+    region: str
+    #: Birinchi yopilmagan gate ning kodi. `null` — hammasi yopiq.
+    #: Bu maydon **hisobotning javobi**: qolgan hammasi dalil.
+    blocking_gate: str | None
+    #: Nima qilib bo'lmasligi (`03` §6 «Yopilmasa» ustuni), tarjima
+    #: qilingan holda. Gate lar yopiq bo'lsa — bo'sh satr.
+    blocked_action: str
+    closed: int
+    total: int
+    gates: list[GateOut]
+
+
+@router.get("/gates", response_model=GatesOut, summary="Reliz gate lari (`03` §6)")
+async def read_gates(
+    actor: AdminActor,
+    session: DbSession,
+    lang: ClientLang = None,
+    region: str | None = None,
+) -> GatesOut:
+    """Gate lar hisoboti: qaysi biri yopiq, qaysi biri o'lchanmagan.
+
+    **Bu endpoint hech narsani bloklamaydi.** U `03` §6 jadvalini
+    bugungi sonlar bilan birga ko'rsatadi, qaror esa odamniki —
+    gate «avtomatik yopilmasligi» aynan §6 ning talabi.
+
+    Matn `Accept-Language` bo'yicha tarjima qilinadi: qolgan admin
+    javoblaridan farqli ravishda (ular kod qaytaradi), bu yerda
+    o'quvchi interfeys emas, **qaror qabul qiladigan odam**, va u
+    hisobotni ko'chirib qo'yishi mumkin.
+    """
+    actor.require(Permission.GATES_READ)
+    row = await geo.require_region(session, (region or settings.default_region_code).lower())
+    language = i18n.pick_language(client=lang, region_default=row.default_language)
+    values = await gate_collector.collect(session, region_id=row.id)
+    report = gates_mod.evaluate(values)
+    blocking = report.blocking_gate
+    return GatesOut(
+        region=row.code,
+        blocking_gate=blocking.gate.code if blocking else None,
+        blocked_action=i18n.t(blocking.gate.blocks_key, language) if blocking else "",
+        closed=report.closed_count,
+        total=len(report.gates),
+        gates=[
+            GateOut(
+                code=result.gate.code,
+                release=result.gate.release,
+                summary=i18n.t(result.gate.summary_key, language),
+                blocks=i18n.t(result.gate.blocks_key, language),
+                status=str(result.status),
+                criteria=[
+                    GateCriterionOut(
+                        code=item.criterion.code,
+                        label=i18n.t(
+                            item.criterion.key,
+                            language,
+                            min_reports=gates_mod.MIN_INDEPENDENT_REPORTS,
+                        ),
+                        kind=str(item.criterion.kind),
+                        unit=item.criterion.unit,
+                        spec=item.criterion.spec,
+                        threshold=item.criterion.threshold,
+                        direction=str(item.criterion.direction),
+                        value=item.value,
+                        status=str(item.status),
+                    )
+                    for item in result.criteria
+                ],
+            )
+            for result in report.gates
+        ],
+    )
+
+
+class MeasureOut(BaseModel):
+    code: str
+    label: str
+    coverage: str
+    #: Bugungi manba, `manba:nom` ko'rinishida. `null` — bog'lanish yo'q.
+    bound: str | None
+    #: Eng yaqin mavjud o'lchovlar — **tenglashtirib bo'lmaydiganlar**.
+    #: Bo'sh ro'yxat «yaqini yo'q» degani, «bog'langan» emas.
+    near: list[str]
+
+
+class MeasureStageOut(BaseModel):
+    code: str
+    label: str
+    #: `03` §11 ning «Nima uchun» ustuni.
+    rationale: str
+    measures: list[MeasureOut]
+
+
+class MeasuresOut(BaseModel):
+    #: Reliz tartibidagi birinchi yopilmagan ko'rsatkichning kodi.
+    #: `null` — bo'shliq yo'q. Bu maydon — hisobotning javobi.
+    first_gap: str | None
+    #: Uning bosqichi: undan keyingi bosqichlarni o'lchash haqida
+    #: gapirishdan oldin shuni yopish kerak.
+    first_gap_stage: str | None
+    #: Holat kodi → nechta ko'rsatkich (`measured`, `derivable`,
+    #: `absent`, `external`).
+    counts: dict[str, int]
+    total: int
+    stages: list[MeasureStageOut]
+
+
+@router.get(
+    "/measures",
+    response_model=MeasuresOut,
+    summary="O'lchov qamrovi (`03` §11)",
+)
+async def read_measures(
+    actor: AdminActor,
+    lang: ClientLang = None,
+) -> MeasuresOut:
+    """`03` §11 jadvali: qaysi ko'rsatkich bugun o'lchanadi, qaysi biri yo'q.
+
+    **Bazaga murojaat qilmaydi va sonlarni ko'rsatmaydi.** Bu hisobot
+    o'lchovning natijasi haqida emas, **asbobning o'zi** haqida:
+    `/gates` dagi `unmeasured` mezonning sababi shu yerda yozilgan.
+    Shuning uchun u mintaqaga ham bog'liq emas — qamrov butun
+    mahsulot uchun bir xil.
+
+    `near` maydonini «deyarli bog'langan» deb o'qish mumkin emas: u
+    tenglashtirish **taqiqlangan** o'lchovlarni sanaydi (masalan
+    `answer_p90` ↔ `time_to_confirm_seconds`), aks holda bo'shliq
+    yopilmasdan ko'rinmas bo'lardi.
+    """
+    actor.require(Permission.MEASURES_READ)
+    language = i18n.pick_language(client=lang, region_default=settings.default_language)
+    report = measures_mod.evaluate()
+    gap = report.first_gap
+    return MeasuresOut(
+        first_gap=gap.code if gap else None,
+        first_gap_stage=gap.stage if gap else None,
+        counts=report.counts,
+        total=len(report.measures),
+        stages=[
+            MeasureStageOut(
+                code=stage.code,
+                label=i18n.t(stage.key, language),
+                rationale=i18n.t(stage.rationale_key, language),
+                measures=[
+                    MeasureOut(
+                        code=measure.code,
+                        label=i18n.t(measure.key, language),
+                        coverage=str(measure.coverage),
+                        bound=str(measure.bound) if measure.bound else None,
+                        near=[str(b) for b in measure.near],
+                    )
+                    for measure in report.for_stage(stage.code)
+                ],
+            )
+            for stage in measures_mod.STAGES
+        ],
+    )
