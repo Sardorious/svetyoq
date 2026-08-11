@@ -12,6 +12,62 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ➕ **102b (o'sha sessiya davomi, odam bilan chat):** 👤 **ADR-08 hal —
+> tayl manbasi OSM**; 👤 **mahalla qamrovi qisman bo'lishi OK** (E17).
+> Qurildi: `.env.example` da OSM qiymatlari; compose `web` xizmati
+> (nginx, `deploy/nginx.conf` — statik `web/` + `/api/` proksi,
+> `WEB_PORT=8080`); `scripts/deploy.sh` (env + ADR-08 patch + build/up
+> `jobs` profili bilan + health check) va `scripts/bootstrap_samarkand.sh`
+> (region add → survey/stage/promote ADR-07 bilan → activate).
+> Parity/health/integrations/jobs/arch testlari yashil (135), compose va
+> bash sintaksis toza. **Endi odam serverda:** `bash scripts/deploy.sh` →
+> `bash scripts/bootstrap_samarkand.sh`; shundan keyin veb-xarita
+> `http://<server>:8080/` da — brauzer tekshiruvini MCP orqali qilish
+> uchun Claude'ga Chrome kengaytmasi + server URL kerak.
+
+> ✅ **102-run: paketning TO'RTINCHI hujjat bo'limi kodda — BRD §13
+> biznes qoidalari.** Yangi: `app/release/business_rules.py` va
+> `tests/test_business_rules_contract.py` (**41 test**); indeksga
+> ulandi (`registry.business_rules` UZ+RU; `total=15`, `flagged=11`,
+> `undeclared=0`). 15 `BRL-*` qoidasi; `Form` (ЕСЛИ/kategorik) hujjat
+> matnidan qayta sanaladi; `Delivered` va sonlar §8 reyestridan import.
+> 🔴 **Asosiy topilma:** `BRL-03` «до высокого, но не предельного
+> значения» — kod esa rasmiy qatlamga `AUTHORITATIVE_CONFIDENCE = 100`
+> qo'yadi, aynan taqiqlangan chegara; «конфликт источников» bayrog'i
+> umuman yo'q (👤).
+> 🔴 **Ikkinchisi — yagona MAHSULOT defekti:** `stats_rows_started_between`
+> `Outage.layer` ni na tanlaydi, na filtrlaydi — rasmiy hodisa jamoaviy
+> metrikalarga qo'shiladi, `BRL-08` «не суммируются в одной метрике»
+> buziladi; `05` §7.2 `layer` ni eslatmaydi — 👤 qaysi tomon haq.
+> 🔴 **Uchinchisi:** 4 kategorik hukmdan (`BRL-06`, `-08`, `-11`, `-14`)
+> **0 tasi** to'liq qurilgan; 15 dan 11 qoida buzilgan; `BRL-04` =
+> `BR-014` TTL egizagi (sinf testda qulflangan).
+> **Yashil:** butun to'plam **3059 passed, 1 skipped** (101: 3018 —
+> aynan +41); `-m requires_db` **231 passed** — ⚠️ faqat `pg_ctl start`
+> bilan **bitta chaqiruvda**: alohida chaqiruvda server o'lib qoladi va
+> o'nlab **yolg'on** yiqilish beradi (retsept `102_*.md` §4);
+> `alembic` 0001→0010 toza;
+> `ruff` toza. **12 mutatsiya, hammasi ushlandi** (birinchi o'tishda
+> `BRL-14` ning «bo'sh bajarilgan» belgisi qochib qoldi →
+> `VACUOUS_MARKER` + `vacuously_honored` qo'shildi, 41-test).
+> ⚠️ **Muhit (103-run o'qisin):** `/tmp` **bo'sh edi** (yangi
+> sandbox) — micromamba+py311+PG noldan qurildi, 100-run retsepti
+> o'zgarishsiz ishladi. Ikki tuzoq, ikkalasi ham vaqt yedi:
+> (1) muhitni `nohup ... &` bilan **fonga qo'yish ishlamaydi** —
+> `/tmp/pgdata102` `nobody:nogroup` bo'lib qoldi va yaroqsiz; oddiy
+> `timeout 170 micromamba create` ishlaydi. (2) `pg_ctl start` va
+> uni ishlatadigan har bir buyruq **bitta bash chaqiruvida** bo'lishi
+> shart (server chaqiruv oxirida o'ladi) — aks holda «`database
+> "sveta" does not exist`» bilan o'nlab **yolg'on** yiqilish chiqadi;
+> 102-run buni uch marta yedi. Ishlagani: `pg_ctl start` → `sleep 4`
+> → `alembic upgrade head` → `pytest -m requires_db`, hammasi bitta
+> chaqiruvda; port har safar yangi (55515–55517), data
+> `/tmp/pgdata102b` da qoladi. To'plam DB siz 4 partiyada, DB bilan
+> 2 partiyada yuradi. `/sessions` 100% to'la (👤
+> `cleanup-sessions.ps1`).
+>
+> ---
+>
 > ✅ **101-run: paketning UCHINCHI hujjati kodda — BRD §8 biznes
 > talablari.** Yangi: `app/release/business_requirements.py` va
 > `tests/test_business_requirements_contract.py` (**45 test**);
@@ -1830,6 +1886,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 102 | [brl_reyestri](102_brl_reyestri_0b9be9fe.md) | `local_0b9be9fe` | **BRL — BRD §13 biznes qoidalari kodda** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_rules.py` (15 `BRL-*` qoidasi; `Form` shakli — ЕСЛИ/kategorik — hujjat matnidan qayta sanaladi; `Delivered` va TTL/`out_of_coverage` `business_requirements` dan import, nusxa emas) va `tests/test_business_rules_contract.py` — **40 test**, to'rt manba: hujjat (15 qator, «3 ч»/«< 30» parse, «не предельного» yakori), kod (`AUTHORITATIVE_CONFIDENCE`, `stats_rows_started_between` va `freeze_weight` `ast` bilan, sxema ustunlari), §8 egizaklari (`BRL-04`=`BR-014`, `BRL-12`=`BR-013`, `BRL-14`=`BR-022` — sinf aynan), indeks + i18n; 5 guard-test. Indeksga ulandi (`registry.business_rules` UZ+RU; `total=15`, `flagged=11`, `undeclared=0`). 🔴 **`BRL-03`:** qator «до высокого, но не предельного» deydi — kod esa rasmiy qatlamga `AUTHORITATIVE_CONFIDENCE = 100` qo'yadi, aynan taqiqlangan chegara (`06` §2.2 son bermaydi, 👤); «конфликт источников» bayrog'i repoda umuman yo'q. 🔴 **`BRL-08` — yagona MAHSULOT defekti:** klasterlash qatlamni benuqson ajratadi (`find_candidate`), lekin `stats_rows_started_between` `layer` ni na tanlaydi, na filtrlaydi — rasmiy hodisa jamoaviy `outages_total`/mediana/P90 ga qo'shiladi; `05` §7.2 `layer` ni eslatmaydi (👤 qaysi tomon haq). 🔴 15 dan 11 qoida buzilgan; 4 kategorik hukmdan **0** to'liq (`categorical_built` bo'sh — sababi modulda). ⚠️ 101-run literal-qulfi (`out_of_coverage`) yangi modulni ushladi — literal `DOC_STATUS` havolasiga almashtirildi. ⚠️ Mutatsiya sivi o'tkazilmadi: odam mount ustida parallel tahrir qilayotgani kuzatildi — guard-testlar o'rnini bosadi. **Yashil:** 3058 passed / 1 skipped (aynan +40), `requires_db` 231 (⚠️ faqat TOZA bazada — batchlardan keyin 8 yolg'on yiqilish, DROP/CREATE retsepti `102_*.md` §4), alembic toza, ruff toza. 👤 **Uchta yangi savol** (`AUTHORITATIVE_CONFIDENCE=100`; `05` §7.2 `layer` kesimi; `BRL-05`/`BRL-09` spec-gate) |
 | 101 | [brd8_reyestri](101_brd8_reyestri_cebb4a4b.md) | `local_cebb4a4b` | **BRD — paketning uchinchi hujjati kodda: BRD §8 biznes talablari** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_requirements.py` (28 `BR-*` qatori yetti guruhda, `Delivered` × `Warrant`; warrant «Источник» katagidan hisoblanadi, sakkiz qorovul) va `tests/test_business_requirements_contract.py` — **45 test**, to'rt manba: hujjat (bo'limlar, qatorlar, legenda, manba kataklari — aynan), fayl tizimi (yetti uy hujjatning yo'qligi, `03_` prefiks to'qnashuvi), kod (TTL, jitter 60≠50, `Role` enumi, `out_of_coverage` yo'qligi, obuna sxemasi, snapshot import grafi) va boshqa reyestrlar (`functional_requirements`, `user_stories`, `nfr_appendix`, `risks` ↔ BRD §16, `security`, `ux_requirements`); indeksga ulandi (`total=28`, `flagged=17`). 🔴 **20 High dan 11 tasi `BUILT` emas** — hujjatning o'z legendasida ishga tushirish 11 marta bloklangan. 🔴 **17 qator asosi yo'q hujjatlarda** — meros sinfi 10→13 (`13_Risk_Register.md`, `21_Critical_Review.md`, `svetanet-use-cases.md`). 🔴 **TTL ziddiyati:** BRD «3 ч» ↔ `05` «120 daq» (kod `05` tomonida, 👤). ⚠️ Bitta kutilgan drift (literal-qulf skaneri) — literal `fr.H3_FIXED` ga almashtirildi. **Yashil:** 3018 passed / 1 skipped (aynan +45), `requires_db` 231, alembic toza, ruff toza, 12 mutatsiya ushlandi. ⚠️ `Read` mount keshi eski `EpicProgress.md` ni ko'rsatdi — jurnal tepasini bash bilan tekshirish qoidasi §1 da. 👤 **Uchta yangi savol** (TTL; meros hujjatlar; `BR-013`/`OQ-5` darvoza) |
 | 100 | [faza0_reja_reyestri](100_faza0_reja_reyestri_750993d1.md) | `local_750993d1` | **PH0 — paketning ikkinchi hujjati kodda: `02` Faza 0 validatsiya rejasi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/phase0_plan.py` (8 gipoteza `Gate` × `Result` × `Posture` bilan, 7 metod, go/no-go matritsasi, PH0-EXIT-1…9, 10 risk, 5 skoup qatori, Ilova D) va `tests/test_phase0_plan_contract.py` — **54 test**, to'rt manba: hujjat (tasnif §2 mermaid **o'qlaridan**, H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, §7 yig'indi, sanalarning uch nusxasi), kod (`DEFAULT_LANGUAGE="uz"`, `confirm.min_users=3`, `on_location`, migratsiyalar), boshqa reyestrlar (`roadmap` `P0-*` to'liq qamrov, `risks`, `nfr_appendix` REMARKS to'plami aynan teng) va fayl tizimi; indeksga ulandi (`registry.phase0_plan` UZ+RU; `total=45`, `flagged=22`). 🔴 **Asosiy topilma — `PH0-OS-01` ↔ repo:** reja «kod yozish taqiqlanadi» (BRD §22), repo esa butun mahsulot, `04` qurishni buyuradi — hujjatlararo ziddiyat birinchi marta qayd etildi (`scope_tensions`, `accurate=False`, 👤). 🔴 **O'lchov erkin emas:** 8 gipotezadan 6 tasiga mahsulot allaqachon javob tanlagan (H-1/H-2/H-3/H-5/H-7 tasdiq tomonga, H-6 rad tomonga — nuqta-kirish qurilgan); chinakam ochiq faqat H-4 (E18) va H-8 (yuridik); `PH0-R-08` ning o'zi shu sinf. 🔴 **RACI: 10 qatordan 6 tasi konventsiyani buzadi** — bitta qatorda `A` ikkita, M-1…M-5 da umuman yo'q (👤). ⚠️ Uchta eski tripwire kutilganidek yiqildi va 82-run naqshi bilan kengaytirildi (istisno + reyestrning o'z hukmi: `untested == hypotheses` — natija qayd etilgan kuni yana yiqiladi). **Yashil:** butun to'plam (DB bilan) **2973 passed, 1 skipped** (aynan +54), `requires_db` 231, alembic 0001→0010, ruff toza, **12 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp` bo'sh edi — hammasi noldan qurildi (`initdb -D /tmp/pgdata100`, port 55500; retsept `100_*.md` §8). Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (OS-01 ziddiyati; RACI `A` ustuni; pre-registration muddati 2026-09-01) |
 | 99 | [nfr_ilova](99_nfr_ilova_44d60fa3.md) | `local_44d60fa3` | **NFR — `01` §15 (NFR deltasi) + §31 (Appendix) reyestri; `01` ning bog'lanmagan bo'limi qolmadi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/nfr_appendix.py` (yetti `NFR-S-*` qatori `Delivered` × `Enforcement` × `Baseline` bilan; §31 ning uch reyestri: o'n meros hujjati `local_homonym` bilan, olti zamechanie `can_bite` bilan, o'n standart guvohlari bilan) va `tests/test_nfr_appendix_contract.py` — **49 test**, to'rt mustaqil manba (hujjat, fayl tizimi, kod, boshqa kontraktlar); indeksga ulandi (`registry.nfr_appendix` UZ+RU; `total=33`, `flagged=23`). 🔴 **Asosiy topilma — §31 «yo'q hujjat» sinfining ildiz reyestri:** o'nta meros hujjatidan **noli** repoda (86/87/98-runlar bittadan ko'rgan sinf endi ro'yxat bo'ylab); **olti prefiks to'qnashuvi** (`01_`–`06_` har biri boshqa hujjat bilan band) katalogdan **hisoblanadi**, e'lon qilinmaydi. 🔴 `C-05`/`C-06`/`C-10` ning kodda izi yo'q; `C-10` paketda ham faqat §31 qatorida va tishlay olmaydi (ML sirti yo'q). O'n standartdan guvohi borlari uchta (WCAG, OpenAPI 3.1, C4); OWASP ASVS §20 da ishora qilinadi, kodda nomi yo'q. 🔴 `NFR-S-07` ning mazmuni `04_NFR.md` da (yo'q hujjat), `NFR-S-03` («500 тыс.») o'lchab bo'lmaydi. §15 ning to'rt qatori to'liq: `S-01` E19 (sintetik ikkinchi mintaqa), `S-02` `0008` (migratsiya docstringi aynan `NFR-S-02` ni nomlaydi) + indeks pariteti + API qorovuli, `S-05` = §8 `F-3`, `S-06` i18n. Nusxalar: `S-05` ↔ §8/§16/§17, `S-02` ↔ `05` §7.2, `S-06` ↔ `CLAUDE.md`/`04` §6. **Yashil:** 2688 passed / 232 skipped (aynan +49), `requires_db` 231, alembic 0001→0010, ruff toza, **11 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp/pgdata98` boshqa foydalanuvchiniki → `initdb -D /tmp/pgdata99`, port 55499; retsept `99_*.md` §8. Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (meros hujjatlari qo'shiladimi; OWASP ASVS darajasi; `NFR-S-03` load-test) |

@@ -226,6 +226,7 @@
   "registry.acceptance": "Критерии приёмки региона",
   "registry.phase0_plan": "План валидации Фазы 0",
   "registry.business_requirements": "Бизнес-требования (BRD)",
+  "registry.business_rules": "Бизнес-правила (BRD §13)",
   "registry.plan": "План релизов",
   "registry.roadmap": "Дорожная карта продукта (Phase 0)",
   "registry.risks": "Риски и допущения",

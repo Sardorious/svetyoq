@@ -94,6 +94,7 @@ from app.notifications import channels as channels_mod
 from app.obs import monitoring as monitoring_mod
 from app.release import acceptance as acceptance_mod
 from app.release import business_requirements as business_mod
+from app.release import business_rules as brl_mod
 from app.release import dependencies as dependencies_mod
 from app.release import functional_requirements as functional_mod
 from app.release import measures as measures_mod
@@ -596,6 +597,31 @@ def _probe_business_requirements(_doc: str | None = None) -> Probe:
     )
 
 
+def _probe_business_rules(_doc: str | None = None) -> Probe:
+    """BRD §13 — 15 ta `BRL-*` qoidasi (102-run).
+
+    `total` — jadval qatorlari. `flagged` — yozilganidek
+    bajarilmaydiganlar; ular ichida rasmiy qatlam haqidagi ikkala
+    qator ham bor (`OFFICIAL_PAIR`): `BRL-03` ishonchni o'zi taqiqlagan
+    chegara qiymatiga qo'yadi, `BRL-08` esa statistika agregatida
+    qatlamni yo'qotadi.
+
+    `undeclared` — 0, `business_requirements` bilan bir sabab: §13
+    xatti-harakat sathida gapiradi va qurilgan-nomlanmagan xulqni
+    boshqa reyestrlar allaqachon sanaydi.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_rules_contract` ikki tomonlama qulflaydi.
+    """
+    report = brl_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.rules),
+        flagged=len(report.broken),
+        undeclared=0,
+    )
+
+
 def _probe_user_stories(_doc: str | None = None) -> Probe:
     """`01` §9/§10 — to'qqizta band, uchta o'q.
 
@@ -787,6 +813,14 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.SELF_CONTAINED,
         endpoint=None,
         probe=_probe_business_requirements,
+    ),
+    Registry(
+        code="business_rules",
+        spec=brl_mod.SPEC,
+        module="app.release.business_rules",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_rules,
     ),
     Registry(
         code="risks",

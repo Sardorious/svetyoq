@@ -83,5 +83,20 @@ services:
         condition: service_completed_successfully
     profiles: ["bot"]
 
+  # Veb-xarita (E9) — statik `web/` + API proksi bitta domenda.
+  # `web/README.md`: CORS yoqilmagan, sahifa va API bir domendan berilishi
+  # kerak — nginx `/api/` ni `api:8000` ga uzatadi. Buildsiz: `web/`
+  # to'g'ridan-to'g'ri mount qilinadi (o'qish uchun).
+  web:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   pgdata:

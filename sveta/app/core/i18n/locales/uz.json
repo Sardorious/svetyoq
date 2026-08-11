@@ -226,6 +226,7 @@
   "registry.acceptance": "Mintaqani qabul qilish mezonlari",
   "registry.phase0_plan": "Faza 0 validatsiya rejasi",
   "registry.business_requirements": "Biznes talablari (BRD)",
+  "registry.business_rules": "Biznes qoidalari (BRD §13)",
   "registry.plan": "Reliz rejasi",
   "registry.roadmap": "Mahsulot yo'l xaritasi (Faza 0)",
   "registry.risks": "Risklar va допущение lar",

@@ -18,19 +18,26 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 * **Spetsifikatsiya qatlami:** `05` va `06` — to'liq bog'langan (§3);
   `01` — barcha bo'limlari reyestrlarda (`app/release/`, `app/core/`);
   `02` (Faza 0 rejasi) — bog'langan (`app/release/phase0_plan.py`);
-  `BRD_Samarkand.md` §8 (biznes talablari, 28 `BR-*` qatori) —
-  bog'langan (`app/release/business_requirements.py`). Keyingi
-  nomzod: BRD ning qolgan bo'limlari (§13 BRL, §20–§23).
-* **Yashil holat:** 140 test fayli; butun to'plam (DB bilan) **3018
-  passed, 1 skipped**; `-m requires_db` **231 passed**; `alembic`
-  0001→0010 toza; `ruff` toza.
+  `BRD_Samarkand.md` §8 (28 `BR-*`) — bog'langan
+  (`app/release/business_requirements.py`); BRD §13 (15 `BRL-*`
+  qoidasi) — bog'langan (`app/release/business_rules.py`; 11 tasi
+  buzilgan, `BRL-08` — statistika agregatida **mahsulot defekti**).
+  Keyingi nomzod: BRD ning qolgan bo'limlari (§14–§19, §20–§23).
+* **Yashil holat:** 141 test fayli; butun to'plam (DB bilan) **3059
+  passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
+  start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
+  o'ladi); `alembic` 0001→0010 toza; `ruff` toza.
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
-  (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami.
-* **Kutilayotgan asosiy odam ishlari:** brauzer tekshiruvi (360 px,
-  `MAP_TILE_URL` bo'sh, til almashtirish); Telegram token (E3);
-  mahalla poligonlari (E17); rasmiy manba kelishuvi (E18); ADR-08
-  tayl manbasi (E9); `cleanup-sessions.ps1`.
+  (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
+  **ADR-08 hal — tayl manbasi OSM** (`.env.example`, pilot uchun);
+  **mahalla qamrovi qisman bo'lishi mumkin** (OSM to'liq emas, E17
+  qisman boshlanadi).
+* **Kutilayotgan asosiy odam ishlari:** serverda `scripts/deploy.sh` +
+  `scripts/bootstrap_samarkand.sh` yurgizish (E9/E19); brauzer
+  tekshiruvi (360 px, til almashtirish — MCP orqali ham mumkin,
+  server URL kerak); Telegram token (E3); mahalla poligonlari (E17);
+  rasmiy manba kelishuvi (E18); `cleanup-sessions.ps1`.
 
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
@@ -49,7 +56,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | — |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | — |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | ADR-08 (tayl manbasi); Dark Mode (`prefers-color-scheme`); `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/nginx.conf`, `scripts/deploy.sh`, `0004` | ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | E10, E11 |
@@ -85,6 +92,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | NFR — `01` §15 (NFR deltasi) + §31 (Appendix: meros hujjatlari, zamechanielar, standartlar) | 🔄 | `app/release/nfr_appendix.py` |
 | PH0 — `02` Faza 0 validatsiya rejasi (gipotezalar, metodlar, go/no-go, RACI) | 🔄 | `app/release/phase0_plan.py` |
 | BRD — BRD §8 biznes talablari (28 `BR-*` ↔ qurilgan mahsulot; 20 High dan 11 tasi `BUILT` emas; 17 qator asosi yo'q hujjatlarda, sinf 10→13) | 🔄 | `app/release/business_requirements.py` |
+| BRL — BRD §13 biznes qoidalari (15 `BRL-*` ↔ xulq-atvor; 11 tasi buzilgan; rasmiy qatlam `confidence=100` — taqiqlangan chegara; `stats_rows_started_between` `layer` ni ko'rmaydi — yagona mahsulot defekti; 4 kategorik hukmdan 0 tasi to'liq) | 🔄 | `app/release/business_rules.py` |
 | UX-2 — `01` §11–§14 (User Flow, Business Process, UX/UI talablari); §11 graf sifatida o'qiladi, `flow_completes = False` | 🔄 | `app/release/ux_requirements.py`, `tests/test_ux_requirements_contract.py` |
 | WEB — `web/` xulq-atvor qatlami (DOM + CSS kaskadi + JS chaqiruv grafi); matn qatlami ko'rmaydigan defekt sinfini tuzilma qatlami ushlaydi | 🔄 | `web/`; qorovul — `tests/test_ux_requirements_contract.py` |
 
@@ -92,10 +100,13 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **140 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam (DB bilan) **3018 passed, 1 skipped**; `-m requires_db`
-**231 passed**; `alembic upgrade head` 0001→0010 toza; `ruff check`
-toza. Sandboxda PostGIS — §6 retsepti.
+Jami **141 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
+to'plam (DB bilan) **3059 passed, 1 skipped**; `-m requires_db`
+**231 passed** — ⚠️ `pg_ctl start`, `alembic upgrade head` va
+`pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
+chaqiruv oxirida o'ladi va o'nlab yolg'on yiqilish chiqadi;
+`alembic upgrade head` 0001→0010 toza; `ruff check` toza. Sandboxda
+PostGIS — §6 retsepti.
 
 | Epic | Test fayllari |
 |---|---|
@@ -126,6 +137,7 @@ toza. Sandboxda PostGIS — §6 retsepti.
 | NFR | `test_nfr_appendix_contract` — **49 test**: hujjat + fayl tizimi + kod + boshqa kontraktlar; `Delivered` × `Enforcement` × `Baseline` |
 | PH0 | `test_phase0_plan_contract` — **54 test**: hujjat (H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, sanalar mosligi), kod guvohlari, boshqa reyestrlar, fayl tizimi |
 | BRD | `test_business_requirements_contract` — **45 test**: hujjat (yetti kichik bo'lim, 28 qator, legenda, «Источник» kataklari), fayl tizimi (yetti yo'q hujjat), kod (TTL, jitter, rol, xato kodi, sxema), boshqa reyestrlar; qorovullar alohida |
+| BRL | `test_business_rules_contract` — **41 test**: hujjat (15 qator, shakl ЕСЛИ/kategorik matndan qayta sanaladi, sonlar «3 ч»/«30» parse), kod (`AUTHORITATIVE_CONFIDENCE`, `stats_rows_started_between` `ast` bilan, sxema ustunlari), §8 egizaklari, indeks; qorovullar alohida |
 | LEX | `test_glossary_contract` |
 | SUC | `test_success_metrics_contract` |
 | SCOPE | `test_scope_contract` |
@@ -199,7 +211,6 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh), ANL (`01` §21 ning **ikkita** dashboardi) |
 | Rasmiy manba (H-4) kelishuvi | E18 |
 | Yopiq yig'ish bosqichi | E10 → E11 → E12 → E20 |
-| ADR-08 — xarita tayl manbasi | E9 |
 | `DIGEST_CHAT_IDS` | E8-b |
 | Ikkinchi mintaqani haqiqiy import qilish | E19 |
 | G-4 ning qamrov chegarasi `N` (Faza 0) va «hudud ulushi» ning o'lchovi | REL (G-4) |
@@ -242,6 +253,9 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 | `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+| `AUTHORITATIVE_CONFIDENCE = 100` — `BRL-03` «не предельного» deydi, `06` §2.2 son bermaydi: 100 pasaytiriladimi yoki BRD tahrirlanadimi; «конфликт источников» bayrog'i alohida ishmi | BRL, E5b, E8 |
+| `stats_rows_started_between` `layer` ni ko'rmaydi — rasmiy hodisa jamoaviy metrikaga qo'shiladi (`BRL-08` defekti); `05` §7.2 ga `layer` kesimi yoziladimi | BRL, E14, `05` §7.2 |
+| `BRL-05` (shaxsiy otmetka modeli) va `BRL-09` («30» chegarasi) so'zma-so'z qurilmaydi — BRD tahriri yoki `06` §9 ga yangi kalitlar | BRL, E5b, E14 |
 
 ---
 
