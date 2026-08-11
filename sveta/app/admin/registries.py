@@ -93,10 +93,12 @@ from app.integrations import registry as integrations_mod
 from app.notifications import channels as channels_mod
 from app.obs import monitoring as monitoring_mod
 from app.release import acceptance as acceptance_mod
+from app.release import business_requirements as business_mod
 from app.release import dependencies as dependencies_mod
 from app.release import functional_requirements as functional_mod
 from app.release import measures as measures_mod
 from app.release import nfr_appendix as nfr_appendix_mod
+from app.release import phase0_plan as phase0_mod
 from app.release import plan as plan_mod
 from app.release import risks as risks_mod
 from app.release import roadmap as roadmap_mod
@@ -523,6 +525,77 @@ def _probe_nfr_appendix(_doc: str | None = None) -> Probe:
     )
 
 
+def _probe_phase0_plan(_doc: str | None = None) -> Probe:
+    """`02` — Faza 0 validatsiya rejasi (100-run).
+
+    Birinchi reyestr `01` dan **tashqarida**: paketning ikkinchi
+    hujjati. `total` — sakkiz gipoteza, yetti metod, to'qqiz chiqish
+    mezoni, o'n risk, besh skoup qatori va Ilova D ning olti meros
+    zamechaniesi. §8.1 matritsasi sanalmaydi: uning qatorlari alohida
+    artefakt emas, gipotezalarning kombinatsiyasi.
+
+    `flagged` besh sababni birlashtiradi: mahsulot oldindan hal qilib
+    qo'ygan gipotezalar (oltitasi — beshta tasdiq tomonga, `H-6` rad
+    tomonga), belgilanmagan chiqish mezonlari (to'qqizalasi — o'lchov
+    oynasi ochilmagan), kritik risklar (`PH0-R-06`, `PH0-R-08`),
+    repo bilan ziddiyatdagi skoup qatori (`PH0-OS-01`) va Faza 0
+    yopishga urinmaydigan meros zamechanielari (to'rttasi).
+
+    `undeclared` — 0: hujjat reja, sirt emas; rejadan tashqarida
+    qurilgan narsa boshqa reyestrlarning savoli.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_phase0_plan_contract` ikki tomonlama qulflaydi.
+    """
+    report = phase0_mod.evaluate()
+    flagged = (
+        len(report.prejudged)
+        + len(report.unchecked_exits)
+        + len(report.critical_risks)
+        + len(report.scope_tensions)
+        + len(report.unclosed_remarks)
+    )
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.hypotheses)
+        + len(report.methods)
+        + len(report.exit_criteria)
+        + len(report.risks)
+        + len(report.out_of_scope)
+        + len(phase0_mod.INHERITED_REMARK_CODES),
+        flagged=flagged,
+        undeclared=0,
+    )
+
+
+def _probe_business_requirements(_doc: str | None = None) -> Probe:
+    """BRD §8 — 28 ta `BR-*` qatori (101-run).
+
+    Paketning uchinchi hujjati indeksda. `total` — jadval qatorlari.
+    `flagged` — `BUILT` bo'lmaganlar: hujjatning o'z legendasida High
+    «блокирует запуск», va ularning o'n bittasi shu to'plamda.
+
+    `undeclared` — 0, lekin sababi `phase0_plan` dagidan boshqa: BRD
+    biznes sathida gapiradi va qurilgan-nomlanmagan sirtlarni allaqachon
+    `functional_requirements.UNNAMED` bilan `scope` sanaydi — bir
+    narsani ikki reyestrda ikki marta e'lon qilish hisobni buzadi.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_requirements_contract` ikki tomonlama qulflaydi.
+    """
+    report = business_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.requirements),
+        flagged=sum(
+            1
+            for r in report.requirements
+            if r.delivered not in business_mod.DELIVERED_KEPT
+        ),
+        undeclared=0,
+    )
+
+
 def _probe_user_stories(_doc: str | None = None) -> Probe:
     """`01` §9/§10 — to'qqizta band, uchta o'q.
 
@@ -698,6 +771,22 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.SELF_CONTAINED,
         endpoint=None,
         probe=_probe_roadmap,
+    ),
+    Registry(
+        code="phase0_plan",
+        spec=phase0_mod.SPEC,
+        module="app.release.phase0_plan",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_phase0_plan,
+    ),
+    Registry(
+        code="business_requirements",
+        spec=business_mod.SPEC,
+        module="app.release.business_requirements",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_requirements,
     ),
     Registry(
         code="risks",

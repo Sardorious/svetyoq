@@ -628,17 +628,42 @@ def test_phase0_results_have_no_home_in_the_repository() -> None:
     tripwire ko'rinishida: `app/` da Faza 0 natijalarini saqlaydigan
     simvol paydo bo'lgan kuni bu test yiqiladi va o'shanda bandlar
     `SCHEDULED` bo'lishdan to'xtaydi.
+
+    ⚠️ **100-run: istisno paydo bo'ldi, da'vo esa kuchaydi** (82-run
+    naqshi). `02` ning o'z reyestri (`app/release/phase0_plan.py`)
+    **rejani** saqlaydi, natijani emas — va buni o'zi aytishi shart:
+    quyida sakkizala gipotezaning `UNTESTED` ligi va to'qqizala chiqish
+    mezonining ☐ ligi reyestrning o'z hukmidan talab qilinadi. Natija
+    birinchi marta qayd etilgan kuni o'sha ikki assert yiqiladi va
+    bandlar `SCHEDULED` maqomini yo'qotadi. Yopiq nom ro'yxati faqat
+    reja reyestri va uning indeks ulanishini qamraydi.
     """
+    from app.release import phase0_plan
+
     report = risks.evaluate()
     assert report.unauditable_count >= 1
     assert report.unauditable_entries, "hech bo'lmasa bitta qator butunlay odam ishida"
 
+    plan = phase0_plan.evaluate()
+    assert plan.untested == plan.hypotheses, "Faza 0 natijasi qayd etilibdi"
+    assert plan.unchecked_exits == plan.exit_criteria
+
+    #: Reja reyestrining o'z nomlari va indeksdagi ulanishi — yopiq.
+    plan_registry_names = {
+        "phase0_plan",
+        "phase0_mod",
+        "_probe_phase0_plan",
+        "Phase0Report",
+        "Phase0PlanError",
+    }
     suspicious = {
         name
         for name in _names_used(APP_DIR)
         if name.lower().startswith(("phase0", "p0_")) or name.lower().endswith("_p0")
     }
-    assert suspicious == set(), f"Faza 0 natijasi uchun joy paydo bo'ldi: {suspicious}"
+    assert suspicious <= plan_registry_names, (
+        f"Faza 0 natijasi uchun joy paydo bo'ldi: {suspicious - plan_registry_names}"
+    )
 
 
 # --------------------------------------------------------------------------

@@ -38,7 +38,19 @@ TESTS_DIR = Path(__file__).resolve().parent
 PRD = ROOT / "01_PRD_Samarkand.md"
 
 #: O'zini topmasin: reyestr ham, bu test ham §31 nomlarini nusxa qiladi.
-EXCLUDED = {"nfr_appendix.py", "test_nfr_appendix_contract.py"}
+#: 100-run ikkitasini qo'shdi: `02` ning reyestri (`phase0_plan`) Ilova D
+#: orqali aynan shu zamechanie ro'yxatini nusxa qiladi — u guvoh emas,
+#: to'rtinchi nusxa (73/75/76/82/97/98-runlardagi kutilgan drift sinfi).
+EXCLUDED = {
+    "nfr_appendix.py",
+    "test_nfr_appendix_contract.py",
+    "phase0_plan.py",
+    "test_phase0_plan_contract.py",
+    # 101-run: BRD §8 reyestri `C-10` ni «Источник» katagining nusxasi
+    # sifatida saqlaydi — guvoh emas (77/82/85/100-runlar qoidasi).
+    "business_requirements.py",
+    "test_business_requirements_contract.py",
+}
 
 
 def _section(text: str, number: int) -> str:

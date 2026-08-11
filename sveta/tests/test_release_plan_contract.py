@@ -558,10 +558,20 @@ def test_nothing_in_the_repo_records_a_phase_zero_result() -> None:
     natijaning saqlanishi emas, **hujjatning iqtibosi** — va u
     yuqoridagi `roadmap.evaluate().recorded == ()` talabi bilan
     qoplangan.
-    """
-    assert roadmap.evaluate().recorded == ()
 
-    quoting = {"risks.py", "plan.py", "roadmap.py", "scope.py"}
+    ⚠️ **100-run: beshinchi istisno, o'sha sabab bilan.** `02` ning
+    reyestri (`app/release/phase0_plan.py`) §12 trassirovkasining PRD
+    ustunini **aynan** saqlaydi (`P0-1`…`P0-7`) — bu ham iqtibos,
+    natija emas. Uning o'z hukmi quyida talab qilinadi: sakkizala
+    gipoteza `UNTESTED` bo'lishi shart.
+    """
+    from app.release import phase0_plan
+
+    assert roadmap.evaluate().recorded == ()
+    plan = phase0_plan.evaluate()
+    assert plan.untested == plan.hypotheses, "Faza 0 natijasi qayd etilibdi"
+
+    quoting = {"risks.py", "plan.py", "roadmap.py", "scope.py", "phase0_plan.py"}
     hits: list[str] = []
     for path in sorted(APP_DIR.rglob("*.py")):
         if "__pycache__" in path.parts or path.name in quoting:

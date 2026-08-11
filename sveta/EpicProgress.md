@@ -8,8 +8,48 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-11, 99-run.
+**Oxirgi yangilanish:** 2026-08-11, 100-run.
 
+> ✅ **100-run — paketning IKKINCHI hujjati kodda: `02` Faza 0
+> validatsiya rejasi.** Yangi: `app/release/phase0_plan.py` va
+> `tests/test_phase0_plan_contract.py` (**54 test**). Sakkiz gipoteza
+> (tasnif §2 mermaid o'qlaridan hisoblanadi), yetti metod (H↔M
+> bijeksiyasi hujjatning ikkala tomonidan), go/no-go matritsasi
+> (GO ≡ to'xtatuvchi to'plam), PH0-EXIT-1…9 (hammasi ☐), o'n risk,
+> besh skoup qatori, Ilova D (↔ `nfr_appendix.REMARKS` aynan teng).
+> Indeks: `registry.phase0_plan` UZ+RU; `total=45`, `flagged=22`.
+> **Yashil:** butun to'plam (DB bilan) **2973 passed, 1 skipped**
+> (aynan +54); `-m requires_db` **231 passed** (`/tmp/pgdata100`,
+> port 55500); `alembic` 0001→0010 toza; `ruff` toza; **12 mutatsiya,
+> hammasi ushlandi**.
+> 🔴 **Asosiy topilma — `PH0-OS-01` ↔ repo:** reja «kod yozish
+> taqiqlanadi» deydi (BRD §22), repo esa butun mahsulot; `04` qurishni
+> buyuradi — ikki hujjat qarama-qarshi (👤). Reyestr buni
+> `scope_tensions` da qayd etadi, `accurate=False`.
+> 🔴 **Ikkinchisi — o'lchov erkin emas:** 8 gipotezadan 6 tasi mahsulot
+> tomonidan oldindan hal qilingan (H-1/H-2/H-3/H-5/H-7 tasdiq tomonga:
+> `DEFAULT_LANGUAGE="uz"`, `confirm.min_users=3`; H-6 rad tomonga:
+> nuqta-kirish, manzil qidiruvi yo'q). `PH0-R-08` (tasdiqlash
+> tarafkashligi) aynan shu sinfni o'zining eng jiddiy riski deydi.
+> 🔴 **Uchinchisi — RACI:** o'n qatordan oltitasi konventsiyani buzadi
+> (bitta qatorda `A` ikkita, M-1…M-5 da umuman yo'q) — 👤.
+> ⚠️ Uchta eski tripwire kutilganidek yiqildi va 82-run naqshi bilan
+> kengaytirildi: `nfr_appendix` ning zamechanie skaneri (yopiq ro'yxatga
+> ikki fayl), `risks`/`plan` ning «Faza 0 natijasiga joy yo'q»
+> testlari (istisno + reyestrning o'z hukmi: `untested == hypotheses` —
+> natija birinchi qayd etilgan kuni yiqiladi).
+> ⚠️ Muhit: `/sessions` yana 100% to'la (👤 `cleanup-sessions.ps1`);
+> `/tmp` bo'sh edi — micromamba+PG **noldan** qurildi (§6 retsepti
+> ishladi): `initdb -D /tmp/pgdata100`, port **55500**.
+> **Keyingi qadam — 101-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
+> (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) nomzod:
+> `BRD_Samarkand.md` ning bog'lanmagan bo'limlari (§8 BR-*, §13 BRL-*
+> 73-run qisman ko'rgan) yoki 👤 savollar javobi; (3) 👤 uchta yangi
+> savol (`PROGRESS.md`): OS-01 ziddiyati, RACI `A` ustuni,
+> pre-registration muddati (2026-09-01).
+>
+> ---
+>
 > ✅ **99-run — `01` §15 + §31 birinchi marta kodda va `01` ning
 > bog'lanmagan bo'limi QOLMADI.** Yangi: `app/release/nfr_appendix.py`
 > va `tests/test_nfr_appendix_contract.py` (**49 test**). Indeksga
@@ -35,6 +75,9 @@ faqat havola qilinadi.
 > `S-04` infratuzilma (`C-09`), `S-07` ning mazmuni yo'q `04_NFR.md` da.
 > ⚠️ Muhit: `/sessions` **hali ham 100% to'la** (👤
 > `cleanup-sessions.ps1`); `TMPDIR=/tmp` majburiy.
+> ✅ **Run oxirida odam CI ning yashilligini tasdiqladi** — 94–99-run
+> o'zgarishlari (jumladan `web/` tuzatishlari va ikkala yangi reyestr)
+> CI da ham tasdiqlangan. CI brauzer o'rnini bosmaydi.
 > **Keyingi qadam — 100-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
 > (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) `01` yopildi —
 > yangi nomzodlar: `02` (Faza 0 rejasi) yoki BRD ning bog'lanmagan
@@ -365,6 +408,7 @@ faqat havola qilinadi.
 | FR — funksional talablar deltasi (`01` §8 ↔ qurilgan mahsulot) | 🔄 | `app/release/functional_requirements.py` | **87** |
 | UX — foydalanuvchi hikoyalari (`01` §9 «User Stories» + §10 «Use Cases») | 🔄 | `app/release/user_stories.py`, `tests/test_user_stories_contract.py` (to'rt qatlam, `ast` bilan, **69 test** — ✅ **97-run: birinchi yurgizishda 69/69**) | 88, 89, 90, 91, 92, 93, **97** |
 | NFR — `01` §15 (NFR deltasi) + §31 (Appendix: meros hujjatlari, zamechanielar, standartlar) | 🔄 | `app/release/nfr_appendix.py` | **99** |
+| PH0 — `02` Faza 0 validatsiya rejasi (gipotezalar, metodlar, go/no-go, RACI) | 🔄 | `app/release/phase0_plan.py` | **100** |
 | UX-2 — `01` §11–§14 (User Flow, Business Process, **UX Requirements**, UI Requirements) | 🔄 | `app/release/ux_requirements.py`, `tests/test_ux_requirements_contract.py` (**70 test**, uch o'quvchi) — §11 **graf** sifatida o'qiladi: `reachable` 12 tugun, `flow_completes` `False`, o'lik yoylar `H→I, I→J, L→N, M→N, N→O`; `Surface` × `Witness` × `Voice`; `accurate` `False` | (92 — topildi; 94 — sirt tahlili; 95/96 — `web/` xulq-atvori; **98 — reyestr + kontrakt**) |
 | WEB — `web/` ning xulq-atvori: **qatlam bor** (98-run). 96-run oxirida uni to'rtta test faqat **matn** sifatida o'qirdi va oltita defektning birortasini ham ko'rmasdi; 98-run DOM + CSS kaskadi + JS chaqiruv grafi qatlamini yozdi va **nazorat sinovi** bilan o'lchadi: uchta tarixiy defekt qaytarilganda eski to'rtta test **113 passed** beradi | 🔄 **matndan chuqurroq** | `web/app.js`, `web/index.html`, `web/style.css`; qorovul — `tests/test_ux_requirements_contract.py` | (94 — CSS defekti; 95 — to'rtta JS/HTML defekti; 96 — banner til drifti + `A11Y-06`; **98 — tuzilma qatlami**) |
 
@@ -372,8 +416,8 @@ faqat havola qilinadi.
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **138 ta `tests/test_*.py` fayli** (99-run bittasini qo'shdi:
-`test_nfr_appendix_contract.py`). ✅ **99-run — to'liq yashil yurish,
+Jami **139 ta `tests/test_*.py` fayli** (100-run bittasini qo'shdi:
+`test_phase0_plan_contract.py`). ✅ **99-run — to'liq yashil yurish,
 bazasi bilan:** butun to'plam **2688 passed, 232 skipped** (to'rtta
 partiyada), `-m requires_db` **231 passed**, `alembic upgrade head`
 0001→0010 toza, `ruff check` toza, **11 mutatsiya ushlandi**.
@@ -443,6 +487,7 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | UX-2 | `test_ux_requirements_contract` — **70 test** (98-run). To'rtta bo'lim, uchta o'q va **uchta o'quvchi**: DOM (`html.parser`, `VOID_TAGS` qo'lda yopiladi), CSS kaskadi (`@media` + `>` va ajdod kombinatorlari, o'ngdan chapga, oxirgi g'olib) va JS chaqiruv grafi (muvozanatli qavs bilan olingan funksiya tanasi va `map.addLayer({…})` obyektlari). §11 **graf** sifatida o'qiladi: yoylar hujjatdan parse qilinadi, `NodeKind` diagrammadan **hisoblanadi** (kirish/chiqish darajasi + qavs shakli), `reachable` mustaqil qayta hisoblanadi. **Izoh dalil emas** — uchala o'quvchi izohni o'chiradi va bu o'lchanadi ham. O'quvchilarning **o'zlari** beshta test bilan tekshiriladi (`UNSUPPORTED_SELECTORS` yopiq ro'yxat; «oxirgi g'olib» soddalashtirilishining haqliligi). 🟢 **Nazorat sinovi:** uchta tarixiy `web/` defekti qaytarilganda eski to'rtta matn testi **113 passed** beradi, bu fayl esa uchalasini ham ushlaydi |
 | UX | `test_user_stories_contract` — **69 test** (93-run sanadi: §1—11, §2—16, §3—10, §4—9, §5–§7—12, §8—11; 92-run «70» degan edi va o'sha son «70 nom, 70 noyob» dalilining tayanchi edi — dalil kuchida qoladi, `ruff F811` ham qoplaydi). ⚠️ **93-run mexanizm qatlamini auditdan o'tkazdi va to'siq topmadi:** hujjat yo'li va `_section` regexi, `pytest` konfiguratsiyasi (`addopts`/`filterwarnings` yo'q), `conftest` hooki, import zanjiri, **40 ta `us.<nom>`** va **21 ta `report.<xossa>`** bijeksiyasi (modul 89-run da, testlar 90/91-run da yozilgan — `AttributeError` sinfi yopildi), dataklass kalitlari (7/9/3), `ruff` qoidalari (`UP038` yoqilmagan), 89-run ning fayllararo bog'lanishlari. 92-run butunligicha qo'lda hisobladi va defekt topmadi (23 ta `modul:simvol` bind yechildi, 17 ta fayl bind mavjud, `reply.py`/`handlers.py` `ast` hukmlariga mos, `01` §9/§10 bijeksiyasi `8 = 9−1`); ⚠️ `pytest` uni **hali ham ko'rmagan**. (90-run: uch o'qning taqsimoti, beshta hisoblanadigan xossa, `__post_init__` ning beshala qorovuli, `01` §9/§10 dan parse qilingan bijeksiya, `binds` ↔ fayl tizimi; 91-run §8: 33 ta bind daraxtga yechiladi, `render`/`decide` ning `situation` maydonlari aynan taqqoslanadi, `Verdict` qiymatlari, `errors.py` sinf atributlari, `register` chaqiruvlari sanaladi; fayl hali **yurgizilmagan**) |
 | NFR | `test_nfr_appendix_contract` — **49 test** (99-run). To'rt manba: hujjat (§15 qatorlari va epigrafi, §31 ning to'rt bandi — hujjat ro'yxati, zamechanielar, standartlar, tadqiqotlar), **fayl tizimi** (o'n meros nomining yo'qligi va olti prefiks to'qnashuvi katalogdan **hisoblanadi**), kod (bindlar import bilan yechiladi, `0008` `NFR-S-02` ni nomlashi, `security.py` `C-09` ni ko'tarishi, guvohsiz standart nomlarining `app/` da yo'qligi ham o'lchanadi) va boshqa kontrakt testlari (indeks pariteti, API sirtining `region` qorovuli, i18n ning CLAUDE.md havolasi). `Delivered` × `Enforcement` × `Baseline`; beshta ichki qorovul alohida testlanadi |
+| PH0 | `test_phase0_plan_contract` — **54 test** (100-run). To'rt manba: hujjat (sanalarning uch nusxasi, §2 o'qlari, §3 kartochkalari, H↔M bijeksiyasi ikkala tomondan, §6 RACI `A` sanog'i, §7 yig'indi, §8 matritsa/mezonlar, §10, §12, Ilova D), kod (`DEFAULT_LANGUAGE`, `confirm.min_users`, `on_location`, migratsiyalar katalogi), boshqa reyestrlar (`roadmap` `P0-*` to'liq qamrovi, `risks` `RS-*`/`AS-S*`, `nfr_appendix` `NFR-S-04`/`C-09`/REMARKS to'plami) va fayl tizimi. Olti qorovul alohida testlanadi; modul lotincha «geokoder» yozuvi bilan skanerlardan ataylab chetda |
 | LEX | `test_glossary_contract` (83-run: o'nta atama, `Anchor` × `Fidelity`, belgi ikki tomonlama) |
 | SUC | `test_success_metrics_contract` (84-run: o'n ikkita KPI, `Reading` × `Target`, `NPS` tuzog'i nom bilan qulflangan) |
 | SCOPE | `test_scope_contract` (85-run: o'n sakkiz qator, `Presence` × `Fence` × `Warrant`, `PG-S*` gorizonti `01` §3 dan parse qilinadi, manba tanlovi AST bilan o'lchanadi) |
