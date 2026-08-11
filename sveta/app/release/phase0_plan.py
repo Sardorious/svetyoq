@@ -44,15 +44,15 @@ emas** degani: rad etish chiqsa, mahsulot qayta quriladi, o'lchovchi
 esa buni biladi — `PH0-R-08` (tasdiqlash tarafkashligi) aynan shu
 holatni o'zining eng jiddiy riski deb yozadi.
 
-## Uchinchi topilma: RACI ning o'nta qatoridan oltitasi konventsiyani buzadi
+## Uchinchi topilma: RACI ning o'nta qatoridan oltitasi konventsiyani buzardi — TUZATILDI
 
-RACI qoidasi — har qatorda **aynan bitta** `A`. Hujjatda esa:
-«Chegaralarni tasdiqlash» da `A` **ikkita** (PO va Homiy — ikki
-javobgar amalda nol javobgar), `M-1`–`M-5` qatorlarida esa `A` **umuman
-yo'q** — beshta o'lchov ishining javobgari belgilanmagan. Toza qatorlar
-faqat to'rttasi (M-6, M-7, hisobot, qaror). Bu jadval o'zi
-`PH0-R-06`/`PH0-R-08` ni ko'taradigan hujjatda — 👤 savol: `A`
-ustunini kim to'ldiradi?
+RACI qoidasi — har qatorda **aynan bitta** `A`. 100-run topganda:
+«Chegaralarni tasdiqlash» da `A` **ikkita** (PO va Homiy), `M-1`–`M-5`
+qatorlarida esa **umuman yo'q** edi. 👤 Qaror (2026-08-11, shu
+sessiyada): chegaralarni tasdiqlashda yakka `A` — Homiy (§0.2 buni
+baribir talab qiladi), o'lchov ishlariga `A` — BA/Tadqiqotchi
+(`A/R`). Hujjat §6 da «Tahrir» belgisi bilan tuzatildi; test endi har
+qatorda aynan bitta javobgar borligini jadvaldan qayta sanaydi.
 
 ## Kalendar — repo o'lchay olmaydigan qatlam
 
@@ -61,6 +61,11 @@ Chegaralar 2026-09-01 gacha tasdiqlanishi shart (§0.2), o'lchov oynasi
 tekshirilmaydi — sanalar odamning taqvimida. Modul ularni **e'lon**
 sifatida saqlaydi, test esa hujjat ichidagi uchta nusxaning (sarlavha,
 §2 diagrammasi, §5.1 gantt) bir-biriga mosligini o'lchaydi.
+
+👤 Qaror (2026-08-11): kalendar **amalda yuritilmaydi** — u majburiyat
+emas, hujjat qatlami bo'lib qoladi; loyiha qurilishni davom ettiradi,
+o'lchovlar imkon bo'lganda o'tkaziladi. `WINDOW_OPENED = False`
+shu sababdan ham turaveradi; sanalar hujjatda tahrirlanmadi.
 
 ## Nima qilinmadi va nima uchun
 
@@ -116,20 +121,15 @@ ASYMMETRIC_HYPOTHESES = ("H-1", "H-7")
 #: §6: to'ldirilmagan rol — «Faza 0 ning eng zaif nuqtasi».
 VACANT_ROLE = "Mahalla koordinatori"
 
-#: §6 RACI jadvalida `A` **ikki marta** uchraydigan qatorlar. RACI
-#: konventsiyasida javobgar yagona bo'ladi; ro'yxat yopiq va test uni
-#: jadvalning o'zidan qayta hisoblaydi.
-DUAL_ACCOUNTABLE_ROWS = ("Chegaralarni tasdiqlash",)
+#: §6 RACI jadvalida `A` **ikki marta** uchraydigan qatorlar. 100-run
+#: bittasini topgan edi («Chegaralarni tasdiqlash»); 👤 qaror bilan
+#: hujjat tuzatildi — endi bo'sh. Test jadvaldan qayta sanaydi.
+DUAL_ACCOUNTABLE_ROWS: tuple[str, ...] = ()
 
-#: §6 RACI jadvalida `A` **umuman yo'q** qatorlar — beshta o'lchov
-#: ishining javobgari belgilanmagan. Ro'yxat yopiq, test qayta sanaydi.
-UNACCOUNTABLE_ROWS = (
-    "M-1 Desk research",
-    "M-2 Kanal monitoringi",
-    "M-3 Intervyular",
-    "M-4 So'rov",
-    "M-5 Geoaudit",
-)
+#: §6 RACI jadvalida `A` **umuman yo'q** qatorlar. 100-run beshtasini
+#: topgan edi (`M-1`–`M-5`); 👤 qaror bilan BA/Tadqiqotchi `A/R`
+#: bo'ldi — endi bo'sh. Test jadvaldan qayta sanaydi.
+UNACCOUNTABLE_ROWS: tuple[str, ...] = ()
 
 #: §10: hujjat o'zi «eng jiddiy» deb ataydigan risk.
 MOST_SERIOUS_RISK = "PH0-R-08"

@@ -356,20 +356,27 @@ def _raci_rows(doc_text: str) -> dict[str, list[str]]:
 
 def test_raci_accountability_computed(doc_text: str) -> None:
     """RACI konventsiyasi (har qatorda aynan bitta `A`) jadvaldan
-    qayta sanaladi: bitta qatorda `A` ikkita, beshtasida umuman yo'q.
+    qayta sanaladi — `A/R` birlashgan katak ham javobgar hisoblanadi.
 
-    O'nta qatordan faqat to'rttasi toza — bu jadval o'zi `PH0-R-06` va
-    `PH0-R-08` ni ko'taradigan hujjatda. 👤 savol reyestrda.
+    100-run jadvalning o'nta qatoridan oltitasi buzuq ekanini topgan
+    edi (bitta qatorda ikki `A`, `M-1`–`M-5` da umuman yo'q); 👤 qaror
+    (2026-08-11) bilan hujjat tuzatildi va «Tahrir» belgisi qoldirildi.
+    Ikkala yopiq ro'yxat endi bo'sh — qaytish shu yerda ko'rinadi.
     """
     rows = _raci_rows(doc_text)
     assert len(rows) == 10
-    dual = tuple(name for name, cells in rows.items() if cells.count("A") > 1)
-    assert dual == pp.DUAL_ACCOUNTABLE_ROWS
-    missing = tuple(name for name, cells in rows.items() if cells.count("A") == 0)
-    assert missing == pp.UNACCOUNTABLE_ROWS
+
+    def accountable(cells: list[str]) -> int:
+        return sum(1 for c in cells if "A" in c.split("/"))
+
+    dual = tuple(name for name, cells in rows.items() if accountable(cells) > 1)
+    assert dual == pp.DUAL_ACCOUNTABLE_ROWS == ()
+    missing = tuple(name for name, cells in rows.items() if accountable(cells) == 0)
+    assert missing == pp.UNACCOUNTABLE_ROWS == ()
     for name, cells in rows.items():
-        if name not in dual and name not in missing:
-            assert cells.count("A") == 1, name
+        assert accountable(cells) == 1, name
+    sec = _section(doc_text, 6)
+    assert "**Tahrir (2026-08-11, 👤 qaror):**" in sec
 
 
 def test_vacant_role_and_its_risk(doc_text: str) -> None:

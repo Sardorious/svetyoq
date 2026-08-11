@@ -334,18 +334,26 @@ Bu qoida ataylab asimmetrik: **tasdiqlash oson, rad etish qiyin.** Sabab — not
 
 | Ish | Product Owner | BA / Tadqiqotchi | Geo-mutaxassis | Yurist | Mahalla koordinatori | Homiy |
 |---|---|---|---|---|---|---|
-| Chegaralarni tasdiqlash | A | R | C | C | I | **A** |
-| M-1 Desk research | I | **R** | C | — | — | I |
-| M-2 Kanal monitoringi | I | **R** | — | — | C | I |
-| M-3 Intervyular | C | **R** | — | — | **R** | I |
-| M-4 So'rov | C | **R** | — | — | **R** | I |
-| M-5 Geoaudit | I | C | **R** | — | C | I |
+| Chegaralarni tasdiqlash | R | R | C | C | I | **A** |
+| M-1 Desk research | I | **A/R** | C | — | — | I |
+| M-2 Kanal monitoringi | I | **A/R** | — | — | C | I |
+| M-3 Intervyular | C | **A/R** | — | — | **R** | I |
+| M-4 So'rov | C | **A/R** | — | — | **R** | I |
+| M-5 Geoaudit | I | **A** | **R** | — | C | I |
 | M-6 Pilot | **A** | R | C | — | **R** | I |
 | M-7 Yuridik | A | I | — | **R** | — | C |
 | Faza 0 hisoboti | **A** | R | C | C | I | C |
 | go / no-go qarori | R | I | I | I | I | **A** |
 
 `R` — bajaruvchi, `A` — javobgar, `C` — maslahatlashiladi, `I` — xabardor qilinadi.
+
+**Tahrir (2026-08-11, 👤 qaror):** `A` ustuni tuzatildi. Ilgari
+«Chegaralarni tasdiqlash» qatorida javobgar ikkita (PO va Homiy),
+`M-1`–`M-5` qatorlarida esa umuman yo'q edi — o'nta qatordan oltitasi
+RACI konventsiyasini buzardi (100-run topilmasi). Endi: chegaralarni
+tasdiqlashda yakka `A` — Homiy (§0.2 pre-registration buni baribir
+talab qiladi), o'lchov ishlarida (`M-1`–`M-5`) javobgar —
+BA/Tadqiqotchi (`A/R`; M-5 da bajaruvchi geo-mutaxassis bo'lib qoladi).
 
 **Bo'sh joy.** «Mahalla koordinatori» roli hozircha to'ldirilmagan. M-3, M-4 va M-6 ning sifati to'g'ridan-to'g'ri shu rolga bog'liq: mahalla aktiviga kirish bo'lmasa, rekrutlash tanlanmasi buziladi. **Bu Faza 0 ning eng zaif nuqtasi va u ish boshlanishidan oldin yopilishi kerak.**
 

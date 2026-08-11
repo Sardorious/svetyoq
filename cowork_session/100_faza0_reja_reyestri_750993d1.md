@@ -117,11 +117,26 @@ qator), `sveta/app/core/i18n/locales/{uz,ru}.json`
 Migratsiya yo'q, vaqtinchalik fayl yo'q, sir ko'chirilmadi,
 mahsulot kodi tegilmadi.
 
-## 7. 👤 Uchta yangi savol
+## 7. 👤 Uchta savol — HAMMASI YOPILDI (o'sha kuni, odam bilan jonli)
 
-`PROGRESS.md` «Ochiq savollar» da to'liq: (1) `PH0-OS-01` ↔ repo —
-qaysi hujjat haq; (2) RACI `A` ustuni (2A / 0A qatorlar); (3)
-pre-registration muddati 2026-09-01 — tasdiqlash boshlandimi.
+Run tugagach odam chatga qaytdi va uchala savolga javob berdi:
+
+1. **Moliyaviy tomon loyihani BLOKLAMAYDI** (umumiy qoida): BRD §22
+   taqig'i, `PH0-EXIT-8`, `C-04`, `RS-07` bloklamaydigan deb o'qiladi;
+   `04` haq, loyihani tugatish ustuvor. `CLAUDE.md` §2 ga, xotiraga va
+   `PROGRESS.md` ga yozildi; `phase0_plan` OS-01 izohiga qaror kiritildi
+   (ziddiyat hujjat darajasida qayd etilaveradi, `accurate=False`).
+2. **RACI — «Homiy + BA»:** chegaralarni tasdiqlashda yakka `A` Homiy,
+   `M-1`–`M-5` da BA/Tadqiqotchi `A/R` (M-5 da bajaruvchi
+   geo-mutaxassis qoladi). `02` §6 «Tahrir (2026-08-11, 👤 qaror)»
+   belgisi bilan tuzatildi; `DUAL_ACCOUNTABLE_ROWS` va
+   `UNACCOUNTABLE_ROWS` bo'shatildi; test endi har qatorda aynan bitta
+   javobgar borligini (`A/R` ni ham sanab) jadvaldan qayta hisoblaydi.
+3. **Faza 0 kalendari amalda yuritilmaydi** — majburiyat emas, hujjat
+   qatlami; sanalar tahrirlanmadi, `WINDOW_OPENED = False` turaveradi,
+   o'lchovlar imkon bo'lganda o'tkaziladi.
+
+Qarorlardan keyin: `test_phase0_plan_contract.py` 54/54, `ruff` toza.
 
 ## 8. Muhit retsepti (101-run o'qisin)
 

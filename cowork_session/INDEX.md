@@ -12,6 +12,46 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **101-run: paketning UCHINCHI hujjati kodda — BRD §8 biznes
+> talablari.** Yangi: `app/release/business_requirements.py` va
+> `tests/test_business_requirements_contract.py` (**45 test**);
+> indeksga ulandi (`registry.business_requirements` UZ+RU; `total=28`,
+> `flagged=17`, `undeclared=0`). 28 `BR-*` qatori yetti guruhda,
+> `Delivered` × `Warrant` (warrant «Источник» katagidan hisoblanadi).
+> **Yashil:** butun to'plam (DB bilan) **3018 passed, 1 skipped**
+> (100-run kesimida 2973 — aynan +45); `-m requires_db` **231
+> passed** (`initdb -D /tmp/pgdata101`, port **55501**); `alembic`
+> 0001→0010 toza; `ruff` toza; **12 mutatsiya, hammasi ushlandi**.
+> 🔴 **Asosiy topilma:** legendaning o'zi «High — блокирует запуск»
+> deydi va 20 High qatordan **11 tasi** `BUILT` emas
+> (`launch_blockers`, ikki tomonlama qulflangan).
+> 🔴 **Ikkinchisi:** 28 qatordan **17 tasining asosi repoda yo'q
+> hujjatda** — «Источник» yetti meros hujjatga yechiladi, sinf
+> 10 → **13** (yangi: `13_Risk_Register.md`, `21_Critical_Review.md`,
+> `svetanet-use-cases.md`).
+> 🔴 **Uchinchisi — TTL ziddiyati:** `BR-014`/`BRL-04` «3 ч» ↔ `05`
+> §4.4 «120 daq», kod `05` ga ergashadi — 👤 savol. Boshqa farqlar:
+> `BR-025` panjara ~50 m o'rniga jitter ≤60 m; `BR-023`
+> `regional_operator` umuman yo'q; `BR-005` saqlash o'rniga rad;
+> `BR-013` darvoza o'rniga dislaymer (`OQ-5`, 👤).
+> ⚠️ Bitta kutilgan drift: `functional_requirements` ning literal-qulf
+> skaneri yangi testni uchinchi to'siq deb sanadi — literal
+> `fr.H3_FIXED` ga almashtirildi, qulf ikkita faylda qoladi.
+> ⚠️ **Muhit (102-run o'qisin):** 100-run sandboxi tirik edi —
+> py311+PG tayyor, faqat `initdb -D /tmp/pgdata101` (port 55501)
+> kerak bo'ldi; retsept `101_*.md` §8. `/sessions` yana 100% to'la
+> (👤 `cleanup-sessions.ps1`).
+> ⚠️ **`Read` mount keshi eski nusxani berdi** (`EpicProgress.md`
+> 2016-qatorli deb ko'rindi, aslida 291) — run boshida jurnal
+> tepasini bash bilan ham tekshiring; tafsilot `101_*.md` §1.
+> **Keyingi qadam — 102-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
+> (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) nomzod: BRD
+> ning qolgan bo'limlari — §13 (BRL qoidalari), §20–§23 yoki §24;
+> (3) 👤 uchta yangi savol (`PROGRESS.md`: TTL 3 ч ↔ 120 daq; meros
+> hujjatlar 10→13; `BR-013`/`OQ-5` darvoza).
+>
+> ---
+>
 > ✅ **100-run: paketning IKKINCHI hujjati kodda — `02` Faza 0
 > validatsiya rejasi.** Yangi: `app/release/phase0_plan.py` va
 > `tests/test_phase0_plan_contract.py` (**54 test**); indeksga ulandi
@@ -45,11 +85,17 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > ishladi; `initdb -D /tmp/pgdata100`, port **55500**; `pg_ctl start`
 > va `pytest` **bitta** chaqiruvda; to'liq retsept `100_*.md` §8.
 > `/sessions` hali ham 100% to'la (👤 `cleanup-sessions.ps1`).
+> ✅ **Run tugagach odam uchala savolga javob berdi (jonli):**
+> (1) **moliyaviy tomon loyihani BLOKLAMAYDI** — BRD §22/`PH0-EXIT-8`/
+> `C-04`/`RS-07` bloklamaydigan deb o'qiladi, loyihani tugatish
+> ustuvor (`CLAUDE.md` §2 ga yozildi); (2) **RACI tuzatildi** —
+> «Homiy + BA»: `02` §6 «Tahrir» belgisi bilan, reyestr ro'yxatlari
+> bo'shatildi, test qayta sanaydi (54/54); (3) **Faza 0 kalendari
+> amalda yuritilmaydi** — hujjat qatlami, sanalar tahrirlanmadi.
 > **Keyingi qadam — 101-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
 > (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) nomzod:
-> `BRD_Samarkand.md` ning bog'lanmagan bo'limlari — `02` naqshi tayyor;
-> (3) 👤 uchta yangi savol (`PROGRESS.md`: OS-01 ziddiyati, RACI `A`
-> ustuni, pre-registration 2026-09-01).
+> `BRD_Samarkand.md` ning bog'lanmagan bo'limlari — `02` naqshi
+> tayyor; ochiq 👤 savol qolmadi.
 >
 > ---
 >
@@ -1784,6 +1830,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 101 | [brd8_reyestri](101_brd8_reyestri_cebb4a4b.md) | `local_cebb4a4b` | **BRD — paketning uchinchi hujjati kodda: BRD §8 biznes talablari** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_requirements.py` (28 `BR-*` qatori yetti guruhda, `Delivered` × `Warrant`; warrant «Источник» katagidan hisoblanadi, sakkiz qorovul) va `tests/test_business_requirements_contract.py` — **45 test**, to'rt manba: hujjat (bo'limlar, qatorlar, legenda, manba kataklari — aynan), fayl tizimi (yetti uy hujjatning yo'qligi, `03_` prefiks to'qnashuvi), kod (TTL, jitter 60≠50, `Role` enumi, `out_of_coverage` yo'qligi, obuna sxemasi, snapshot import grafi) va boshqa reyestrlar (`functional_requirements`, `user_stories`, `nfr_appendix`, `risks` ↔ BRD §16, `security`, `ux_requirements`); indeksga ulandi (`total=28`, `flagged=17`). 🔴 **20 High dan 11 tasi `BUILT` emas** — hujjatning o'z legendasida ishga tushirish 11 marta bloklangan. 🔴 **17 qator asosi yo'q hujjatlarda** — meros sinfi 10→13 (`13_Risk_Register.md`, `21_Critical_Review.md`, `svetanet-use-cases.md`). 🔴 **TTL ziddiyati:** BRD «3 ч» ↔ `05` «120 daq» (kod `05` tomonida, 👤). ⚠️ Bitta kutilgan drift (literal-qulf skaneri) — literal `fr.H3_FIXED` ga almashtirildi. **Yashil:** 3018 passed / 1 skipped (aynan +45), `requires_db` 231, alembic toza, ruff toza, 12 mutatsiya ushlandi. ⚠️ `Read` mount keshi eski `EpicProgress.md` ni ko'rsatdi — jurnal tepasini bash bilan tekshirish qoidasi §1 da. 👤 **Uchta yangi savol** (TTL; meros hujjatlar; `BR-013`/`OQ-5` darvoza) |
 | 100 | [faza0_reja_reyestri](100_faza0_reja_reyestri_750993d1.md) | `local_750993d1` | **PH0 — paketning ikkinchi hujjati kodda: `02` Faza 0 validatsiya rejasi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/phase0_plan.py` (8 gipoteza `Gate` × `Result` × `Posture` bilan, 7 metod, go/no-go matritsasi, PH0-EXIT-1…9, 10 risk, 5 skoup qatori, Ilova D) va `tests/test_phase0_plan_contract.py` — **54 test**, to'rt manba: hujjat (tasnif §2 mermaid **o'qlaridan**, H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, §7 yig'indi, sanalarning uch nusxasi), kod (`DEFAULT_LANGUAGE="uz"`, `confirm.min_users=3`, `on_location`, migratsiyalar), boshqa reyestrlar (`roadmap` `P0-*` to'liq qamrov, `risks`, `nfr_appendix` REMARKS to'plami aynan teng) va fayl tizimi; indeksga ulandi (`registry.phase0_plan` UZ+RU; `total=45`, `flagged=22`). 🔴 **Asosiy topilma — `PH0-OS-01` ↔ repo:** reja «kod yozish taqiqlanadi» (BRD §22), repo esa butun mahsulot, `04` qurishni buyuradi — hujjatlararo ziddiyat birinchi marta qayd etildi (`scope_tensions`, `accurate=False`, 👤). 🔴 **O'lchov erkin emas:** 8 gipotezadan 6 tasiga mahsulot allaqachon javob tanlagan (H-1/H-2/H-3/H-5/H-7 tasdiq tomonga, H-6 rad tomonga — nuqta-kirish qurilgan); chinakam ochiq faqat H-4 (E18) va H-8 (yuridik); `PH0-R-08` ning o'zi shu sinf. 🔴 **RACI: 10 qatordan 6 tasi konventsiyani buzadi** — bitta qatorda `A` ikkita, M-1…M-5 da umuman yo'q (👤). ⚠️ Uchta eski tripwire kutilganidek yiqildi va 82-run naqshi bilan kengaytirildi (istisno + reyestrning o'z hukmi: `untested == hypotheses` — natija qayd etilgan kuni yana yiqiladi). **Yashil:** butun to'plam (DB bilan) **2973 passed, 1 skipped** (aynan +54), `requires_db` 231, alembic 0001→0010, ruff toza, **12 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp` bo'sh edi — hammasi noldan qurildi (`initdb -D /tmp/pgdata100`, port 55500; retsept `100_*.md` §8). Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (OS-01 ziddiyati; RACI `A` ustuni; pre-registration muddati 2026-09-01) |
 | 99 | [nfr_ilova](99_nfr_ilova_44d60fa3.md) | `local_44d60fa3` | **NFR — `01` §15 (NFR deltasi) + §31 (Appendix) reyestri; `01` ning bog'lanmagan bo'limi qolmadi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/nfr_appendix.py` (yetti `NFR-S-*` qatori `Delivered` × `Enforcement` × `Baseline` bilan; §31 ning uch reyestri: o'n meros hujjati `local_homonym` bilan, olti zamechanie `can_bite` bilan, o'n standart guvohlari bilan) va `tests/test_nfr_appendix_contract.py` — **49 test**, to'rt mustaqil manba (hujjat, fayl tizimi, kod, boshqa kontraktlar); indeksga ulandi (`registry.nfr_appendix` UZ+RU; `total=33`, `flagged=23`). 🔴 **Asosiy topilma — §31 «yo'q hujjat» sinfining ildiz reyestri:** o'nta meros hujjatidan **noli** repoda (86/87/98-runlar bittadan ko'rgan sinf endi ro'yxat bo'ylab); **olti prefiks to'qnashuvi** (`01_`–`06_` har biri boshqa hujjat bilan band) katalogdan **hisoblanadi**, e'lon qilinmaydi. 🔴 `C-05`/`C-06`/`C-10` ning kodda izi yo'q; `C-10` paketda ham faqat §31 qatorida va tishlay olmaydi (ML sirti yo'q). O'n standartdan guvohi borlari uchta (WCAG, OpenAPI 3.1, C4); OWASP ASVS §20 da ishora qilinadi, kodda nomi yo'q. 🔴 `NFR-S-07` ning mazmuni `04_NFR.md` da (yo'q hujjat), `NFR-S-03` («500 тыс.») o'lchab bo'lmaydi. §15 ning to'rt qatori to'liq: `S-01` E19 (sintetik ikkinchi mintaqa), `S-02` `0008` (migratsiya docstringi aynan `NFR-S-02` ni nomlaydi) + indeks pariteti + API qorovuli, `S-05` = §8 `F-3`, `S-06` i18n. Nusxalar: `S-05` ↔ §8/§16/§17, `S-02` ↔ `05` §7.2, `S-06` ↔ `CLAUDE.md`/`04` §6. **Yashil:** 2688 passed / 232 skipped (aynan +49), `requires_db` 231, alembic 0001→0010, ruff toza, **11 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp/pgdata98` boshqa foydalanuvchiniki → `initdb -D /tmp/pgdata99`, port 55499; retsept `99_*.md` §8. Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (meros hujjatlari qo'shiladimi; OWASP ASVS darajasi; `NFR-S-03` load-test) |
 | 98 | [ux2_reyestri](98_ux2_reyestri_5e33b5d1.md) | `local_5e33b5d1` | **UX-2 — `01` §11–§14 reyestri va `web/` ning tuzilma qatlami** | ✅ **Reyestr yozildi va hammasi yashil.** 97-run to'siqni olgani uchun 93-run ning sharti bajarilgan edi, ya'ni bugun yozish **mumkin** edi. Yangi `app/release/ux_requirements.py` (§11 ning 15 tuguni + 18 yoyi, §12 ning ikkita diagrammasi, §13 ning 7, §14 ning 6 qatori) va `tests/test_ux_requirements_contract.py` — **70 test**; indeksga ulandi (`registry.ux_requirements` UZ+RU, `_probe_ux_requirements`: `total=28`, `flagged=18`, `undeclared=1`). **Uchta o'q:** `Surface` (talab qurilganmi), `Witness` (repo uni **qanday chuqurlikda** ko'radi), `Voice` (paketda necha marta aytilgan). Ikkinchisi shu bo'limlar uchun **maxsus** kiritildi: 94/95/96-runlar `web/` da oltita defekt topdi va birortasi ham matn qatlamida ko'rinmasdi. **§11 graf sifatida o'qiladi** — bu reyestrning boshqa bo'limlardan olinmaydigan yagona o'lchovi: `reachable` `A` dan `NODE_PASSABLE` tugunlar bo'ylab hisoblanadi (12 tugun), yetib bo'lmaydigan uchtasi `I`, `N`, `O`, o'lik yoylar `H→I, I→J, L→N, M→N, N→O`, `flow_completes = False`. `NodeKind` esa **diagrammadan hisoblanadi** (kirish darajasi nol → `TRIGGER`, chiqish nol → `TERMINAL`, `{…}` → `DECISION`), ya'ni yorliqni almashtirib qo'yish mumkin emas. 🔴 **Eng qimmat topilma — `N` «Предложить подписку» `REACHABLE`:** obunaning butun mexanizmi tayyor va **oqimga ulanmagan** — verdiktdan keyin `on_location` faqat `main_menu` va `app.disclaimer` ni yuboradi, ya'ni diagramma bo'ylab yurgan foydalanuvchi obunani hech qachon ko'rmaydi. Buni hech narsa ko'rsatmaydi: `test_bot_subscription_keyboard` yashil, chunki u **tugmani** tekshiradi, tugmaning **taklif qilinishini** emas. `I` «Ввод адреса» esa `ABSENT` — geokoder uch joyda (`GEOCODER_*`, `GEOCODER_UNAVAILABLE`, `geocoding_failure_alert`) va chaqiruvchi kod yo'q, ya'ni `H→I→J` tarmog'i butunlay o'lik. 🔴 **Ikkinchisi — meros manbai paketda yo'q:** §13/§14/`UX-S7` yigirma ikkita talabni (`UX-01…UX-12`, `A11Y-01…A11Y-10`) va **butun dizayn-tizimni** yo'q hujjatdan meros qiladi; yigirma ikkitadan **bittasi** (`A11Y-06`) mazmuni bilan aytilgan va aynan u 96-run da bajarildi, qolgan yigirma bittasi sakkizta hujjatning birortasida ham uchramaydi (86/87-runlar bilan bir xil shakl) → `Surface.UNGROUNDED`. 🟢 **Nazorat sinovi — bugungi asosiy dalil:** uchta **haqiqiy tarixiy defekt** qaytarildi (M7 = 94-run ning `.legend > h2` si, M9 = 95-run ning `autocomplete="off"` i, M10 = 96-run ning `circle-*` konstantasi) va `web/` ni o'qiydigan to'rtta **mavjud** test ga qarshi yurgizildi — **113 passed, 113 passed, 113 passed**, ya'ni matn qatlami uchalasini ham ko'rmaydi; yangi qatlam esa uchalasini ham ushlaydi. Uch o'quvchi: DOM (`html.parser`, `VOID_TAGS` qo'lda yopiladi — aks holda `<input id="heat">` dan keyingi hamma narsa uning ichida ko'rinardi), CSS kaskadi (`@media` + `>` va ajdod kombinatorlari, o'ngdan chapga, oxirgi g'olib) va JS chaqiruv grafi (muvozanatli qavs; `_js_layers()` shundan kelib chiqdi — `outage-halo` ni indeks bo'yicha kesish **yaramaydi**, u bilan `outage-point` orasida umumiy `STATUS_COLOR`/`SOLID` ifodalari yashaydi va ular `"layer"` so'zini ishlatadi). **Izoh dalil emas** — uchala o'quvchi ham izohni o'chiradi va test buni o'lchaydi ham (`applyStrings` ning izohi `refreshHeat` ni nomlaydi, kodi chaqirmaydi). O'quvchilarning **o'zlari** ham tekshiriladi (5 test): `UNSUPPORTED_SELECTORS` yopiq ro'yxat, «oxirgi g'olib» soddalashtirilishining haqli ekani o'lchanadi. **Kutilgan drift bajarildi — sakkizinchi reyestr:** yangi modul `GEOCODER_*` ni izohida nomlaydi, shuning uchun `test_geocoder_has_no_call_site` va `test_the_product_still_does_not_geocode` ning yopiq ro'yxatlari **oldindan** yangilandi (73/75/76/82/97 izidan); qo'shilish sababi qolgan yettitasidan farq qiladi — ular «geokoder yo'q» faktini qayd etadi, bu esa faktning **oqibatini**. **12 mutatsiya, hammasi ushlandi** (M3 — `N` ni `REALIZED` qilish — 7 test yiqitdi), har mutatsiyadan keyin `md5sum -c` bilan tiklanish tasdiqlandi. ⚠️ **Birinchi yurgizishda 66/70** va to'rtala yiqilish ham reyestrning **o'z dalillarida** edi, mahsulotda emas: `find_mahalla_id` → `pipeline`, `latlng_to_cell` → `cell_of`, `confirmation:decide` → `evaluate`, `map:config` → `get_map_config`, `geocoding_failure_alert` → `REQUIREMENT_BY_CODE` — ya'ni `test_every_python_symbol_bind_exists_in_the_module` darhol ish berdi. **Yashil:** butun to'plam **2639 passed, 232 skipped** (97-run: 2569 — aynan +70), `-m requires_db` **231 passed**, `alembic upgrade head` 0001→0010 toza, `ruff` toza. Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi, sir ko'chirilmadi. ⚠️ Muhit: `/sessions` **100% to'la**, `/tmp/pgdata` boshqa sandbox foydalanuvchisiga tegishli → `initdb -D /tmp/pgdata98`; `--die-with-parent` sababli `pg_ctl start` va `pytest` **bitta** chaqiruvda (retsept `98_*.md` §8). 👤 **Sakkizta yangi savol** (eng muhimi: obuna taklifi oqimga ulanadimi; `#lang` ning `aria-label="uz / ru"` i — sahifadagi yagona qattiq kodlangan matn, `04` §6); 👤 **brauzer tekshiruvi hali kutmoqda**; `cleanup-sessions.ps1` |

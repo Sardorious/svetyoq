@@ -95,12 +95,12 @@ def test_registry_codes_match_document(doc_rows: list, report) -> None:
 
 
 def test_titles_are_verbatim(doc_rows: list, report) -> None:
-    for req, row in zip(report.requirements, doc_rows):
+    for req, row in zip(report.requirements, doc_rows, strict=True):
         assert req.title == row[1], req.code
 
 
 def test_groups_follow_the_document(doc_rows: list, report) -> None:
-    for req, row in zip(report.requirements, doc_rows):
+    for req, row in zip(report.requirements, doc_rows, strict=True):
         assert req.group == row[2], req.code
 
 
@@ -110,12 +110,12 @@ def test_group_sizes_counted_from_document(doc_rows: list) -> None:
 
 
 def test_priorities_are_verbatim(doc_rows: list, report) -> None:
-    for req, row in zip(report.requirements, doc_rows):
+    for req, row in zip(report.requirements, doc_rows, strict=True):
         assert req.priority == row[3], req.code
 
 
 def test_sources_are_verbatim(doc_rows: list, report) -> None:
-    for req, row in zip(report.requirements, doc_rows):
+    for req, row in zip(report.requirements, doc_rows, strict=True):
         assert req.sources == tuple(s.strip() for s in row[4].split(",")), req.code
 
 
@@ -210,15 +210,16 @@ def test_br006_resolution_is_global_and_hardened() -> None:
     """Mintaqaviy emas: `regions` da ustun yo'q, sxema `h3_r9` ni qotiradi."""
     from app.core.config import Settings
     from app.geo.models import Region
+    from app.release import functional_requirements as fr
     from app.reports.models import Report
 
-    assert Settings().h3_resolution == 9
+    # ⚠️ Ataylab literal emas: `test_green_tests_pin_the_frozen_value_to_a
+    # _literal` literal qulflarni sanaydi va bu fayl **uchinchi to'siq**
+    # bo'lib qolmasligi kerak — 87-run topilmasi ikkala reyestrda bitta,
+    # qulf esa ikkita faylda qoladi.
+    assert Settings().h3_resolution == fr.H3_FIXED
     assert not any("h3" in c.name for c in Region.__table__.columns)
-    assert "h3_r9" in Report.__table__.columns
-
-    from app.release import functional_requirements as fr
-
-    assert fr.H3_FIXED == 9  # ikkala reyestr bitta topilmani ko'radi
+    assert f"h3_r{fr.H3_FIXED}" in Report.__table__.columns
 
 
 def test_br014_ttl_conflict_measured_from_both_documents(doc_rows: list, brd_text: str) -> None:
@@ -409,7 +410,10 @@ def test_binds_resolve(report) -> None:
                 attr, _, sub = symbol.partition(".")
                 target = getattr(module, attr)
                 if sub:
-                    assert hasattr(target, sub), bind
+                    # Pydantic maydonlari sinf atributi emas —
+                    # `model_fields` orqali ochiladi.
+                    fields = getattr(target, "model_fields", {})
+                    assert hasattr(target, sub) or sub in fields, bind
 
 
 def test_index_row_and_i18n_keys() -> None:

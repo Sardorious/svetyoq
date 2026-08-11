@@ -507,7 +507,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
             "`05` qonun, ya'ni bugun kod emas, hujjatlar kelishmagan."
         ),
         binds=(
-            "app.clustering.status:decide",
+            "app.clustering.status:evaluate_status",
             "app.core.config:Settings.cluster_autoclose_after_min",
         ),
         gap="3 h (BRD) ≠ 120 min (`05` + kod).",
@@ -747,7 +747,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
             "o'zi shartli («при наличии») — mexanizm shartni kutmoqda."
         ),
         binds=(
-            "app.reports.sources:REGISTRY",
+            "app.reports.sources:SOURCES",
             "app.integrations.registry",
         ),
         gap="Parser va manba yo'q; qatlam bo'sh turibdi.",

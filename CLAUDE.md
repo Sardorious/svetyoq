@@ -31,8 +31,10 @@ Bu fayl har bir Cowork/Claude sessiyasi boshida o'qiladi.
 4. **Sirlarni ko'chirma.** Token, kalit, parol chatda uchrasa — arxivga
    `<TOKEN>` deb yoz. Haqiqiy qiymat faqat `sveta/.env` da.
 5. `sveta/PROGRESS.md` ni yangila (holat jadvali, epic belgisi, run jurnali).
-6. **`sveta/EpicProgress.md` ni ham yangila** — tegilgan epicning «Runlar»
-   ustuni, yangi test fayli, o'zgargan blok. U `PROGRESS.md` ning **hosilasi**:
+6. **`sveta/EpicProgress.md` ni ham yangila** — u **faqat xulosa**
+   (👤 qaror, 2026-08-11): tegilgan epic holati, yangi test fayli,
+   o'zgargan blok, «Xulosa» bo'limi. Run raqamlari va run bayonlari
+   unga yozilmaydi. U `PROGRESS.md` ning **hosilasi**:
    ziddiyat chiqsa `PROGRESS.md` haq. Qanday yangilash — o'sha faylning
    §5 bo'limida.
 
@@ -65,6 +67,11 @@ Ular `sveta-net-build` scheduled task ko'rsatmasida va
 - Stek: Python 3.11+, FastAPI, aiogram, SQLAlchemy 2.x + Alembic,
   PostgreSQL 16 + PostGIS, h3, pytest. Kafka/Redis/mikroservis YO'Q.
 - i18n boshidan; qattiq kodlangan foydalanuvchi matni — bloklovchi defekt.
+- **👤 Odam qarori (2026-08-11): moliyaviy tomon loyihani BLOKLAMAYDI.**
+  BRD/`02` dagi moliyaviy gate lar (`BRD §22` «byudjetgacha kod taqiqlanadi»,
+  `PH0-EXIT-8`, `C-04`, `RS-07`) bloklamaydigan deb o'qiladi — loyihani
+  tugatish ustuvor. Hujjatlar tahrirlanmaydi; reyestrlar ziddiyatni qayd
+  etaveradi, lekin ish shu sababdan to'xtatilmaydi.
 - `geom_exact` hech qanday API javobida chiqmaydi.
 - **Agent git commit va push QILMAYDI** — odam `push.ps1` orqali o'zi qiladi.
 
