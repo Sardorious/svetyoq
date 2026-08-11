@@ -472,6 +472,12 @@ def test_geocoder_has_no_call_site() -> None:
         # so'zi sifatida qayd etadi — chaqiruv emas, izoh, ya'ni oldingi
         # oltitasi bilan bir sinf.
         "app/release/user_stories.py",
+        # 98-run: `01` §11 ning `I` tuguni («Ввод адреса») — **sakkizinchi**
+        # reyestr va u ro'yxatga eng aniq sababni qo'shadi: qolgan
+        # yettitasi «geokoder yo'q» faktini qayd etadi, bu esa o'sha
+        # faktning **oqibatini** o'lchaydi — `H -- Нет --> I --> J`
+        # tarmog'i o'lik, ya'ni oqimning butun bir yo'li o'tilmaydi.
+        "app/release/ux_requirements.py",
     ]
 
 

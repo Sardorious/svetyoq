@@ -8,8 +8,92 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-11, 97-run.
+**Oxirgi yangilanish:** 2026-08-11, 99-run.
 
+> ✅ **99-run — `01` §15 + §31 birinchi marta kodda va `01` ning
+> bog'lanmagan bo'limi QOLMADI.** Yangi: `app/release/nfr_appendix.py`
+> va `tests/test_nfr_appendix_contract.py` (**49 test**). Indeksga
+> ulandi (`registry.nfr_appendix` UZ+RU; `total=33`, `flagged=23`).
+> **Yashil:** butun to'plam **2688 passed, 232 skipped** (98-run:
+> 2639 — aynan +49); `-m requires_db` **231 passed** (`/tmp/pgdata98`
+> boshqa foydalanuvchiniki → `initdb -D /tmp/pgdata99`, port 55499);
+> `alembic` 0001→0010 toza; `ruff` toza; **11 mutatsiya, hammasi
+> ushlandi.**
+> 🔴 **Asosiy topilma — §31 «yo'q hujjat» sinfining ildiz reyestri:**
+> meros ro'yxatidagi **o'nta** hujjatdan **noli** repoda; 86/87/98-runlar
+> bittadan ko'rgan sinf endi ro'yxat bo'ylab o'lchandi. Ustiga
+> **olti prefiks to'qnashuvi**: `01_`–`06_` ning har biri repoda
+> **boshqa** hujjat bilan band — havola bajarilgandek ko'rinadi.
+> 🔴 Olti meros zamechaniedan uchtasining (`C-05`/`C-06`/`C-10`) kodda
+> izi yo'q; `C-10` (ML metrikalari) paketda ham faqat §31 qatorida va
+> tishlay olmaydi — mahsulotda ML sirti yo'q. O'n standartdan kod
+> guvohi borlari **uchta** (WCAG, OpenAPI 3.1, C4); OWASP ASVS §20
+> ishora qilsa ham `security.py` da nomi yo'q.
+> §15 ning o'zi: 7 qatordan **4 tasi** to'liq (`S-01` E19, `S-02`
+> `0008`+ikki kontrakt, `S-05` versiyalash = §8 `F-3`, `S-06` i18n);
+> `S-03` o'lchab bo'lmaydi (`[BASELINE-TAS]`, yuklama asbobi yo'q),
+> `S-04` infratuzilma (`C-09`), `S-07` ning mazmuni yo'q `04_NFR.md` da.
+> ⚠️ Muhit: `/sessions` **hali ham 100% to'la** (👤
+> `cleanup-sessions.ps1`); `TMPDIR=/tmp` majburiy.
+> **Keyingi qadam — 100-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
+> (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) `01` yopildi —
+> yangi nomzodlar: `02` (Faza 0 rejasi) yoki BRD ning bog'lanmagan
+> qismlari; (3) 👤 uchta yangi savol (`PROGRESS.md`).
+>
+> ---
+>
+> ✅ **98-run — `01` §11–§14 reyestri YOZILDI va `web/` nihoyat
+> **tuzilma** sifatida o'qiladi.** To'qqiz run kutgan ikkinchi qadam
+> bajarildi (birinchisini 97-run oldi). Yangi ikkita fayl:
+> `app/release/ux_requirements.py` (§11 ning 15 tuguni + 18 yoyi, §12
+> ning ikkita diagrammasi, §13 ning 7 va §14 ning 6 qatori) va
+> `tests/test_ux_requirements_contract.py` — **70 test**. Indeksga
+> ulandi (`registry.ux_requirements` UZ+RU; `total=28`, `flagged=18`,
+> `undeclared=1`). Butun to'plam **2639 passed, 232 skipped** (97-run:
+> 2569 — aynan +70); `-m requires_db` **231 passed**;
+> `alembic upgrade head` 0001→0010 toza; `ruff` toza; **12 mutatsiya,
+> hammasi ushlandi**.
+> 🟢 **Bugungi asosiy dalil — nazorat sinovi.** Uchta **haqiqiy tarixiy
+> defekt** qaytarildi (M7 = 94-run ning `.legend > h2` si, M9 = 95-run
+> ning `autocomplete="off"` i, M10 = 96-run ning `circle-*`
+> konstantasi) va `web/` ni o'qiydigan **to'rtta mavjud test** ga
+> qarshi yurgizildi: **113 passed** — uch marta. Ya'ni matn qatlami
+> uchalasini ham **ko'rmaydi**, yangi tuzilma qatlami esa uchalasini ham
+> ushlaydi. 94/95/96-runlarning «regex bilan ushlanmasdi» degan bahosi
+> o'lchangan faktga aylandi. Uch o'quvchi: DOM (`html.parser`), CSS
+> kaskadi (`@media` + `>` va ajdod kombinatorlari, oxirgi g'olib) va JS
+> chaqiruv grafi (muvozanatli qavs). **Izoh dalil emas** — uchalasi
+> izohni o'chiradi; o'quvchilarning **o'zlari** ham beshta test bilan
+> tekshiriladi.
+> 🔴 **Eng qimmat topilma — `N` «Предложить подписку» `REACHABLE`:**
+> obunaning butun mexanizmi tayyor va **oqimga ulanmagan** —
+> verdiktdan keyin `on_location` faqat `main_menu` va `app.disclaimer`
+> ni yuboradi. `L→N`, `M→N`, `N→O` yoylari hech qachon o'tilmaydi,
+> `flow_completes = False`. Buni hech narsa ko'rsatmaydi:
+> `test_bot_subscription_keyboard` yashil, chunki u **tugmani**
+> tekshiradi, tugmaning **taklif qilinishini** emas. `I` «Ввод адреса»
+> esa `ABSENT` — `H→I→J` tarmog'i butunlay o'lik.
+> 🔴 **Ikkinchisi — meros manbai paketda yo'q:** §13/§14/`UX-S7`
+> yigirma ikkita talabni (`UX-01…UX-12`, `A11Y-01…A11Y-10`) va butun
+> dizayn-tizimni yo'q hujjatdan meros qiladi; **bittasi** (`A11Y-06`)
+> mazmuni bilan aytilgan va aynan u 96-run da bajarildi.
+> 🔴 **Kutilgan drift bajarildi — sakkizinchi reyestr:**
+> `test_geocoder_has_no_call_site` va
+> `test_the_product_still_does_not_geocode` ning yopiq ro'yxatlari
+> **oldindan** yangilandi (73/75/76/82/97 izidan).
+> ⚠️ Birinchi yurgizishda 66/70 va to'rtala yiqilish ham reyestrning
+> **o'z dalillarida** edi, mahsulotda emas (beshta bog'lam noto'g'ri
+> modulni ko'rsatardi). ⚠️ Muhit: `/sessions` **100% to'la**
+> (👤 `cleanup-sessions.ps1`), `/tmp/pgdata` boshqa sandbox
+> foydalanuvchisiga tegishli → `initdb -D /tmp/pgdata98`;
+> `--die-with-parent` sababli `pg_ctl start` va `pytest` **bitta**
+> chaqiruvda. Retsept `98_*.md` §8 da.
+> **Keyingi qadam — 99-run:** (1) 👤 brauzer tekshiruvi hali kutmoqda
+> (360 px, `MAP_TILE_URL` bo'sh, til almashtirish); (2) `01` §15 (NFR
+> deltasi) va §31 (Appendix); (3) 👤 sakkizta yangi savol.
+>
+> ---
+>
 > ✅ **97-run (96 bilan bir sessiya) — sandbox tiklandi va HAMMASI
 > YASHIL.** `test_user_stories_contract.py` **birinchi marta yurgizildi
 > va 69/69 o'tdi** (93-run qo'lda sanagan son aynan chiqdi) — olti run
@@ -280,16 +364,25 @@ faqat havola qilinadi.
 | API — API talablari (`01` §16 ↔ qurilgan interfeys) | 🔄 | `app/core/api_requirements.py` | **86** |
 | FR — funksional talablar deltasi (`01` §8 ↔ qurilgan mahsulot) | 🔄 | `app/release/functional_requirements.py` | **87** |
 | UX — foydalanuvchi hikoyalari (`01` §9 «User Stories» + §10 «Use Cases») | 🔄 | `app/release/user_stories.py`, `tests/test_user_stories_contract.py` (to'rt qatlam, `ast` bilan, **69 test** — ✅ **97-run: birinchi yurgizishda 69/69**) | 88, 89, 90, 91, 92, 93, **97** |
-| UX-2 — `01` §11–§14 (User Flow, Business Process, **UX Requirements**, UI Requirements) | 🔄 | — reyestr hali yo'q; 94-run `web/style.css`, 95-run `web/app.js` + `index.html` ni tuzatdi | (92 — topildi; **94 — sirt tahlili**; **95 — `web/` xulq-atvori**) |
-| WEB — `web/` ning xulq-atvori: birorta test uni **matn** dan boshqa darajada o'qimaydi (`test_i18n_key_contract`, `test_map_api`, `test_notification_channels_contract`, `test_region_acceptance_contract` — to'rttasi ham `read_text` + regex) | ⛔ **qatlam yo'q** | `web/app.js`, `web/index.html`, `web/style.css` | (94 — CSS defekti; 95 — to'rtta JS/HTML defekti; **96 — banner til drifti + `A11Y-06`**) |
+| NFR — `01` §15 (NFR deltasi) + §31 (Appendix: meros hujjatlari, zamechanielar, standartlar) | 🔄 | `app/release/nfr_appendix.py` | **99** |
+| UX-2 — `01` §11–§14 (User Flow, Business Process, **UX Requirements**, UI Requirements) | 🔄 | `app/release/ux_requirements.py`, `tests/test_ux_requirements_contract.py` (**70 test**, uch o'quvchi) — §11 **graf** sifatida o'qiladi: `reachable` 12 tugun, `flow_completes` `False`, o'lik yoylar `H→I, I→J, L→N, M→N, N→O`; `Surface` × `Witness` × `Voice`; `accurate` `False` | (92 — topildi; 94 — sirt tahlili; 95/96 — `web/` xulq-atvori; **98 — reyestr + kontrakt**) |
+| WEB — `web/` ning xulq-atvori: **qatlam bor** (98-run). 96-run oxirida uni to'rtta test faqat **matn** sifatida o'qirdi va oltita defektning birortasini ham ko'rmasdi; 98-run DOM + CSS kaskadi + JS chaqiruv grafi qatlamini yozdi va **nazorat sinovi** bilan o'lchadi: uchta tarixiy defekt qaytarilganda eski to'rtta test **113 passed** beradi | 🔄 **matndan chuqurroq** | `web/app.js`, `web/index.html`, `web/style.css`; qorovul — `tests/test_ux_requirements_contract.py` | (94 — CSS defekti; 95 — to'rtta JS/HTML defekti; 96 — banner til drifti + `A11Y-06`; **98 — tuzilma qatlami**) |
 
 ---
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **136 ta `tests/test_*.py` fayli** (97-run `ls` bilan sanadi;
-oldingi «138» 90-run ning bahosi edi). ✅ **97-run — to'liq yashil
-yurish, bazasi bilan:** butun to'plam **2569 passed, 232 skipped**,
+Jami **138 ta `tests/test_*.py` fayli** (99-run bittasini qo'shdi:
+`test_nfr_appendix_contract.py`). ✅ **99-run — to'liq yashil yurish,
+bazasi bilan:** butun to'plam **2688 passed, 232 skipped** (to'rtta
+partiyada), `-m requires_db` **231 passed**, `alembic upgrade head`
+0001→0010 toza, `ruff check` toza, **11 mutatsiya ushlandi**.
+
+98-run: 2639 passed (o'shanda +70 — `test_ux_requirements_contract.py`),
+12 mutatsiya, `web/` nazorat sinovi «113 passed» × 3.
+
+⬇️ Quyidagi sonlar **97-run** ning holati va ular kuchida qoladi:
+butun to'plam **2569 passed, 232 skipped**,
 `-m requires_db` — **231 passed** (83-rundan beri birinchi bazali
 yurish, PostgreSQL 18.4 + PostGIS micromamba dan), `ruff check` toza.
 `test_user_stories_contract` **birinchi marta yurgizildi — 69/69**.
@@ -347,7 +440,9 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | INT | `test_integrations_contract` |
 | ARCH | `test_architecture_contract` |
 | VIT | `test_admin_registries` |
+| UX-2 | `test_ux_requirements_contract` — **70 test** (98-run). To'rtta bo'lim, uchta o'q va **uchta o'quvchi**: DOM (`html.parser`, `VOID_TAGS` qo'lda yopiladi), CSS kaskadi (`@media` + `>` va ajdod kombinatorlari, o'ngdan chapga, oxirgi g'olib) va JS chaqiruv grafi (muvozanatli qavs bilan olingan funksiya tanasi va `map.addLayer({…})` obyektlari). §11 **graf** sifatida o'qiladi: yoylar hujjatdan parse qilinadi, `NodeKind` diagrammadan **hisoblanadi** (kirish/chiqish darajasi + qavs shakli), `reachable` mustaqil qayta hisoblanadi. **Izoh dalil emas** — uchala o'quvchi izohni o'chiradi va bu o'lchanadi ham. O'quvchilarning **o'zlari** beshta test bilan tekshiriladi (`UNSUPPORTED_SELECTORS` yopiq ro'yxat; «oxirgi g'olib» soddalashtirilishining haqliligi). 🟢 **Nazorat sinovi:** uchta tarixiy `web/` defekti qaytarilganda eski to'rtta matn testi **113 passed** beradi, bu fayl esa uchalasini ham ushlaydi |
 | UX | `test_user_stories_contract` — **69 test** (93-run sanadi: §1—11, §2—16, §3—10, §4—9, §5–§7—12, §8—11; 92-run «70» degan edi va o'sha son «70 nom, 70 noyob» dalilining tayanchi edi — dalil kuchida qoladi, `ruff F811` ham qoplaydi). ⚠️ **93-run mexanizm qatlamini auditdan o'tkazdi va to'siq topmadi:** hujjat yo'li va `_section` regexi, `pytest` konfiguratsiyasi (`addopts`/`filterwarnings` yo'q), `conftest` hooki, import zanjiri, **40 ta `us.<nom>`** va **21 ta `report.<xossa>`** bijeksiyasi (modul 89-run da, testlar 90/91-run da yozilgan — `AttributeError` sinfi yopildi), dataklass kalitlari (7/9/3), `ruff` qoidalari (`UP038` yoqilmagan), 89-run ning fayllararo bog'lanishlari. 92-run butunligicha qo'lda hisobladi va defekt topmadi (23 ta `modul:simvol` bind yechildi, 17 ta fayl bind mavjud, `reply.py`/`handlers.py` `ast` hukmlariga mos, `01` §9/§10 bijeksiyasi `8 = 9−1`); ⚠️ `pytest` uni **hali ham ko'rmagan**. (90-run: uch o'qning taqsimoti, beshta hisoblanadigan xossa, `__post_init__` ning beshala qorovuli, `01` §9/§10 dan parse qilingan bijeksiya, `binds` ↔ fayl tizimi; 91-run §8: 33 ta bind daraxtga yechiladi, `render`/`decide` ning `situation` maydonlari aynan taqqoslanadi, `Verdict` qiymatlari, `errors.py` sinf atributlari, `register` chaqiruvlari sanaladi; fayl hali **yurgizilmagan**) |
+| NFR | `test_nfr_appendix_contract` — **49 test** (99-run). To'rt manba: hujjat (§15 qatorlari va epigrafi, §31 ning to'rt bandi — hujjat ro'yxati, zamechanielar, standartlar, tadqiqotlar), **fayl tizimi** (o'n meros nomining yo'qligi va olti prefiks to'qnashuvi katalogdan **hisoblanadi**), kod (bindlar import bilan yechiladi, `0008` `NFR-S-02` ni nomlashi, `security.py` `C-09` ni ko'tarishi, guvohsiz standart nomlarining `app/` da yo'qligi ham o'lchanadi) va boshqa kontrakt testlari (indeks pariteti, API sirtining `region` qorovuli, i18n ning CLAUDE.md havolasi). `Delivered` × `Enforcement` × `Baseline`; beshta ichki qorovul alohida testlanadi |
 | LEX | `test_glossary_contract` (83-run: o'nta atama, `Anchor` × `Fidelity`, belgi ikki tomonlama) |
 | SUC | `test_success_metrics_contract` (84-run: o'n ikkita KPI, `Reading` × `Target`, `NPS` tuzog'i nom bilan qulflangan) |
 | SCOPE | `test_scope_contract` (85-run: o'n sakkiz qator, `Presence` × `Fence` × `Warrant`, `PG-S*` gorizonti `01` §3 dan parse qilinadi, manba tanlovi AST bilan o'lchanadi) |

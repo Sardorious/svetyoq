@@ -96,12 +96,14 @@ from app.release import acceptance as acceptance_mod
 from app.release import dependencies as dependencies_mod
 from app.release import functional_requirements as functional_mod
 from app.release import measures as measures_mod
+from app.release import nfr_appendix as nfr_appendix_mod
 from app.release import plan as plan_mod
 from app.release import risks as risks_mod
 from app.release import roadmap as roadmap_mod
 from app.release import scope as scope_mod
 from app.release import success as success_mod
 from app.release import user_stories as user_stories_mod
+from app.release import ux_requirements as ux_mod
 
 #: i18n kalitlarining prefiksi (`gates.py` ning `release.gate` naqshi).
 KEY_PREFIX = "registry"
@@ -446,6 +448,81 @@ def _probe_functional(_doc: str | None = None) -> Probe:
     )
 
 
+def _probe_ux_requirements(_doc: str | None = None) -> Probe:
+    """`01` §11–§14 — oqim grafi va o'n beshta qator, uchta o'q.
+
+    `total` — §12–§14 ning qatorlari **va** §11 ning baholanadigan
+    tugunlari: bo'lim to'rtta, artefakti esa ikki xil (graf va jadval),
+    ya'ni ularni bitta songa qo'shmaslik javobni yashirardi.
+
+    `flagged` uchta sababni **birlashtiradi**, yig'maydi: sirti to'liq
+    bo'lmagan qatorlar, repo ko'ra olmaydigan qatorlar va nusxalari
+    zid qatorlar. Bugun to'plamlar bir-birini qoplaydi (`UX-S1`
+    uchalasida ham bor), ya'ni yig'indi `flagged > total` bo'lib
+    qolardi. Uzilgan tugunlar ham shu yerga qo'shiladi.
+
+    `undeclared` — qurilgan, lekin talab nomlagan joyda **emas**
+    narsalar. Bugun bittasi: `N` «Предложить подписку» —
+    `Surface.REACHABLE`.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_ux_requirements_contract` ikki tomonlama qulflaydi.
+    """
+    report = ux_mod.evaluate()
+    judged = [n for n in report.nodes if n.kind in ux_mod.JUDGED_KINDS]
+    flagged = (
+        {c.code for c in report.unmet}
+        | {c.code for c in report.unwatched}
+        | {c.code for c in report.drifting}
+        | {n.key for n in report.broken_nodes}
+    )
+    reachable_only = [n for n in report.nodes if n.surface is ux_mod.Surface.REACHABLE]
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.clauses) + len(judged),
+        flagged=len(flagged),
+        undeclared=len(reachable_only),
+    )
+
+
+def _probe_nfr_appendix(_doc: str | None = None) -> Probe:
+    """`01` §15 + §31 — NFR deltasi va meros ilovasi (99-run).
+
+    `total` — yetti NFR qatori **va** §31 ning uch reyestri (o'n meros
+    hujjati, olti zamechanie, o'n standart): bo'lim ikkita, artefakti
+    to'rt xil, ularni bitta jinsga keltirish javobni yashirardi.
+
+    `flagged` to'rt sababni birlashtiradi: «bajarilgan» dan boshqa
+    sinfdagi qatorlar (`S-03` o'lchab bo'lmaydi, `S-04` repo
+    tashqarisida, `S-07` mazmuni yo'q hujjatda), repoda yo'q meros
+    hujjatlari (o'ntasi ham), kodda izi yo'q zamechanielar va kod
+    guvohisiz standartlar.
+
+    `undeclared` — 0: §15/§31 nomlamagan, lekin qurilgan narsa
+    topilmadi (bo'limlar ro'yxat, sirt emas).
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_nfr_appendix_contract` ikki tomonlama qulflaydi.
+    """
+    report = nfr_appendix_mod.evaluate()
+    flagged = (
+        len(report.nfrs)
+        - len(report.kept)
+        + sum(1 for d in report.inherited_docs)  # o'ntasi ham repoda yo'q
+        + len(report.unwitnessed_remarks)
+        + (len(report.standards) - len(report.witnessed_standards))
+    )
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.nfrs)
+        + len(report.inherited_docs)
+        + len(report.remarks)
+        + len(report.standards),
+        flagged=flagged,
+        undeclared=0,
+    )
+
+
 def _probe_user_stories(_doc: str | None = None) -> Probe:
     """`01` §9/§10 — to'qqizta band, uchta o'q.
 
@@ -679,6 +756,22 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.SELF_CONTAINED,
         endpoint=None,
         probe=_probe_user_stories,
+    ),
+    Registry(
+        code="ux_requirements",
+        spec=ux_mod.SPEC,
+        module="app.release.ux_requirements",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_ux_requirements,
+    ),
+    Registry(
+        code="nfr_appendix",
+        spec=nfr_appendix_mod.SPEC,
+        module="app.release.nfr_appendix",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_nfr_appendix,
     ),
     Registry(
         code="api_requirements",

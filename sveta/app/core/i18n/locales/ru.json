@@ -234,6 +234,8 @@
   "registry.scope": "Скоуп",
   "registry.functional_requirements": "Дельта функциональных требований",
   "registry.user_stories": "Пользовательские истории и сценарии",
+  "registry.ux_requirements": "Поток, процесс, требования UX и UI",
+  "registry.nfr_appendix": "Дельта NFR и приложение наследования",
   "registry.success": "Метрики успеха",
   "registry.measures": "Покрытие измерениями",
   "registry.gates": "Релизные гейты",

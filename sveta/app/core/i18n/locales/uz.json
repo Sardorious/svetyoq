@@ -234,6 +234,8 @@
   "registry.scope": "Ko'lam",
   "registry.functional_requirements": "Funksional talablar deltasi",
   "registry.user_stories": "Foydalanuvchi hikoyalari va stsenariylari",
+  "registry.ux_requirements": "Oqim, jarayon, UX va UI talablari",
+  "registry.nfr_appendix": "NFR deltasi va meros ilovasi",
   "registry.success": "Muvaffaqiyat metrikalari",
   "registry.measures": "O'lchov qamrovi",
   "registry.gates": "Reliz gate lari",

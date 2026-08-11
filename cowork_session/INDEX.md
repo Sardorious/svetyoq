@@ -12,6 +12,122 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **99-run: `01` §15 + §31 reyestri YOZILDI va `01` ning
+> bog'lanmagan bo'limi QOLMADI.** Yangi: `app/release/nfr_appendix.py`
+> (yetti `NFR-S-*` qatori `Delivered` × `Enforcement` × `Baseline`
+> bilan; §31 ning uch reyestri — o'n meros hujjati, olti zamechanie,
+> o'n standart) va `tests/test_nfr_appendix_contract.py` — **49 test**.
+> Indeksga ulandi (`registry.nfr_appendix` UZ+RU; `total=33`,
+> `flagged=23`, `undeclared=0`).
+> **Yashil:** butun to'plam **2688 passed, 232 skipped** (98-run:
+> 2639 — aynan +49); `-m requires_db` — **231 passed**;
+> `alembic upgrade head` 0001→0010 toza; `ruff` toza. **11 mutatsiya,
+> hammasi ushlandi**, har biridan keyin `md5sum` bilan tiklanish
+> tasdiqlandi.
+> 🔴 **Asosiy topilma — §31 «yo'q hujjat» sinfining ildiz reyestri.**
+> 86-run (`17_OpenAPI.yaml`), 87-run (`03_Functional_Requirements.md`)
+> va 98-run (dizayn-tizim) bittadan ko'rgan sinf endi ro'yxat bo'ylab
+> o'lchandi: meros ro'yxatidagi **o'nta** hujjatdan **noli** repoda.
+> Ustiga **olti prefiks to'qnashuvi**: `01_`–`06_` ning har biri
+> repoda **boshqa** hujjat bilan band — repoga qaragan o'quvchi
+> oltala havolani «bajarilgan» deb o'ylashi mumkin. To'qnashuvlar
+> e'londan emas, katalogdan **hisoblanadi**.
+> 🔴 Olti meros zamechaniedan uchtasining (`C-05`/`C-06`/`C-10`)
+> kodda izi yo'q; `C-10` paketda ham faqat §31 qatorida va **tishlay
+> olmaydi** — mahsulotda ML sirti yo'q. O'n standartdan kod guvohi
+> borlari **uchta** (WCAG, OpenAPI 3.1, C4 Model); OWASP ASVS §20 da
+> ishora qilinadi, `security.py` da nomi ham yo'q.
+> 🔴 **`NFR-S-07` ning mazmuni o'qib bo'lmaydigan joyda:**
+> availability/latency maqsadlari `04_NFR.md` da — to'rtinchi yo'q
+> hujjat. `NFR-S-03` («500 тыс.», `[BASELINE-TAS]`) ham o'lchab
+> bo'lmaydi — repoda yuklama asbobi yo'q. §15 ning qolgan to'rt qatori
+> qurilgan va test bilan himoyalangan (`S-01` E19, `S-02` `0008` +
+> ikki kontrakt, `S-05` = §8 `F-3`, `S-06` i18n). Nusxalar bog'landi:
+> `S-05` ↔ §8/§16/§17, `S-02` ↔ `05` §7.2, `S-06` ↔ `CLAUDE.md`/`04` §6.
+> ⚠️ **Muhit (100-run o'qisin):** `/sessions` hali ham **100% to'la**
+> (👤 `cleanup-sessions.ps1`), `TMPDIR=/tmp` majburiy;
+> `/tmp/pgdata98` **boshqa** sandbox foydalanuvchisiniki bo'lib chiqdi
+> → `initdb -D /tmp/pgdata99`, port **55499**; `pg_ctl start` va
+> `pytest` **bitta** chaqiruvda. Retsept `99_*.md` §8 da.
+> **Keyingi qadam — 100-run:** (1) 👤 **brauzer tekshiruvi hali
+> kutmoqda** (360 px, `MAP_TILE_URL` bo'sh, til almashtirish);
+> (2) `01` yopildi — yangi nomzodlar: `02_Phase0_Validation_Plan`
+> ning bog'lanmagan qismlari yoki `BRD_Samarkand.md`; (3) 👤 **uchta
+> yangi savol** `PROGRESS.md` da (meros hujjatlari; OWASP ASVS
+> darajasi; `NFR-S-03` uchun load-test).
+>
+> ---
+>
+> ✅✅ **98-run: `01` §11–§14 reyestri YOZILDI va `web/` nihoyat
+> tuzilma sifatida o'qiladi.** To'qqiz run kutgan ikkinchi qadam
+> bajarildi (birinchisini 97-run oldi). Yangi: `app/release/
+> ux_requirements.py` (§11 ning 15 tuguni + 18 yoyi, §12 ning ikkita
+> diagrammasi, §13 ning 7, §14 ning 6 qatori) va
+> `tests/test_ux_requirements_contract.py` — **70 test**. Indeksga
+> ulandi (`registry.ux_requirements`, UZ+RU), `_probe_ux_requirements`:
+> `total=28`, `flagged=18`, `undeclared=1`.
+> **Yashil:** butun to'plam **2639 passed, 232 skipped** (97-run: 2569 —
+> aynan +70); `-m requires_db` — **231 passed**; `alembic upgrade head`
+> 0001→0010 toza; `ruff` toza. **12 mutatsiya, hammasi ushlandi.**
+>
+> 🟢 **Bugungi asosiy dalil — nazorat sinovi.** Uchta **haqiqiy
+> tarixiy defekt** qaytarildi (M7 = 94-run ning `.legend > h2` si,
+> M9 = 95-run ning `autocomplete="off"` i, M10 = 96-run ning
+> `circle-*` konstantasi) va `web/` ni o'qiydigan **to'rtta mavjud
+> test** ga qarshi yurgizildi: **113 passed, 113 passed, 113 passed** —
+> ya'ni matn qatlami uchalasini ham **ko'rmaydi**. Yangi tuzilma
+> qatlami esa uchalasini ham ushlaydi. 94/95/96-runlarning «regex
+> bilan ushlanmasdi» degan bahosi o'lchangan faktga aylandi.
+> Uch o'quvchi: DOM (`html.parser`, `VOID_TAGS` qo'lda yopiladi), CSS
+> kaskadi (`@media` + `>` va ajdod kombinatorlari + oxirgi g'olib) va
+> JS chaqiruv grafi (muvozanatli qavs). **Izoh dalil emas** — uchalasi
+> izohni o'chiradi.
+>
+> 🔴 **Eng qimmat topilma — `N` «Предложить подписку» ulanmagan.**
+> Obunaning butun mexanizmi tayyor (menyu, `_add_subscription`, radius,
+> outbox, yetkazish), lekin **taklif yo'q**: verdiktdan keyin
+> `on_location` faqat `main_menu` va `app.disclaimer` ni yuboradi.
+> `L→N`, `M→N`, `N→O` yoylari hech qachon o'tilmaydi, ya'ni §11 ning
+> oqimi oxirigacha bormaydi (`flow_completes = False`; yetib
+> bo'lmaydigan tugunlar `I`, `N`, `O`). Va buni hech narsa
+> ko'rsatmaydi: `test_bot_subscription_keyboard` yashil, chunki u
+> **tugmani** tekshiradi, tugmaning **taklif qilinishini** emas.
+> Shu holat uchun `Surface.REACHABLE` kiritildi — `ABSENT` dan farqi
+> amaliy: u yerda yozish kerak, bu yerda **ulash**.
+> 🔴 **Ikkinchisi — meros manbai yo'q:** §13/§14/`UX-S7` yigirma ikkita
+> talabni (`UX-01…UX-12`, `A11Y-01…A11Y-10`) va **butun dizayn-tizimni**
+> paketda yo'q hujjatdan meros qiladi. Yigirma ikkitadan **bittasi**
+> (`A11Y-06`) mazmuni bilan aytilgan va aynan u 96-run da bajarildi;
+> qolgan yigirma bittasi sakkizta hujjatning birortasida ham
+> uchramaydi. 86/87-runlar bilan bir xil shakl → `Surface.UNGROUNDED`.
+> 🔴 **Kutilgan drift bajarildi — sakkizinchi reyestr:** yangi modul
+> `GEOCODER_*` ni izohida nomlaydi, shuning uchun
+> `test_geocoder_has_no_call_site` va
+> `test_the_product_still_does_not_geocode` ning yopiq ro'yxatlari
+> **oldindan** yangilandi (73/75/76/82/97 izidan).
+> ⚠️ **Birinchi yurgizishda 66/70:** to'rtala yiqilish ham reyestrning
+> **o'z dalillarida** edi, mahsulotda emas — beshta bog'lam noto'g'ri
+> modulni yoki mavjud bo'lmagan nomni ko'rsatardi
+> (`find_mahalla_id` → `pipeline`, `latlng_to_cell` → `cell_of`,
+> `confirmation:decide` → `evaluate`, `map:config` → `get_map_config`,
+> `geocoding_failure_alert` → `REQUIREMENT_BY_CODE`).
+> ⚠️ **Muhit (99-run o'qisin):** `/sessions` **100% to'la** (👤
+> `cleanup-sessions.ps1`!) — `TMPDIR=/tmp` majburiy; `/tmp/pgdata`
+> (97-run ning katalogi) **boshqa sandbox foydalanuvchisiga** tegishli,
+> ruxsat yo'q → `initdb -D /tmp/pgdata98`; har `bash` chaqiruvi
+> `--die-with-parent`, ya'ni `pg_ctl start` va `pytest` **bitta**
+> chaqiruvda bo'lishi kerak (birinchi urinish shundan `Connection
+> refused` bergan). To'liq retsept `98_*.md` §8 da.
+> **Keyingi qadam — 99-run:** (1) 👤 **brauzer tekshiruvi hali
+> kutmoqda** — 360 px, `MAP_TILE_URL` bo'sh, til almashtirish; bugungi
+> qatlam ularning **shartlarini** qulfladi, brauzer o'rnini bosmaydi;
+> (2) `01` ning qolgan bo'limlari — §15 (NFR deltasi) va §31
+> (Appendix); (3) 👤 sakkizta yangi savol `PROGRESS.md` da (eng
+> muhimi: obuna taklifi oqimga ulanadimi va `#lang` ning
+> `aria-label` i).
+>
+> ---
+>
 > ✅✅ **97-run (96 bilan bir sessiya): sandbox tiklandi va HAMMASI
 > YASHIL.** Odam «rerun» dedi va to'qqiz run kutgan qadam bajarildi:
 > `test_user_stories_contract.py` **birinchi yurgizishda 69/69** (93-run
@@ -1624,6 +1740,8 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 99 | [nfr_ilova](99_nfr_ilova_44d60fa3.md) | `local_44d60fa3` | **NFR — `01` §15 (NFR deltasi) + §31 (Appendix) reyestri; `01` ning bog'lanmagan bo'limi qolmadi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/nfr_appendix.py` (yetti `NFR-S-*` qatori `Delivered` × `Enforcement` × `Baseline` bilan; §31 ning uch reyestri: o'n meros hujjati `local_homonym` bilan, olti zamechanie `can_bite` bilan, o'n standart guvohlari bilan) va `tests/test_nfr_appendix_contract.py` — **49 test**, to'rt mustaqil manba (hujjat, fayl tizimi, kod, boshqa kontraktlar); indeksga ulandi (`registry.nfr_appendix` UZ+RU; `total=33`, `flagged=23`). 🔴 **Asosiy topilma — §31 «yo'q hujjat» sinfining ildiz reyestri:** o'nta meros hujjatidan **noli** repoda (86/87/98-runlar bittadan ko'rgan sinf endi ro'yxat bo'ylab); **olti prefiks to'qnashuvi** (`01_`–`06_` har biri boshqa hujjat bilan band) katalogdan **hisoblanadi**, e'lon qilinmaydi. 🔴 `C-05`/`C-06`/`C-10` ning kodda izi yo'q; `C-10` paketda ham faqat §31 qatorida va tishlay olmaydi (ML sirti yo'q). O'n standartdan guvohi borlari uchta (WCAG, OpenAPI 3.1, C4); OWASP ASVS §20 da ishora qilinadi, kodda nomi yo'q. 🔴 `NFR-S-07` ning mazmuni `04_NFR.md` da (yo'q hujjat), `NFR-S-03` («500 тыс.») o'lchab bo'lmaydi. §15 ning to'rt qatori to'liq: `S-01` E19 (sintetik ikkinchi mintaqa), `S-02` `0008` (migratsiya docstringi aynan `NFR-S-02` ni nomlaydi) + indeks pariteti + API qorovuli, `S-05` = §8 `F-3`, `S-06` i18n. Nusxalar: `S-05` ↔ §8/§16/§17, `S-02` ↔ `05` §7.2, `S-06` ↔ `CLAUDE.md`/`04` §6. **Yashil:** 2688 passed / 232 skipped (aynan +49), `requires_db` 231, alembic 0001→0010, ruff toza, **11 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp/pgdata98` boshqa foydalanuvchiniki → `initdb -D /tmp/pgdata99`, port 55499; retsept `99_*.md` §8. Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (meros hujjatlari qo'shiladimi; OWASP ASVS darajasi; `NFR-S-03` load-test) |
+| 98 | [ux2_reyestri](98_ux2_reyestri_5e33b5d1.md) | `local_5e33b5d1` | **UX-2 — `01` §11–§14 reyestri va `web/` ning tuzilma qatlami** | ✅ **Reyestr yozildi va hammasi yashil.** 97-run to'siqni olgani uchun 93-run ning sharti bajarilgan edi, ya'ni bugun yozish **mumkin** edi. Yangi `app/release/ux_requirements.py` (§11 ning 15 tuguni + 18 yoyi, §12 ning ikkita diagrammasi, §13 ning 7, §14 ning 6 qatori) va `tests/test_ux_requirements_contract.py` — **70 test**; indeksga ulandi (`registry.ux_requirements` UZ+RU, `_probe_ux_requirements`: `total=28`, `flagged=18`, `undeclared=1`). **Uchta o'q:** `Surface` (talab qurilganmi), `Witness` (repo uni **qanday chuqurlikda** ko'radi), `Voice` (paketda necha marta aytilgan). Ikkinchisi shu bo'limlar uchun **maxsus** kiritildi: 94/95/96-runlar `web/` da oltita defekt topdi va birortasi ham matn qatlamida ko'rinmasdi. **§11 graf sifatida o'qiladi** — bu reyestrning boshqa bo'limlardan olinmaydigan yagona o'lchovi: `reachable` `A` dan `NODE_PASSABLE` tugunlar bo'ylab hisoblanadi (12 tugun), yetib bo'lmaydigan uchtasi `I`, `N`, `O`, o'lik yoylar `H→I, I→J, L→N, M→N, N→O`, `flow_completes = False`. `NodeKind` esa **diagrammadan hisoblanadi** (kirish darajasi nol → `TRIGGER`, chiqish nol → `TERMINAL`, `{…}` → `DECISION`), ya'ni yorliqni almashtirib qo'yish mumkin emas. 🔴 **Eng qimmat topilma — `N` «Предложить подписку» `REACHABLE`:** obunaning butun mexanizmi tayyor va **oqimga ulanmagan** — verdiktdan keyin `on_location` faqat `main_menu` va `app.disclaimer` ni yuboradi, ya'ni diagramma bo'ylab yurgan foydalanuvchi obunani hech qachon ko'rmaydi. Buni hech narsa ko'rsatmaydi: `test_bot_subscription_keyboard` yashil, chunki u **tugmani** tekshiradi, tugmaning **taklif qilinishini** emas. `I` «Ввод адреса» esa `ABSENT` — geokoder uch joyda (`GEOCODER_*`, `GEOCODER_UNAVAILABLE`, `geocoding_failure_alert`) va chaqiruvchi kod yo'q, ya'ni `H→I→J` tarmog'i butunlay o'lik. 🔴 **Ikkinchisi — meros manbai paketda yo'q:** §13/§14/`UX-S7` yigirma ikkita talabni (`UX-01…UX-12`, `A11Y-01…A11Y-10`) va **butun dizayn-tizimni** yo'q hujjatdan meros qiladi; yigirma ikkitadan **bittasi** (`A11Y-06`) mazmuni bilan aytilgan va aynan u 96-run da bajarildi, qolgan yigirma bittasi sakkizta hujjatning birortasida ham uchramaydi (86/87-runlar bilan bir xil shakl) → `Surface.UNGROUNDED`. 🟢 **Nazorat sinovi — bugungi asosiy dalil:** uchta **haqiqiy tarixiy defekt** qaytarildi (M7 = 94-run ning `.legend > h2` si, M9 = 95-run ning `autocomplete="off"` i, M10 = 96-run ning `circle-*` konstantasi) va `web/` ni o'qiydigan to'rtta **mavjud** test ga qarshi yurgizildi — **113 passed, 113 passed, 113 passed**, ya'ni matn qatlami uchalasini ham ko'rmaydi; yangi qatlam esa uchalasini ham ushlaydi. Uch o'quvchi: DOM (`html.parser`, `VOID_TAGS` qo'lda yopiladi — aks holda `<input id="heat">` dan keyingi hamma narsa uning ichida ko'rinardi), CSS kaskadi (`@media` + `>` va ajdod kombinatorlari, o'ngdan chapga, oxirgi g'olib) va JS chaqiruv grafi (muvozanatli qavs; `_js_layers()` shundan kelib chiqdi — `outage-halo` ni indeks bo'yicha kesish **yaramaydi**, u bilan `outage-point` orasida umumiy `STATUS_COLOR`/`SOLID` ifodalari yashaydi va ular `"layer"` so'zini ishlatadi). **Izoh dalil emas** — uchala o'quvchi ham izohni o'chiradi va test buni o'lchaydi ham (`applyStrings` ning izohi `refreshHeat` ni nomlaydi, kodi chaqirmaydi). O'quvchilarning **o'zlari** ham tekshiriladi (5 test): `UNSUPPORTED_SELECTORS` yopiq ro'yxat, «oxirgi g'olib» soddalashtirilishining haqli ekani o'lchanadi. **Kutilgan drift bajarildi — sakkizinchi reyestr:** yangi modul `GEOCODER_*` ni izohida nomlaydi, shuning uchun `test_geocoder_has_no_call_site` va `test_the_product_still_does_not_geocode` ning yopiq ro'yxatlari **oldindan** yangilandi (73/75/76/82/97 izidan); qo'shilish sababi qolgan yettitasidan farq qiladi — ular «geokoder yo'q» faktini qayd etadi, bu esa faktning **oqibatini**. **12 mutatsiya, hammasi ushlandi** (M3 — `N` ni `REALIZED` qilish — 7 test yiqitdi), har mutatsiyadan keyin `md5sum -c` bilan tiklanish tasdiqlandi. ⚠️ **Birinchi yurgizishda 66/70** va to'rtala yiqilish ham reyestrning **o'z dalillarida** edi, mahsulotda emas: `find_mahalla_id` → `pipeline`, `latlng_to_cell` → `cell_of`, `confirmation:decide` → `evaluate`, `map:config` → `get_map_config`, `geocoding_failure_alert` → `REQUIREMENT_BY_CODE` — ya'ni `test_every_python_symbol_bind_exists_in_the_module` darhol ish berdi. **Yashil:** butun to'plam **2639 passed, 232 skipped** (97-run: 2569 — aynan +70), `-m requires_db` **231 passed**, `alembic upgrade head` 0001→0010 toza, `ruff` toza. Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi, sir ko'chirilmadi. ⚠️ Muhit: `/sessions` **100% to'la**, `/tmp/pgdata` boshqa sandbox foydalanuvchisiga tegishli → `initdb -D /tmp/pgdata98`; `--die-with-parent` sababli `pg_ctl start` va `pytest` **bitta** chaqiruvda (retsept `98_*.md` §8). 👤 **Sakkizta yangi savol** (eng muhimi: obuna taklifi oqimga ulanadimi; `#lang` ning `aria-label="uz / ru"` i — sahifadagi yagona qattiq kodlangan matn, `04` §6); 👤 **brauzer tekshiruvi hali kutmoqda**; `cleanup-sessions.ps1` |
 | 96/97 | [a11y06_va_banner_til_drifti](96_a11y06_va_banner_til_drifti_9a36bced.md) | `local_9a36bced` | **97 (o'sha sessiya):** sandbox tiklandi — `test_user_stories_contract` **birinchi yurgizishda 69/69**, butun to'plam **2569+231 yashil** (birinchi bazali yurish 83-rundan beri), `ruff` toza; ikkita ro'yxat drifti tuzatildi (geokoder ro'yxatlariga yettinchi reyestr — `user_stories.py`); `/sessions` diski 100% to'la, `TMPDIR=/tmp` majburiy, retsept §8.2 da. **96:** **E9 — `A11Y-06` (rang **va** shakl) va bannerning til drifti.** 95-run ning `notices` refaktori qo'lda tekshirildi va **to'g'ri**, lekin u ochgan yuzada defekt bor edi: uch uyaning ikkitasi har tikda qayta hisoblanadi, `tiles` esa faqat bir marta — til almashganda banner **aralash tilda** qolardi (ADR-08 ochiq, ya'ni bu uya deyarli doim to'la). Uya `applyStrings()` ga ko'chdi, `baseStyle()` sof funksiya bo'ldi. Ikkinchi ish — 94-run «bajarilmagan» deb qayd etgan `A11Y-06` (`01` §14): uchala status **bir xil doira** edi (`#e2483d` va `#e8a33d` deyteranopiyada farqsiz), endi to'ldirilgan doira / ichi bo'sh halqa / halqa + markaz. Sprite/glif **ataylab ishlatilmadi** — bo'sh style da ular yo'q, ya'ni yechim o'zi 60-run sinfidagi defekt bo'lardi. Rang har ikkala shaklda saqlanadi (to'ldirishda yoki konturda), bitta `SOLID` predikati uchala xossada, `official` `status` dan ustun. Legenda belgilari ham shu uchlikka keltirildi. | ⛔ Sandbox **to'qqizinchi** run ko'tarilmadi — `pytest` yurgizilmadi; `01` §11–§14 reyestri **yozilmadi** (93-run ning sharti). To'rtala matn-testining sharti qo'lda o'lchandi va saqlandi; `index.html` tegilmadi. 👤 **Ikkita yangi savol**: `outage-halo` `official` ni bilmaydi (ko'k nuqta + sariq iz), to'rtinchi status «Завершено» sirtsiz |
 | 95 | [web_banner_uyalari](95_web_banner_uyalari_ad837191.md) | `local_ad837191` | **E9 — `web/` ning xulq-atvori: bannerning uchta manbai va kalitchaning yolg'on holati** | ✅ **to'rtta defekt tuzatildi.** Sandbox **ketma-ket sakkizinchi** run ko'tarilmadi (`useradd failed: No space left on device`, uch urinish) — `pytest` **oltinchi** run ketma-ket yurgizilmadi va 93-run ning sharti saqlanib, `01` §11–§14 reyestri **yozilmadi**. Uning o'rniga 94-run ning §9.4 bandidan borildi. **Avval savol aniqlashtirildi:** `web/` ni **to'rtta** test o'qiydi (`test_i18n_key_contract`, `test_map_api`, `test_notification_channels_contract`, `test_region_acceptance_contract`), lekin to'rttasi ham `read_text()` + regex — faylni **matn** sifatida. Sahifaning **xulq-atvorini** (kim kimning ustiga yozadi, DOM holati JS holatiga mos keladimi) hech biri o'lchamaydi; aynan shu bo'shliqda 60-run sinfidagi defektlar yashaydi. **94-run ning `style.css` tuzatishi tekshirildi va to'g'ri chiqdi:** `>` bolalar selektori `#heat-legend` ning o'z `h2`/`.note` larini chetlab o'tadi (ular `.legend` ning **nabirasi**), `@media` da `display` qayta belgilanmagani uchun `[hidden]` ning UA qoidasi kuchida qoladi va yopiq blok joy egallamaydi; yo'l-yo'lakay `_heat_legend_block()` ning «buzuq regex» shubhasi yopildi (manbada `</div>`, `Grep` chiqishidagi `<\div>` — displey artefakti). 🔴 **Uchta defekt, bitta sabab: `banner()` bitta argument olardi va `#banner` ni to'liq boshqarardi, unga yozadigan mustaqil manba esa uchta.** (1) `map.tiles_missing` `baseStyle()` da **sinxron** qo'yiladi va `map.on("load")` dan keyingi birinchi `refresh()` uni bir necha yuz millisekundda o'chirardi — **ADR-08 hali ochiq**, ya'ni `MAP_TILE_URL` bo'shligi bugungi *kutilayotgan* holat va aynan shu xabar uni tushuntirishi kerak edi; (2) `!data.sufficient` ogohlantirishi keyingi `refresh()` tikida (`setInterval`, `max(refresh_s, 15)` s) yo'qolardi, `heat-fill` esa `visibility: visible` bo'lib **qolardi** — `refreshHeat` ning **o'z izohi** buni ochiq taqiqlaydi («kam ma'lumotli xaritani jimgina chizish undan noto'g'ri xulosa chiqarishga olib kelardi»), ya'ni 94-run va 60-run bilan **aynan bir sinf**: kodda yozilgan qoida kodning o'zi bilan buziladi; (3) `setHeat(false)` ning `banner("")` i xaritaning `map.empty` tushuntirishini ham o'chirardi (`01` §13 `UX-S3` — CTA allaqachon yo'q edi, endi ma'lum bo'ldiki tushuntirishning o'zi ham yo'qolishi mumkin). **Yo'l-yo'lakay ikkitasi:** `reload` tugmasi `refresh()` va `refreshHeat()` ni parallel yuborib bannerga **poyga** qilardi (natija qaysi javob oldin kelishiga bog'liq); `refreshHeat` da ogohlantirishni tozalaydigan `else` **yo'q** edi va buni faqat `refresh()` ning ustiga yozishi **tasodifan** qoplardi — ya'ni (2) bir vaqtda shuning niqobi ham edi, shuning uchun ikkalasi birga tuzatildi. **Tuzatish:** `notices = {tiles, map, heat}` — har manbaning o'z uyasi, matn ` · ` bilan **yig'iladi** (ustuvorlik ataylab tanlanmadi: uchala xabar **turli** narsa haqida, birortasini tashlash aynan tuzatilayotgan «jimgina yo'qotish» ni qaytarardi), takror satr `all.indexOf(part) === i` bilan tushib qoladi, `else banner("heat", "")` qo'shildi. **To'rtinchi defekt — `web/index.html`:** brauzer sahifa qayta yuklanganda `#heat` kalitchasining holatini **tiklaydi**, `app.js` esa har doim `var heatOn = false` dan boshlanadi va `setHeat()` faqat `change` hodisasida chaqiriladi — ya'ni kalitcha «yoqilgan» ko'rinardi, qatlam chizilmasdi, legenda yashirin qolardi va uni to'g'rilash uchun ikki marta bosish kerak edi; `autocomplete="off"` DOM ni `app/release/acceptance.py` ning `web_default` vitrinasi (`shows_index=False`) va `01` PG-S4 hujjatlashtirgan standartga qaytaradi. Muqobil (holatni `?heat=1`/`localStorage` da saqlab, yuklashda `setHeat()` bilan tiklash) **rad etilmadi — 👤 savolga qo'yildi**: u `test_region_acceptance_contract.py:268` o'lchaydigan da'voni birinchi tashrif va qaytish uchun ikki xil qilardi. **CI xavfi qo'lda o'lchandi va to'rtala testning har bir sharti saqlandi:** `function banner` literali (`channels.py:360` ning `evidence` i — nom o'zgarmadi, faqat arity), `web/index.html:id="banner"`, `var heatOn = false` regexi, `showCoverage(` va `showMaturity(` **aynan ikkitadan**, `t("map.…")` va `data-i18n` kalitlari o'zgarmadi, yangi i18n kaliti qo'shilmadi (`MIN_WEB_KEYS = 26` xavfsiz — yangi izohlardagi `map.empty`/`map.error` **backtick** ichida, yagona yangi qo'shtirnoqlar `"tiles"`/`"map"`/`"heat"`/`"off"`/`""` — nuqtasiz, `_WEB_TOKEN` ga tushmaydi), `notify.*` kirmadi, `#heat-legend` bloki tegilmadi (yangi izoh `.controls` da va unda `<div` yo'q, ya'ni `_heat_legend_block` ning chuqurlik hisobiga ta'sir qilmaydi). ⚠️ **Bu `pytest` emas** — bugungi to'rtta tuzatishni ham, 94-run ning CSS sini ham **hech kim ko'rmagan**. 👤 Xaritani ikki holatda oching: **360 px** kenglikda va **`MAP_TILE_URL` bo'sh** holatda (`map.tiles_missing` endi birinchi `refresh()` dan keyin ham turishi kerak). **96-run:** (1) `pytest tests/test_user_stories_contract.py -q` → butun to'plam → `ruff check`; (2) mutatsiya; (3) **shundan keyingina** `01` §11–§14 reyestri — material `94_*.md` §3–§9 + bugungi topilmalar (`UX-S3` ning `split_promises` i endi **ikki qatlamli**; `UX-S6` ga banner uyalari qo'shildi); ⚠️ yangi qatlam `web/` ni **tuzilma sifatida** o'qishi kerak, chunki bugungi to'rtala defektning birortasi ham regex bilan ushlanmasdi. Migratsiya yo'q, yangi modul yo'q, yangi test yo'q, vaqtinchalik fayl yo'q, sir ko'chirilmadi. 👤 **Ikkita yangi savol** (banner uyalarining ustuvorligi, kalitcha holatini saqlash); `cleanup-sessions.ps1` — **sakkizinchi** sandboxsiz run |
 | 94 | [ux2_sirt_tahlili](94_ux2_sirt_tahlili_24f8f5cf.md) | `local_24f8f5cf` | **UX-2 — `01` §11–§14 ning qurilgan sirtga solishtirilishi; mobil qamrov indeksi defekti** | ✅ tahlil + **bitta defekt tuzatildi**. Sandbox **ketma-ket yettinchi** run ko'tarilmadi (`useradd failed: No space left on device`, ikkita bir xil urinish) — ya'ni 93-run ning birinchi qadami (`pytest`) **yana** bajarilmadi va `test_user_stories_contract.py` **beshinchi** run yurgizilmagan holda turibdi. 93-run «yana bitta yurgizilmagan qatlam qo'shilmasin» degani uchun reyestr ham, test ham **ataylab yozilmadi**; uning o'rniga 95-run uchun kerak bo'ladigan yagona narsa tayyorlandi — §11 ning **15 tuguni**, §12 ning AS-IS/TO-BE bloklari, §13 ning **7 qatori** va §14 ning **6 qatori** `Read`/`Grep` bilan qurilgan sirtga biriktirildi. 🔴 **Asosiy topilma — mobil ekranda zichlik qatlami qamrov indeksisiz chizilardi:** `#heat-legend` `<aside class="legend">` ning **ichida** (`index.html:42–79`), `style.css` esa `@media (max-width: 640px)` da butun `.legend` ni `display: none` qilardi, qatlamning kalitchasi `#heat` esa `.topbar` da qolib **yashirilmasdi** — ya'ni 360 px da (`UX-S6` — **loyihaviy** kenglik) foydalanuvchi rangli olti burchaklarni ko'rib, na shkalani, na qamrov indeksini (`UX-S4`, `03` §R1.2), na yosh mintaqa pometasini (`FR-S-901`), na zichlik disklameyerini ko'rardi. Buzilgani faqat hujjat emas: `index.html:62–64` ning **o'z izohi** «zichlik indekssiz ko'rsatilmaydi» deydi. 60-run ning sinfidagi defekt — hech narsa yiqilmaydi, test qizarmaydi. **Tuzatildi** (`web/style.css`): endi faqat statik status legendasi yashiriladi (uning ma'nosi popupda matn bilan chiqadi, `app.js:188–209`), zichlik bloki o'z paneli bilan qoladi; `:has()` ataylab ishlatilmadi (3G/eski Android — `UX-S6`), uning o'rniga `aside` dan fon va otstup olib tashlandi, ya'ni `#heat-legend[hidden]` da blok joy egallamaydi. `tests/` da `style.css` ni o'qiydigan fayl yo'q, DOM va `data-i18n` o'zgarmadi — CI ga yangi xavf qo'shilmadi. **Boshqa topilmalar:** §11 ning `I` «Ввод адреса» tuguni **sirtsiz** (geokoder sozlama, `01` §18 qatori va alertda bor, chaqiruvchi kod yo'q — ochiq savolning og'irligi «ortiqcha sozlama» dan «oqimning uzilgan tarmog'i» ga ko'chdi); `N` «Предложить подписку» — `reachable`, lekin `realized` emas (`render()` obuna haqida hech narsa demaydi); `UX-S1` «Первый экран на узбекском» so'zma-so'z bajarilmaydi (`cmd_start` mijozning `language_code` ini hurmat qiladi — ru lokalda birinchi ekran ru); `UX-S3` yarim (zum `map.py:191` `zoom=11` ✅, bo'sh xaritada tushuntirish ✅, **CTA yo'q**); `UX-S5` onboarding — umuman yo'q; §14: ekranlar **4/6** (Статистика по махалле va Онбординг yo'q), status ranglari **3/4** («Завершено» uchun token yo'q), **`A11Y-06` bajarilmagan** (`outage-point` da radius/chegara aynan bir xil — status **faqat rang** bilan kodlangan), Dark Mode `prefers-color-scheme` siz. §12 dan yangi hukm chiqmaydi — u boshqa bo'limlarning takrori (**beshinchi marta**). 👤 **Beshta yangi savol** (geokoder, birinchi ekran tili, to'rtinchi status, `A11Y-06` shakli, Dark Mode). Migratsiya yo'q, yangi modul yo'q, yangi test yo'q, vaqtinchalik fayl yo'q. 👤 `cleanup-sessions.ps1` (**yettinchi**); `tools/_mut84.py` va `_mut.py` — bugun `sveta/tools/` da **topilmadi** (`Glob`), ya'ni allaqachon o'chirilgan bo'lishi mumkin |

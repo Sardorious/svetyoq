@@ -408,6 +408,12 @@ def test_the_product_still_does_not_geocode() -> None:
         # ro'yxat esa pytest sandboxsiz o'tgan runlarda yangilanmagan —
         # birinchi haqiqiy yurgizish (97) aynan shu driftni ushladi.
         "app/release/user_stories.py",
+        # 98-run: `01` §11 ning `I` tuguni — **sakkizinchi** reyestr.
+        # Bu yerdagi savol boshqalardan farq qiladi: «geokoderning
+        # yo'qligi oqimning **yo'lini** uzadimi». Javob: uzadi, va
+        # aynan shu sababdan `01` §16/§18 ning `GEOCODER_UNAVAILABLE`
+        # xato kodi hech qachon ishlab chiqarilmaydi.
+        "app/release/ux_requirements.py",
     }
 
     fields = set(Settings.model_fields)
