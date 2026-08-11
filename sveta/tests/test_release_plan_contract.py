@@ -42,7 +42,7 @@ from sqlalchemy import Boolean
 from app.core.config import Settings
 from app.geo import quality
 from app.geo.models import Region
-from app.release import gates, measures
+from app.release import gates, measures, roadmap
 from app.release import plan as rp
 
 SVETA_ROOT = Path(__file__).resolve().parents[1]
@@ -296,9 +296,7 @@ def test_rows_absent_from_the_peer_map_are_exactly_the_foreign_and_split_ones() 
     missing = {_release_id(cells[0]) for cells in _rows() if _release_id(cells[0]) not in peers}
     assert missing == {"R0", "R1"}
     from_registry = {
-        _release_id(r.release)
-        for r in rp.ROWS
-        if r.alias in (rp.Alias.FOREIGN, rp.Alias.SPLIT)
+        _release_id(r.release) for r in rp.ROWS if r.alias in (rp.Alias.FOREIGN, rp.Alias.SPLIT)
     }
     assert from_registry == missing
 
@@ -308,9 +306,7 @@ def test_rows_present_in_the_peer_map_are_exactly_the_shared_and_reassigned_ones
     present = {_release_id(cells[0]) for cells in _rows() if _release_id(cells[0]) in peers}
     assert present == {"R1.1", "R2.0", "R3.0"}
     from_registry = {
-        _release_id(r.release)
-        for r in rp.ROWS
-        if r.alias in (rp.Alias.SHARED, rp.Alias.REASSIGNED)
+        _release_id(r.release) for r in rp.ROWS if r.alias in (rp.Alias.SHARED, rp.Alias.REASSIGNED)
     }
     assert from_registry == present
 
@@ -546,10 +542,29 @@ def test_nothing_in_the_repo_records_a_phase_zero_result() -> None:
 
     Tripwire: `P0-*` natijalari saqlanadigan joy paydo bo'lsa ikkala
     shart ham `UNRECORDED` bo'lmay qoladi.
+
+    ⚠️ **82-run: istisno kengaydi, da'vo esa kuchaydi.** `01` §24 ning
+    o'z reyestri (`app/release/roadmap.py`) yettala vazifani **nom
+    bilan** sanaydi, ya'ni simvolni qidiradigan skaner uni «natija
+    saqlanadigan joy» deb o'qiydi. Bu 57-run ning tuzog'i bo'lardi:
+    reyestrni yozish tripwire ni jimgina o'chirib qo'yardi. Shuning
+    uchun fayl ro'yxatdan chiqarildi va o'rniga uning **o'z hukmi**
+    talab qilinadi — `roadmap` reyestri hech narsa qayd etilmasligini
+    o'zi aytishi shart.
+
+    ⚠️ **85-run: to'rtinchi istisno, o'sha sabab bilan.** `01` §7 ning
+    reyestri (`app/release/scope.py`) MVP qatorining «Обоснование»
+    katagini **aynan** saqlaydi va ulardan biri `P0-1`. Bu ham
+    natijaning saqlanishi emas, **hujjatning iqtibosi** — va u
+    yuqoridagi `roadmap.evaluate().recorded == ()` talabi bilan
+    qoplangan.
     """
+    assert roadmap.evaluate().recorded == ()
+
+    quoting = {"risks.py", "plan.py", "roadmap.py", "scope.py"}
     hits: list[str] = []
     for path in sorted(APP_DIR.rglob("*.py")):
-        if "__pycache__" in path.parts or path.name in {"risks.py", "plan.py"}:
+        if "__pycache__" in path.parts or path.name in quoting:
             continue
         for node in ast.walk(_tree(path)):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -717,9 +732,7 @@ def test_each_condition_alone_makes_the_plan_inaccurate() -> None:
     javobni o'zgartirmasdi — shuning uchun har shart uchun faqat
     **o'sha** buzilgan hisobot quriladi.
     """
-    clean = tuple(
-        r for r in rp.ROWS if not r.collides and r.is_shippable
-    )
+    clean = tuple(r for r in rp.ROWS if not r.collides and r.is_shippable)
     assert clean, "toza qatorlar qolmadi — test ma'nosini yo'qotdi"
 
     only_colliding = rp.PlanReport(

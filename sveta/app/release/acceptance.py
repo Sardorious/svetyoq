@@ -379,7 +379,7 @@ CRITERIA: tuple[Criterion, ...] = (
         phrase="Контрольная выборка ≥50 точек привязывается к корректной махалле",
         note=(
             "Yagona mezon bo'lib, uning dalili tizimda umuman saqlanmaydi. "
-            "`01` §10 UC-S3 uni oqimning 5-qadami deb sanaydi "
+            "`01` §10 UC-S2 uni oqimning 5-qadami deb sanaydi "
             "(«Смоук-проверка привязки на контрольных точках»), natijasi esa "
             "hech qayerda qayd etilmaydi — `03` §6 ning qo'lda tasdiqlanadigan "
             "mezonlari bilan bir xil holat."

@@ -8,7 +8,228 @@ Batafsil tarix va sabablar — `PROGRESS.md` (holatning **yagona manbai**,
 310 KB) va `../cowork_session/INDEX.md`. Bu yerda ular takrorlanmaydi,
 faqat havola qilinadi.
 
-**Oxirgi yangilanish:** 2026-08-10, 80-run.
+**Oxirgi yangilanish:** 2026-08-11, 97-run.
+
+> ✅ **97-run (96 bilan bir sessiya) — sandbox tiklandi va HAMMASI
+> YASHIL.** `test_user_stories_contract.py` **birinchi marta yurgizildi
+> va 69/69 o'tdi** (93-run qo'lda sanagan son aynan chiqdi) — olti run
+> davom etgan «yurgizilmagan qatlam» xavfi **yopildi**. Butun to'plam:
+> **2569 passed, 232 skipped**; `alembic upgrade head` 0001→0010 toza;
+> **`-m requires_db` — 231 passed** (83-rundan beri birinchi bazali
+> yurish); `ruff check` toza. Yo'l: `/sessions` diski 100% to'la
+> (`cleanup-sessions.ps1` hali dolzarb!), shuning uchun `TMPDIR=/tmp` va
+> hamma narsa `/` ga: micromamba → Python 3.11.15 (tizimda 3.10,
+> `StrEnum` yo'q) va PostgreSQL 18.4 + PostGIS.
+> 🔴 **Ikkita yiqilish — 93-run bashorat qilgan sinf (ro'yxat drifti,
+> assert emas):** 89-run yozgan `app/release/user_stories.py`
+> `GEOCODER_UNAVAILABLE` ni hujjat so'zi sifatida qayd etadi, ikkita
+> testning geokoder ro'yxatlari esa yangilanmagan edi
+> (`test_geocoder_has_no_call_site`,
+> `test_the_product_still_does_not_geocode`). Fayl ikkala ro'yxatga
+> **yettinchi reyestr** bo'lib qo'shildi — 73/75/76/82-runlarning
+> izidan. **96-run ning `web/` o'zgarishlari CI da tasdiqlandi**;
+> brauzer hali ko'rmagan. Keyingi qadam: mutatsiya, keyin `01` §11–§14
+> reyestri — yo'l endi ochiq.
+>
+> ---
+>
+> 🔴 **96-run — bannerning til drifti tuzatildi va `A11Y-06` (rang **va**
+> shakl) nihoyat bajarildi.** Sandbox **ketma-ket to'qqizinchi** run
+> ko'tarilmadi (`useradd failed: No space left on device`, ikki urinish),
+> ya'ni `pytest` **yettinchi** run ketma-ket yurgizilmadi va
+> `test_user_stories_contract.py` hali ham kutmoqda. 93-run ning sharti
+> saqlandi: `01` §11–§14 reyestri **yozilmadi**.
+> **Avval tekshirildi:** 95-run ning `notices` refaktori to'g'ri — uch uya
+> mustaqil, takror satr tushadi, `refreshHeat` ning `else` i uyani
+> tozalaydi, `setHeat(false)` faqat `heat` ga tegadi.
+> **Lekin refaktor yangi yuza ochdi va o'sha yerda defekt bor edi —
+> til drifti:** uch uyaning ikkitasi (`map`, `heat`) har tikda serverdan
+> qayta hisoblanadi, `tiles` esa **bir marta**, `baseStyle()` da
+> qo'yilardi. Til almashganda (`#lang` → `applyStrings` → `refresh` →
+> `refreshHeat`) ikkita uya yangi tilga o'tar, uchinchisi eskisida
+> qolardi; ADR-08 ochiq bo'lgani uchun bu uya bugun deyarli **doim to'la**,
+> ya'ni banner amalda **aralash tilda** ko'rinardi. 60/94/95-run bilan
+> aynan bir sinf. Tuzatish: uya `applyStrings()` da qayta hisoblanadi
+> (`config` ning sof hosilasi), `baseStyle()` **sof funksiya** bo'ldi.
+> **Ikkinchi ish — `A11Y-06`** (`01` §14, `UX-S7` orqali WCAG 2.1 AA;
+> 94-run uni «bajarilmagan» deb qayd etgan edi). Xavf haqiqiy: `#e2483d`
+> va `#e8a33d` deyteranopiyada deyarli farqsiz, ilgari esa uchala status
+> **bir xil doira** edi. Sprite siz uchlik (majburiy: bo'sh style da na
+> atlas, na glif serveri bor) — to'ldirilgan doira (`заливка`), ichi bo'sh
+> halqa (`пунктир` ning muqobili), halqa + markaz (`иконка`, ikkinchi
+> `outage-official-core` qatlami). Rang ikkala shaklda ham qoladi, faqat
+> boshqa xossada; bitta `SOLID` predikati uchala xossada; `official`
+> `status` dan ustun. `style.css` dagi legenda ham shu uchlikka keltirildi.
+> **CI xavfi qo'lda o'lchandi:** `function banner`, `var heatOn = false`,
+> `showCoverage(`/`showMaturity(` **ikkitadan**, `t("map.…")` to'plami,
+> yangi i18n kaliti yo'q, `notify.*` yo'q; `index.html` **umuman
+> tegilmadi**; `tests/` da `style.css` ni yoki qatlam identifikatorlarini
+> o'qiydigan fayl yo'q.
+> ⚠️ **Hech biri yurgizilmagan** — na `pytest`, na brauzer. 👤 **Ikkita
+> yangi savol** (`outage-halo` `official` ni bilmaydi; to'rtinchi status
+> sirtsiz); `cleanup-sessions.ps1` — **to'qqizinchi** sandboxsiz run.
+>
+> ---
+>
+> 🔴 **95-run — `web/` da to'rtta defekt topildi va tuzatildi; bannerning
+> uchta manbai bir-birini o'chirardi.** Sandbox **ketma-ket sakkizinchi**
+> run ko'tarilmadi (`useradd failed: No space left on device`, uch
+> urinish), ya'ni `pytest` **yana** yurgizilmadi va
+> `test_user_stories_contract.py` **oltinchi** run kutmoqda. 93-run ning
+> sharti saqlandi: `01` §11–§14 reyestri **yozilmadi**. Uning o'rniga
+> 94-run ochgan yo'ldan borildi — `web/` CI hech qachon **xulq-atvor**
+> darajasida ko'rmagan sirt (to'rtta test uni faqat **matn** sifatida
+> o'qiydi).
+> **Avval tekshirildi:** 94-run ning `style.css` tuzatishi to'g'ri —
+> `>` bolalar selektori `#heat-legend` ning o'z `h2`/`.note` larini
+> chetlab o'tadi, `@media` da `display` qayta belgilanmagani uchun
+> `[hidden]` kuchida qoladi.
+> **Uchta defekt, bitta sabab — `banner()` bitta argument olardi, unga
+> yozadigan manba esa uchta:** (1) `map.tiles_missing` ni birinchi
+> `refresh()` bir necha yuz millisekundda o'chirardi (ADR-08 ochiq, ya'ni
+> taylsizlik **kutilayotgan** holat); (2) `!data.sufficient`
+> ogohlantirishi keyingi `refresh()` tikida (≥15 s) yo'qolardi, qatlam
+> esa qolardi — `refreshHeat` ning **o'z izohi** buni taqiqlaydi, ya'ni
+> 60-run/94-run bilan aynan bir sinf; (3) `setHeat(false)` xaritaning
+> `map.empty` tushuntirishini o'chirardi (`UX-S3`). Ustiga: `reload`
+> tugmasining natijasi **noaniq** edi (ikki so'rov poygasi) va
+> `refreshHeat` da `else` yo'q edi.
+> **Tuzatish:** `notices = {tiles, map, heat}` — har manbaning o'z uyasi,
+> matn ` · ` bilan yig'iladi, takror satr tushib qoladi; `else banner
+> ("heat", "")` qo'shildi.
+> **To'rtinchi defekt — `index.html`:** brauzer `#heat` kalitchasini
+> tiklaydi, `heatOn` esa `false` dan boshlanadi → kalitcha «yoqilgan»
+> ko'rinardi, qatlam chizilmasdi; `autocomplete="off"`.
+> **CI xavfi qo'lda o'lchandi va to'rtala testning sharti saqlandi:**
+> `function banner` literali (`channels.py:360`), `var heatOn = false`,
+> `showCoverage(`/`showMaturity(` **aynan ikkitadan**, `t("map.…")`
+> kalitlari o'zgarmadi, yangi i18n kaliti yo'q, `notify.*` yo'q,
+> `#heat-legend` tegilmadi.
+> ⚠️ **Hech biri yurgizilmagan** — na `pytest`, na brauzer. 👤 **Ikkita
+> yangi savol**; `cleanup-sessions.ps1` — **sakkizinchi** sandboxsiz run.
+>
+> ---
+>
+> 🔴 **94-run — `01` §11–§14 sirtga solishtirildi va bitta defekt
+> tuzatildi.** Sandbox **ketma-ket yettinchi** run ko'tarilmadi
+> (`useradd failed: No space left on device`, ikkita bir xil
+> urinish), ya'ni `pytest` **yana** yurgizilmadi va
+> `test_user_stories_contract.py` **beshinchi** run kutmoqda.
+> 93-run ning sharti bajarildi: reyestr ham, test ham **yozilmadi**.
+> Uning o'rniga §11 ning 15 tuguni, §12 ning bloklari, §13 ning 7
+> va §14 ning 6 qatori qurilgan sirtga biriktirildi — 95-run uchun
+> **xarita**, dalil emas.
+> **Topilgan defekt — `web/style.css`:** `#heat-legend`
+> `<aside class="legend">` **ichida** (`index.html:42–79`), CSS esa
+> `@media (max-width: 640px)` da butun `.legend` ni `display: none`
+> qilardi, `#heat` kalitchasi esa `.topbar` da qolib yashirilmasdi.
+> Ya'ni **360 px da** (`UX-S6` — loyihaviy, asosiy kenglik) zichlik
+> qatlami **qamrov indeksisiz** (`UX-S4`, `03` §R1.2), yosh mintaqa
+> pometasisiz (`FR-S-901`) va disklameyersiz chizilardi —
+> `index.html:62–64` ning **o'z izohi** buni taqiqlaydi. 60-run ning
+> sinfi: hech narsa yiqilmaydi, test qizarmaydi. Endi faqat statik
+> status legendasi yashiriladi (ma'nosi popupda bor,
+> `app.js:188–209`); `:has()` ataylab ishlatilmadi (3G/eski
+> Android), `aside` dan fon va otstup olib tashlandi.
+> `tests/` da `style.css` ni o'qiydigan fayl yo'q — CI ga xavf yo'q.
+> **Qolgan topilmalar:** §11 `I` «Ввод адреса» **sirtsiz** (geokoder
+> sozlamada, `01` §18 da va alertda bor, chaqiruvchi kod yo'q — 17
+> fayldan **birortasi ham** `app/geo/` da emas); `N` «Предложить
+> подписку» — `reachable`, `realized` emas; `UX-S1` birinchi ekran
+> mijoz tilida (uz emas); `UX-S3` yarim (zum ✅, tushuntirish ✅,
+> **CTA yo'q**); `UX-S5` yo'q; §14 — ekranlar **4/6**, ranglar
+> **3/4**, **`A11Y-06` bajarilmagan** (status **faqat rang** bilan
+> kodlangan: radius va chegara uchala statusda aynan bir xil),
+> Dark Mode `prefers-color-scheme` siz. §12 — takror (**beshinchi
+> marta**).
+> ⚠️ 360 px dagi tuzatishni **hech kim ko'rmagan** — 95-run yoki
+> 👤 odam tekshirsin. 👤 **Beshta yangi savol**;
+> `cleanup-sessions.ps1` — **yettinchi** sandboxsiz run.
+>
+> ---
+>
+> ⚠️ **93-run ham sandboxsiz o'tdi — ketma-ket oltinchi**
+> (`useradd failed: No space left on device`, ikkita **aynan bir
+> xil** urinish; uchinchisi qilinmadi). 92-run ikkita narsani
+> qoldirgan edi: (a) «yana bitta yurgizilmagan qatlam qo'shilmasin»
+> va (b) chegara — «yiqilish chiqsa, u ko'rilmagan **mexanizmdan**
+> keladi, assertdan emas». Birinchisi `01` §13 ni bugundan chiqarib
+> tashladi; ikkinchisi esa 92-run **o'zi nomlagan** yagona qolgan
+> xavf va u `Read`/`Grep` bilan to'liq tekshiriladi. 93-run aynan
+> shuni qildi — **to'qqizta tekshiruv, hammasi toza:**
+> hujjat yo'li va bo'lim regexi (`01_PRD_Samarkand.md` `ROOT` da,
+> `:280`/`:318`/`:353`, `_section` ofseti qo'lda yurgizildi);
+> `pyproject.toml` da **`addopts` ham, `filterwarnings` ham yo'q**;
+> `conftest.py` ning yagona hooki faqat `requires_db` ni qidiradi;
+> `app/release/__init__.py` bor va `user_stories.py` **faqat
+> `dataclasses`/`enum`** ni import qiladi; ⚠️ **modul 89-run da,
+> testlar 90/91-run da yozilgan va hech qachon birga
+> yurgizilmagan** — **31 ta** `us.<konstanta>` + 8 tip +
+> `evaluate` bittalab solishtirildi, **40 dan 40 mos**
+> (`AttributeError` sinfi yopildi); **21 ta** `report.<xossa>`
+> mavjud; `_story`/`_clause`/`_report` kalitlari dataklass
+> maydonlariga aynan mos (7/9/3, `TypeError` sinfi yopildi);
+> `ruff` — import tartibi, `zip(` yo'q, **`UP038` shubhasi yopildi**
+> (tuple li `isinstance` o'n bitta yashil faylda bor), `F811`
+> takrorlangan test nomini o'zi ushlaydi; 89-run ning fayllararo
+> bog'lanishlari (`registries.py:676`, `_check_registry()`,
+> `probe(doc)` ↔ `_probe_user_stories(_doc=None)`, `acceptance.py`,
+> i18n ikkala katalogda).
+> **Bitta topilma — hisob xatosi, defekt emas: faylda 69 test bor,
+> 70 emas** (11+16+10+9+12+11). 92-run ning «70 nom, 70 noyob»
+> dalili kuchida qoladi; son shu faylda va `INDEX.md` da
+> to'g'rilandi.
+> ⚠️ **Qoladigan ikkita xavf o'qib yopilmaydi:** `evaluate()` ning
+> haqiqiy reyestrdagi qorovullari va muhitning o'zi (`app` paketi
+> `sys.path` da). Faqat sandbox yoki CI yopadi.
+> 👤 `cleanup-sessions.ps1` — **oltinchi** sandboxsiz run.
+>
+> ---
+>
+> ⚠️ **92-run ham sandboxsiz o'tdi — ketma-ket beshinchi**
+> (`useradd failed: No space left on device`, uch urinish). Yangi
+> qatlam yozish **ataylab rad etildi**: 89–91-runlar allaqachon bitta
+> modul + 70 testli faylni yurgizilmagan qoldirgan. Uning o'rniga
+> `tests/test_user_stories_contract.py` **butunligicha va testdan
+> manbaga** yo'nalishda qo'lda hisoblandi — **defekt topilmadi**.
+> Haqiqiy test soni **70** (90+91-runlar «~47 + 13» degan edi):
+> takrorlangan test nomi yo'q, E501 yo'q, uchala taqsimot va oltita
+> hisoblanadigan xossa mos, `__post_init__` ning beshala qorovuli
+> uchun `raise` tartibi tekshirildi, **23 ta `modul:simvol` bind**
+> manbadagi nomga yechildi va **17 ta fayl bind** mavjud, `reply.py`
+> (132 qator) va `handlers.py:388–402` `ast` hukmlariga mos, `01`
+> §9/§10 qo'lda parse qilinib bijeksiya `8 = 9 − 1` chiqdi,
+> `STEP_RE` ning «H3.» tuzog'i qayta ushlanishi tasdiqlandi.
+> ⚠️ Bu **`pytest` emas** — fayl beshinchi run ketma-ket
+> yurgizilmagan. Yiqilish chiqsa, u bugun ko'rilmagan mexanizmdan
+> keladi (import zanjiri, `conftest.py`, marker), assertdan emas.
+> ⚠️ **Yo'l-yo'lakay: `01` ning §11–§14 umuman bog'lanmagan** va §13
+> (`UX-S1…UX-S7`) kontrakt shakliga eng yaqini — **93-run uchun
+> keyingi nishon**, lekin faqat `pytest` dan **keyin**.
+> **Asosiy topilma: `UX-S2` — `C-5` taqiqining uchinchi nusxasi**
+> (`01` §9 ↔ `01` §13 ↔ `05` §6.2), ya'ni ochiq savolning og'irligi
+> o'zgardi. 👤 `cleanup-sessions.ps1` — **beshinchi** sandboxsiz run.
+> Quyidagi test sonlari hali ham **87-run** ning holati.
+>
+> ---
+>
+> ⚠️ **91-run ham sandboxsiz o'tdi — ketma-ket to'rtinchi**
+> (`useradd failed: No space left on device`), ya'ni `pytest` ham,
+> `ruff` ham yurgizilmadi. 90-run qoldirgan **`ast` qatlami baribir
+> yozildi** (`tests/test_user_stories_contract.py` §8, 13 test): har
+> `modul:simvol` bind i daraxtga yechiladi (33 ta), `render()` ning
+> `situation` dan o'qigan maydonlari **aynan** taqqoslanadi,
+> `reply.py` da `independent_reporters`/`count_independent` degan
+> nom yo'qligi va ularning `app.clustering.*` da borligi
+> o'lchanadi, `decide()` ning `coverage_ok` bo'yicha bo'linishi va
+> taqiqlangan verdikt `Verdict` ning **qiymatidan** olinadi,
+> `errors.py` ning **sinf atributlari** `out_of_region` ni beradi va
+> `DOC_ERROR_CODES` ning ikkalasini ham bermaydi, `BOT_COMMANDS` va
+> `LANGUAGE_SWITCH_STEPS` esa `handlers.py` ning `register`
+> chaqiruvlaridan **sanaladi**. Matn hech qayerda qidirilmaydi.
+> ⚠️ **Fayl hech qachon yurgizilmagan** — 92-run birinchi navbatda
+> shuni qilishi kerak. Quyidagi test sonlari hali ham **87-run** ning
+> holati. 👤 `cleanup-sessions.ps1` — **to'rtinchi** sandboxsiz run.
 **Belgilar:** ⬜ boshlanmagan · 🔄 jarayonda · ✅ tugallangan · ⛔ bloklangan
 
 ---
@@ -26,7 +247,7 @@ faqat havola qilinadi.
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | 11, 62, 64, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | 11, **78** | — (79-run: odam CI ning yashilligini tasdiqladi) |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | 12, 19, 35, 36, 39, **80** | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, **78** | ADR-08 (tayl manbasi) |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `0004` | 13, 78, **94**, **95**, **96** | ADR-08 (tayl manbasi); ~~`A11Y-06`~~ ✅ **96-run** (rang **va** shakl, sprite siz); Dark Mode (`prefers-color-scheme`); 96-run: `outage-halo` `official` ni bilmaydi, to'rtinchi status («Завершено») sirtsiz — 👤 **yettita savol** |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | (64 — asbob) | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | — | E10, E11 |
@@ -36,7 +257,7 @@ faqat havola qilinadi.
 | E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | 17, 22, **78** | Haqiqiy zichlik (E10) |
 | E17 | Mahalla darajasi | ⬜ | — | — | 👤 **poligonlar** |
 | E18 | Rasmiy manba parsing | ⬜ | — | — | 👤 **H-4** |
-| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28, **78** | **Ikkinchi mintaqani haqiqiy import** |
+| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | 18, 24, 26, 28, **78**, **85** | **Ikkinchi mintaqani haqiqiy import** (85-run: `01` §7 uni Future Release da deb yozadi — 👤 savol) |
 | E20 | PWA + Web Push | ⬜ | — | — | E12 |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
@@ -44,25 +265,45 @@ faqat havola qilinadi.
 | Blok | Holat | Kod | Runlar |
 |---|---|---|---|
 | TEST — sun'iy uzilish generatori (`05` §9.1) | 🔄 | `tools/simulate.py` | 20, 46 |
-| OBS — kuzatuvchanlik (`05` §10 + `01` §22) | 🔄 | `app/obs/`, `app/core/logging.py` | 21, 24, 47, 56, **69** |
+| OBS — kuzatuvchanlik (`05` §10 + `01` §22) | 🔄 | `app/obs/`, `app/core/logging.py` | 21, 24, 47, 56, 69, **81** |
 | ANL — analitika hodisalari va dashboardlari (`01` §21) | 🔄 | `app/analytics/` | 29, **68** |
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` | 45, 49, **56** |
-| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) + reliz rejasi (`01` §25) | 🔄 | `app/release/` | 66, 67, 70, 75, 76, **77** |
+| REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) + reliz rejasi (`01` §25) + yo'l xaritasi (`01` §24) | 🔄 | `app/release/` | 66, 67, 70, 75, 76, 77, **81**, **82** |
 | SEC — xavfsizlik kafolatlari (`01` §20 + BRD «Безопасность» NFR) | 🔄 | `app/admin/security.py` | **71** |
 | DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` | **72** |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` | **73** |
 | ARCH — arxitektura konteynerlari (`01` §29 ↔ `03` §Q-1) | 🔄 | `app/core/architecture.py` | **79** |
-| VIT — reyestrlar vitrinasi (`GET /admin/registries`) | 🔄 | `app/admin/registries.py` | **80** |
+| VIT — reyestrlar vitrinasi (`GET /admin/registries`) | 🔄 | `app/admin/registries.py` | 80, **83** |
+| LEX — lug'at (`01` §30 ↔ kod) | 🔄 | `app/core/glossary.py` | **83** |
+| SUC — muvaffaqiyat metrikalari (`01` §4 ↔ o'lchagichlar) | 🔄 | `app/release/success.py` | **84** |
+| SCOPE — ko'lam (`01` §7 ↔ qurilgan sirt) | 🔄 | `app/release/scope.py` | **85** |
+| API — API talablari (`01` §16 ↔ qurilgan interfeys) | 🔄 | `app/core/api_requirements.py` | **86** |
+| FR — funksional talablar deltasi (`01` §8 ↔ qurilgan mahsulot) | 🔄 | `app/release/functional_requirements.py` | **87** |
+| UX — foydalanuvchi hikoyalari (`01` §9 «User Stories» + §10 «Use Cases») | 🔄 | `app/release/user_stories.py`, `tests/test_user_stories_contract.py` (to'rt qatlam, `ast` bilan, **69 test** — ✅ **97-run: birinchi yurgizishda 69/69**) | 88, 89, 90, 91, 92, 93, **97** |
+| UX-2 — `01` §11–§14 (User Flow, Business Process, **UX Requirements**, UI Requirements) | 🔄 | — reyestr hali yo'q; 94-run `web/style.css`, 95-run `web/app.js` + `index.html` ni tuzatdi | (92 — topildi; **94 — sirt tahlili**; **95 — `web/` xulq-atvori**) |
+| WEB — `web/` ning xulq-atvori: birorta test uni **matn** dan boshqa darajada o'qimaydi (`test_i18n_key_contract`, `test_map_api`, `test_notification_channels_contract`, `test_region_acceptance_contract` — to'rttasi ham `read_text` + regex) | ⛔ **qatlam yo'q** | `web/app.js`, `web/index.html`, `web/style.css` | (94 — CSS defekti; 95 — to'rtta JS/HTML defekti; **96 — banner til drifti + `A11Y-06`**) |
 
 ---
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **131 ta test fayli**; oxirgi to'liq yurish (79-run): `pytest -q`
-(**bayroqsiz**) → **2408 passed, 1 skipped**. 80-run bazasiz yurgizdi
-(sandboxda PostGIS ko'tarilmadi) → **2210 passed, 232 skipped**, ya'ni
-`requires_db` ning 231 tasi bu runda **yurmadi** va CI ning tasdig'i
-kerak.
+Jami **136 ta `tests/test_*.py` fayli** (97-run `ls` bilan sanadi;
+oldingi «138» 90-run ning bahosi edi). ✅ **97-run — to'liq yashil
+yurish, bazasi bilan:** butun to'plam **2569 passed, 232 skipped**,
+`-m requires_db` — **231 passed** (83-rundan beri birinchi bazali
+yurish, PostgreSQL 18.4 + PostGIS micromamba dan), `ruff check` toza.
+`test_user_stories_contract` **birinchi marta yurgizildi — 69/69**.
+Ikkita ro'yxat drifti topilib tuzatildi (geokoder ro'yxatlariga
+yettinchi reyestr). ⚠️ `/sessions` diski hali ham 100% to'la —
+`TMPDIR=/tmp` majburiy. 👤 Odamga eslatma: `cleanup-sessions.ps1`.
+
+⚠️ **Nomlar to'qnashuvi haqida.** 80-run bu yerga «odam parallel:
+`test_obs_latency`» deb yozgan edi, ya'ni o'sha kuni repoda shunday
+nomli fayl ko'ringan. **Bugun (81-run boshida) bunday fayl yo'q edi** —
+`Write` yangi fayl yaratdi, ya'ni hech narsa ustiga yozilmadi. Agar
+odamda o'sha faylning saqlanmagan nusxasi bo'lsa, u bugungisi bilan
+almashtirilishi kerak: bugungisi `app/obs/latency.py` ning haqiqiy
+API si bo'yicha yozilgan.
 
 ✅ **79-run: CI ni odam yurgizdi va u yashil.** 78-run ning yagona ochiq
 so'rovi shu edi — oltita epic (`E2`, `E5`, `E5b`, `E6`, `E7`, `E15`) uchun
@@ -77,7 +318,8 @@ chiqdi (`ST_SimplifyPreserveTopology` tipni tushirishi, `/heatmap` ning
 `ETag` i `max-age` ga zidligi, `resolve_period` da panjara yo'qligi).
 ✅ `ruff check app tools tests alembic` — toza (54-rundan beri `ruff` ham,
 `pytest` ham har runda yashil). ⚠️ `ruff format --check` esa
-82 faylni qayta formatlashni so'raydi (repo bo'ylab eskirgan formatlash) —
+**100** faylni qayta formatlashni so'raydi (repo bo'ylab eskirgan
+formatlash; 81-run faqat o'zi tegilgan 14 faylni formatladi) —
 CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 «Ochiq savollar» ida.
 
@@ -98,13 +340,19 @@ CI uni yurgizmaydi, `make lint` esa yurgizadi; qaror `PROGRESS.md` ning
 | E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E19 | `test_region_registry`, `test_regions_api_db` |
-| TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf), `test_logging_setup` |
-| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract` |
+| TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_obs_latency` (81-run: chelaklar, kvantil, yuza tasnifi, eksport), `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_jobs_registry` (56-run: skript rejimi uchun ikkita qulf), `test_logging_setup` |
+| REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract`, `test_roadmap_contract` (82-run: Faza 0 vazifalari, chiqish mezonlari, fazalar) |
 | SEC | `test_security_posture_contract` |
 | DATA | `test_data_model_contract` |
 | INT | `test_integrations_contract` |
 | ARCH | `test_architecture_contract` |
 | VIT | `test_admin_registries` |
+| UX | `test_user_stories_contract` — **69 test** (93-run sanadi: §1—11, §2—16, §3—10, §4—9, §5–§7—12, §8—11; 92-run «70» degan edi va o'sha son «70 nom, 70 noyob» dalilining tayanchi edi — dalil kuchida qoladi, `ruff F811` ham qoplaydi). ⚠️ **93-run mexanizm qatlamini auditdan o'tkazdi va to'siq topmadi:** hujjat yo'li va `_section` regexi, `pytest` konfiguratsiyasi (`addopts`/`filterwarnings` yo'q), `conftest` hooki, import zanjiri, **40 ta `us.<nom>`** va **21 ta `report.<xossa>`** bijeksiyasi (modul 89-run da, testlar 90/91-run da yozilgan — `AttributeError` sinfi yopildi), dataklass kalitlari (7/9/3), `ruff` qoidalari (`UP038` yoqilmagan), 89-run ning fayllararo bog'lanishlari. 92-run butunligicha qo'lda hisobladi va defekt topmadi (23 ta `modul:simvol` bind yechildi, 17 ta fayl bind mavjud, `reply.py`/`handlers.py` `ast` hukmlariga mos, `01` §9/§10 bijeksiyasi `8 = 9−1`); ⚠️ `pytest` uni **hali ham ko'rmagan**. (90-run: uch o'qning taqsimoti, beshta hisoblanadigan xossa, `__post_init__` ning beshala qorovuli, `01` §9/§10 dan parse qilingan bijeksiya, `binds` ↔ fayl tizimi; 91-run §8: 33 ta bind daraxtga yechiladi, `render`/`decide` ning `situation` maydonlari aynan taqqoslanadi, `Verdict` qiymatlari, `errors.py` sinf atributlari, `register` chaqiruvlari sanaladi; fayl hali **yurgizilmagan**) |
+| LEX | `test_glossary_contract` (83-run: o'nta atama, `Anchor` × `Fidelity`, belgi ikki tomonlama) |
+| SUC | `test_success_metrics_contract` (84-run: o'n ikkita KPI, `Reading` × `Target`, `NPS` tuzog'i nom bilan qulflangan) |
+| SCOPE | `test_scope_contract` (85-run: o'n sakkiz qator, `Presence` × `Fence` × `Warrant`, `PG-S*` gorizonti `01` §3 dan parse qilinadi, manba tanlovi AST bilan o'lchanadi) |
+| API | `test_api_requirements_contract` (86-run: yettita delta qatori + epigrafning oltita meros xossasi, `Delivery` × `Obligation` × `Echo`, hukmlar `app.openapi()` dan, `ast` import grafidan va paketning **boshqa** hujjatlaridan hisoblanadi) |
+| FR | `test_functional_requirements_contract` (87-run: oltita `FR-S-*` qatori, `Delivered` × `Witness` × `Openness`, hukmlar hujjatdan, `ast` dan va paketning **boshqa** hujjatlaridan hisoblanadi; H3 qorovullari `ast` bilan **sanaladi**, nomlanmaydi) |
 
 ---
 
@@ -163,6 +411,7 @@ haqiqatan kodda ishlatilyaptimi, yoki u faqat hujjatda qolganmi?*
 | `01` §26 «Risks» + §27 «Assumptions» | `test_risk_register_contract.py` | **75** |
 | `01` §28 «Dependencies» ↔ `03` §3/§6 | `test_dependencies_contract.py` | **76** |
 | `01` §25 «Release Plan» ↔ `03` §3 reliz xaritasi | `test_release_plan_contract.py` | **77** |
+| `01` §24 «Product Roadmap» — Faza 0 vazifalari, chiqish mezonlari, fazalar | `test_roadmap_contract.py` | **82** |
 
 **Natijasi.** `06` ning §11–§12 dan boshqa **butun hujjati** kod bilan
 bog'landi; `05` ning esa **butun hujjati** — §1–§10 ning hammasi (60-run §3
@@ -275,12 +524,658 @@ bajariladimi». Defekt topilmadi, sakkizta mutatsiya bilan tekshirildi.
 | Obuna radiusining standarti hali Toshkentniki (500 m) — oraliq qiymat qo'yiladimi | E13, E11 |
 | `RS-08` ning «откат без релиза» i botga yetmaydi — bot mintaqani biladigan bo'ladimi yoki qator qayta yoziladimi | REL (`01` §26), E3, E4 |
 | `FR-S-802` (tuman) va `FR-S-804` (H3 r8–9) bir xil shart uchun ikki xil zaxira darajasini nomlaydi | REL, E14, E16, ADR-07 |
-| Faza 0 natijalari (P0-1…P0-6) qayerda qayd etiladi — reyestrning 14 ta bandi shu sababdan tekshirilmaydi | REL (`01` §26/§27, §23) |
+| Faza 0 natijalari (P0-1…P0-7) qayerda qayd etiladi — 82-run buni **o'lchadi**: `roadmap.evaluate().recorded` bo'sh, ya'ni na vazifa, na chiqish mezoni natijasi saqlanadi. Narxi: 75-run ning 14 ta `SCHEDULED` bandi, 77-run ning ikkita `UNRECORDED` sharti va `G-4` ning `threshold=None` i | REL (`01` §23, §24, §25, §26/§27; `03` §6) |
+| `US-S2` botning verdiktidagi son `independent_reporters` ga o'tadimi (bugun `count_attached` — xabarlar soni, o'zi ham ichida) va oyna soatga bog'lanadimi | E3, E5b, E7, `01` §9 |
+| `US-S2` ↔ `05` §6.2 ziddiyati: `AC` «avariya yo'q» deyishni taqiqlaydi, `NO_OUTAGE_COVERED` esa aynan shuni aytadi — §9 tahrirlanadimi yoki E7 qayta yoziladimi. ⚠️ **92-run: tahrirlanadigan joy ikkita** — `01` §13 ning `UX-S2` si o'sha taqiqni mahsulot talabi sifatida qayta yozadi («**никогда** как аварии нет»), ya'ni qaror uchalasiga (`01` §9, `01` §13, `05` §6.2) birdan qo'llanadi | E7, E3, `01` §9, `01` §13 |
+| `US-S1` uchun `/language` komandasi qo'shiladimi yoki «одной командой» qayta yoziladimi (bugun til — ikki qadamli tugma) | E3, E4, `01` §9 |
+| `US-S5` eksportiga mahalla kesimi qo'shiladimi (CSV ning «qator = tuman» qoidasi buziladi) yoki `AC` JSON ga havola qiladimi | E14, E17, `01` §9 |
+| `UC-S3` uchun `rollback` komandasi qo'shiladimi yoki «миграция обратима» qayta yoziladimi (`promote` qaytarilmaydi) | E2, `01` §10 |
 | `01` §26 ga aniq koordinata saqlanishi haqida qator qo'shiladimi (`RS-06` faqat hosila ma'lumot haqida) | REL, SEC, E2 |
 | `FR-804` (`01` §28) butun hujjatda faqat shu jadvalda — qator olib tashlanadimi, belgilanadimi yoki talab ko'chiriladimi | REL (`01` §28), E2 |
 | `OQ-01` uch marta havola qilinadi va birorta hujjatda ta'riflanmagan — `OQ-*` ro'yxati qayerda | REL (`01` §28), E2, ADR-07 |
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
+
+- **93-run — 92-run o'zi nomlagan xavfni yopish: mexanizm qatlami.**
+  Sandbox ketma-ket **oltinchi** run ko'tarilmadi. 92-run ikkita
+  narsani qoldirgan edi va ular birga bugungi ishni to'liq
+  belgilaydi: «yana bitta yurgizilmagan qatlam qo'shilmasin» (ya'ni
+  `01` §13 bugun **yozilmaydi**) va «yiqilish chiqsa, u ko'rilmagan
+  **mexanizmdan** keladi, assertdan emas». Ikkinchisi — qolgan
+  yagona xavf va u to'liq **o'qib** tekshiriladi, chunki savol
+  assertning rostligi emas, **fayl umuman yig'iladimi**.
+  Tekshirilgani: hujjat yo'li va `_section` regexi; `pytest`
+  konfiguratsiyasi (**`addopts` ham, `filterwarnings` ham yo'q**,
+  ya'ni na `--strict-markers`, na ogohlantirishdan yiqilish);
+  `conftest.py` ning yagona hooki `requires_db` ga bog'liq va bu
+  faylga tegmaydi; import zanjiri (`app/release/__init__.py` bor,
+  modul **faqat** `dataclasses`/`enum` ni import qiladi).
+  ⚠️ **Eng qimmatlisi — bijeksiya.** Modul 89-run da, testlar
+  90/91-run da yozilgan va **hech qachon birga yurgizilmagan**:
+  bu `AttributeError`/`TypeError` sinfidagi yiqilish bo'lib,
+  assertga **yetmasdan** ro'y beradi va shuning uchun 92-run ning
+  «har assertning ikkala tomoni» auditi uni **prinsipial ko'ra
+  olmasdi**. Bugun 31 ta `us.<konstanta>` + 8 tip + `evaluate`
+  (40 dan 40), 21 ta `report.<xossa>` va uchala test yordamchisining
+  kalitlari (7/9/3) manbaga bittalab solishtirildi.
+  `ruff` tomondan `UP038` shubhasi ham yopildi: tuple li
+  `isinstance` o'n bitta yashil faylda bor, ya'ni qoida bu
+  konfiguratsiyada yoqilmagan.
+  **Bitta topilma — hisob xatosi, defekt emas: 69 test, 70 emas.**
+  92-run ning «70 nom, 70 noyob» dalili kuchida qoladi (69 e'lon,
+  69 har xil nom, ustiga `ruff F811`), lekin son uch joyda
+  to'g'rilandi.
+  ⚠️ **Chegara:** qoladigan ikkita xavf o'qib yopilmaydi —
+  `evaluate()` ning haqiqiy reyestrdagi qorovullari va muhitning
+  o'zi. Kod yozilmadi, migratsiya yo'q, vaqtinchalik fayl yo'q,
+  👤 yangi savol yo'q.
+
+- **92-run — testni `pytest` siz yurgizish, va uning chegarasi.**
+  Sandbox ketma-ket **beshinchi** run ko'tarilmadi. Ikkita yo'l bor
+  edi: yangi qatlam yozish yoki borini tekshirish. Birinchisi rad
+  etildi — 89–91-runlar bitta modul va 70 testli faylni
+  yurgizilmagan qoldirgan, oltinchi qatlam CI ochilgan kuni aybdorni
+  topishni qiyinlashtirardi. **Fayl butunligicha va testdan
+  manbaga** hisoblandi (90/91-runlar faqat o'zi yozgan qatlamni
+  tekshirgan): faylning shakli (70 noyob nom, E501 yo'q), uchala
+  taqsimot va oltita hisoblanadigan xossa, `__post_init__` ning
+  beshala qorovuli uchun **`raise` tartibi**, 23 ta `modul:simvol`
+  bind ning yechilishi va 17 ta fayl bind, `reply.py` ning
+  `render`/`decide`/`Verdict` i, `errors.py` ning oltita `code` i,
+  `handlers.py:388–402`, va `01` §9/§10 ning qo'lda parse qilinishi.
+  **Defekt topilmadi.**
+  ⚠️ **Chegara ochiq yozilgan:** bu `pytest` emas. Yiqilish chiqsa,
+  u bugun ko'rilmagan mexanizmdan keladi (import zanjiri,
+  `conftest.py`, marker, `pytest.ini`), assertning mantig'idan emas.
+  ⚠️ **`01` ning §11–§14 umuman bog'lanmagan** — kontrakt qatlami
+  §4, §7, §8, §9/§10, §16–§30 ni yopgan. §13 (`UX-S1…UX-S7`) shaklga
+  eng yaqini. **`UX-S2` — `C-5` taqiqining uchinchi nusxasi:**
+  §9 da u bitta hikoyaning bandi, §13 da esa mahsulot talabi
+  («**никогда** как аварии нет») va sababi bilan; ya'ni `05` §6.2
+  bilan kelishmaydigan narsa bitta band emas, `01` ning **ikkita**
+  bo'limi. §13 ning yettitasidan ikkitasi §9 ni takrorlaydi
+  (`UX-S1` ↔ `C-2`), ikkitasi bo'sh `mahallas` ga tayanadi,
+  uchtasi uchun sath yo'q (`onboarding`, `prefers-color-scheme` —
+  `web/` da uchramaydi). Takrorlanish mexanizmi **to'rtinchi marta**.
+  ⚠️ **Assimetriya qayd etildi, tuzatilmadi:** `__post_init__` ning
+  «`BUILT` + farqsiz + yetib bo'lmaydigan `Given`» qorovuli faqat
+  `Clause` larga tegishli; `UseCase` ning `reachable` i hech qayerda
+  tekshirilmaydi. Bugun ro'y bermaydi (uchalasi ham `gap` bilan);
+  yopish kerak bo'lsa — modulda va sandbox tiklangandan keyin.
+  Kod yozilmadi, migratsiya yo'q, vaqtinchalik fayl yo'q,
+  👤 yangi savol yo'q (88-run ning biri aniqlashtirildi).
+
+- **91-run — `ast` qatlami: hukmni e'londan tortib olish.** Sandbox
+  ketma-ket **to'rtinchi** run ko'tarilmadi, ya'ni 90-run ning
+  «birinchi navbatda faylni yurgizish» sharti ham bajarilmadi.
+  To'rtinchi runni ham kutishga sarflash o'rniga 90-run atayin
+  qoldirgan qatlam yozildi (§8, 13 test). **Chegara aynan
+  o'zgarmadi:** bugungi hamma tasdiq kodning **tuzilishidan**
+  keladi, hech biri matndan — `_identifiers()` faqat
+  `Name`/`Attribute`/`arg`/`alias`/`keyword` ni yig'adi, ya'ni
+  docstring va izoh hukmga umuman kirmaydi (86-run ning qoidasi:
+  yozilgan kod qidirilayotgan kodga aylanadi).
+  Yozilgani: (1) `binds` endi **mavjudlik** emas, **yechilish** —
+  har `modul:simvol` yozuvi `_module_symbols()` bergan sathga
+  tegishli bo'lishi kerak (yuqori daraja + `Sinf.atribut` +
+  `Sinf.metod`, paket `__init__.py` ham qo'llab-quvvatlanadi), jami
+  33 ta bind; (2) `C-3`/`C-4` — `render()` `situation` dan aynan
+  `{started_at, total_reports, others}` ni o'qiydi (`==`, `<=`
+  emas: yangi maydon qo'shilsa hukm eskirishi kerak) va
+  `app/bot/reply.py` ning butun daraxtida `independent_reporters`
+  ham, `count_independent` ham **nom sifatida yo'q**, o'sha ikkalasi
+  esa `app.clustering.independence`/`.models` da bor — «to'g'ri son
+  bir maydon narida» degan da'vo shu ikki testning **ayirmasi**;
+  (3) `C-5` — `decide()` ning `situation` dan o'qigan maydonlari
+  ichida `coverage_ok` bor va va'da qilingan ustun yo'q, taqiqlangan
+  verdiktning **nomi** esa `Verdict` sinfining qiymatlaridan
+  hisoblanadi (`FORBIDDEN_VERDICT` → `NO_OUTAGE_COVERED`) va o'sha
+  nom `decide()` ning qaytarganlari orasida talab qilinadi;
+  (4) `UC-S1` — `errors.py` ning oltita sinfidan `code` atributi
+  yig'iladi, `out_of_region` bor, `DOC_ERROR_CODES` ning ikkalasi
+  ham (na katta, na kichik harfda) yo'q; (5) `BOT_COMMANDS` va
+  `LANGUAGE_SWITCH_STEPS` e'lon bo'lishdan **hisobga** o'tdi —
+  birinchisi `Command`/`CommandStart` filtri bilan qilingan
+  `register` chaqiruvlarini sanaydi (2), ikkinchisi `on_language*`
+  handlerlarining registratsiyalarini sanaydi (2) va ularning
+  birortasi ham komanda filtri emasligini talab qiladi.
+  ⚠️ **Fayl to'rtinchi run ketma-ket yurgizilmadi.** 90-run yozgan
+  qatlam ham, bugungisi ham faqat `Read` bilan manbaga
+  solishtirilgan: `reply.py` ning `Situation` maydonlari va
+  `decide`/`render` ning har bir `situation.*` murojaati,
+  `errors.py` ning oltita `code` i, `handlers.py:388–402` ning
+  o'n bitta `register` qatori, `models.py:73` ning
+  `Region.default_language` i, `01` §9/§10 ning har bir gherkin va
+  jadval qatori (shu jumladan `STEP_RE` ning «H3.» tuzog'i qo'lda
+  qayta yurgizildi) va yigirma bitta `binds` fayli. Bu `pytest`
+  emas. Migratsiya yo'q, yangi modul yo'q, vaqtinchalik fayl yo'q,
+  👤 yangi savol yo'q.
+
+- **90-run — testning qaysi yarmi yurgizmasdan yozilishi mumkin.**
+  Sandbox ketma-ket **uchinchi** run ko'tarilmadi, ya'ni 89-run ning
+  «sandbox tiklangandan keyin» sharti ham bajarilmadi. Uchinchi runni
+  ham kutishga sarflash o'rniga fayl **yozildi**, lekin ataylab
+  ikkiga bo'lingan holda: `Read` bilan qo'lda tasdiqlanadigan yarmi
+  bugun, `ast` yarmi — 91-runga. Chegara aniq: **hukmni reyestrning
+  o'zidan yoki hujjatdan olish mumkin bo'lsa — bugun; kodning
+  tuzilishidan olish kerak bo'lsa — 91-run.** Yozilgani uch qatlam:
+  (1) reyestrning ichki invariantlari — `by_realized`/`by_reachable`/
+  `by_named` ning **to'liq** taqsimoti, beshta hisoblanadigan xossa
+  (`vacuous`, `split_promises`, `unwitnessed_promises`,
+  `realizations_touched`, `blocked_by_empty_mahallas`) va
+  `__post_init__` ning **beshala** qorovuli alohida yiqitiladi
+  (87-run ning `("x")` survivori shu yerda qulflandi);
+  (2) hujjat ↔ reyestr — `01` §9 dan hikoyalar, prioritetlar, rollar,
+  gherkin bloklari, `Then`/`And` qatorlari; `01` §10 dan sarlavhalar,
+  qadamlar va katak nomlari; (3) har `binds` yozuvi haqiqiy faylni
+  ko'rsatishi.
+  ⚠️ **Matn taqqoslanmaydi va bu qaror.** `Clause.text` hujjatning
+  **qisqartirilgan** nusxasi (`C-5` da hujjat «вердикт явно сообщает,
+  что…» deydi, reyestr esa qisqartiradi), ya'ni so'zma-so'z
+  tenglashtirish faylni o'z nusxasini o'lchashga majbur qilardi
+  (61-run ning sabog'i). Uning o'rniga hujjatning bandlari
+  **sanaladi** va reyestrning `promise` maydonlari bilan bijeksiya
+  talab qilinadi; reyestrdagi ortiqcha qatorga faqat
+  `split_promises` **hisoblab bergan** farq qadar ruxsat beriladi
+  (`9 − 8 = 1`). Ya'ni `C-3`/`C-4` ning bo'linishi e'lon emas,
+  hujjatdan chiqadigan majburiyat.
+  ⚠️ **`STEP_RE` ning tuzog'i qo'lda topildi:** `UC-S1` ning
+  uchinchi qadami «…район, махаллю, **H3**.» bilan tugaydi va sodda
+  `\d+\.\s` naqshi uni **oltinchi qadam** deb sanaydi. Shuning uchun
+  raqamdan oldin satr boshi yoki nuqta talab qilinadi va qadamlar
+  soni emas, **ketma-ketligi** (`[1..n]`) tekshiriladi.
+  ⚠️ **Fayl hech qachon yurgizilmagan** — bu bugungi eng katta
+  xavf va u ochiq yozilgan. Har tasdiq `Read` bilan qo'lda
+  tekshirildi (to'qqizala band, uchala stsenariy, beshala qorovulning
+  ishga tushish tartibi, `binds` ning yigirma bir fayli), lekin
+  `pytest` uni ko'rmagan: 91-run birinchi navbatda shu faylni
+  yurgizishi, keyin `ast` qatlamini qo'shishi kerak. Migratsiya yo'q,
+  yangi modul yo'q, vaqtinchalik fayl yo'q, 👤 yangi savol yo'q.
+
+- **89-run — reyestr yozildi, testi qoldirildi; o'lchov birligi hikoya
+  emas, band.** Sandbox ketma-ket **ikkinchi** run ko'tarilmadi, ya'ni
+  88-run qo'ygan «sandbox tiklangandan keyin» sharti bajarilmadi.
+  Ikkinchi runni ham to'liq tahlilga sarflash o'rniga ish ikkiga
+  bo'lindi va **qizil CI xavfi bor yagona bo'lak** — 50+ testli
+  kontrakt fayli — 90-runga qoldirildi; `app/release/user_stories.py`
+  ning o'zi sof ma'lumot va invariantlari qo'lda tekshiriladigan
+  darajada sodda. Yozilgani: modul (`SPEC = "01 §9/§10"`),
+  `registries.py` qatori + `_probe_user_stories`, UZ/RU kalitlari;
+  migratsiya yo'q, yangi test fayli yo'q.
+  **O'lchov birligi — band, hikoya emas** (88-run ning 4-tuzog'i):
+  `US-S2` ning birinchi `Then` i botning ikki yo'lida ikkita **har
+  xil** sonni ko'rsatadi (`CONFIRMED` da `total_reports`, `PENDING` da
+  `others`), shuning uchun u ikkita qator (`C-3`, `C-4`) va ularning
+  `promise` maydoni bir xil — farqni `split_promises` **hisoblab**
+  topadi, e'lon qilmaydi. Jami: 5 hikoya, hujjatda 8 band, reyestrda
+  **9 qator**, 3 stsenariy. Uch o'q: `Realized`
+  (`BUILT`/`SUBSTITUTED`/`RENAMED`/`INVERTED`/`ABSENT`) × `Reachable`
+  (`REACHABLE`/`PARTIAL`/`UNREACHABLE`/`UNWRITTEN`) × `Named`
+  (`TESTED`/`CITED`/`SILENT`/`MISCITED`). Hisob: to'qqizta banddan
+  **yettitasi** boshqacha bajarilgan, **bittasi** nomlangan (`C-9` —
+  `P2` hikoyasining oson yarmi), **bittasi** teskari bajarilgan
+  (`C-5` — `NO_OUTAGE_COVERED`); to'rtala yakuniy shart alohida
+  o'lchanadi va to'rttasi ham `False`.
+  ⚠️ **Eng chalg'ituvchi qator `C-7` va uni faqat ikkala o'qning
+  kesishmasi ko'rsatadi:** `US-S3` ning dislaymeri **qurilgan**, lekin
+  hikoyaning `Given` i ro'y bermaydi — band hech qachon tekshirilmaydi
+  va hisobotda ham, kodda ham hammasi joyida ko'rinadi
+  (`unwitnessed_promises`). Shuning uchun `__post_init__` **`BUILT`
+  bandning farqsiz qolishini taqiqlaydi**, agar sharti yetib
+  bo'lmaydigan bo'lsa. `Named.MISCITED` bo'sh va **ataylab** saqlanadi:
+  88-run aynan shu shaklni tuzatgan va `UC-S2`/`UC-S3` faqat qadamlar
+  soni bilan farq qiladi (5 va 4).
+  **Tripwire lar qo'lda tekshirildi** (yurgizib emas, o'qib):
+  `MAHALLA_POLYGON_MISSING` modulda umuman yozilmagan
+  (`test_risk_register_contract` docstring bo'lmagan literalni ko'radi,
+  `test_scope_contract` esa `app/release/` ni istisno qiladi); `SPEC`
+  konstantasi bor modul indeksga qo'shildi (80-run ning tripwire i —
+  aks holda `test_admin_registries` qizil bo'lardi);
+  `_check_registry()` ning uchala sharti; i18n kaliti ikkala
+  katalogda. ⚠️ `GEO_OUT_OF_COVERAGE` va `GEOCODER_UNAVAILABLE`
+  modulda **satr sifatida** turadi (`DOC_ERROR_CODES`) — reyestr
+  hujjatning so'zini qayd etadi; bugun yo'qlik qorovuli yo'q, koddagi
+  nomni 90-run ning testi `errors.py` ning **sinf atributlaridan**
+  `ast` bilan olishi kerak.
+  ⚠️ **Modul testsiz yozilgani uchun o'z shakli hali sinalmagan** —
+  ziddiyat chiqsa testni emas, modulni to'g'rilash kerak. 👤 Yangi
+  savol yo'q. Vaqtinchalik fayl yaratilmadi.
+
+- **88-run — `US-S2` va'da qilgan son bazada bor, ekranda esa boshqasi
+  turadi.** Run **kod yozmadi**: sandbox umuman ko'tarilmadi
+  (`useradd failed: No space left on device`, ketma-ket uch marta), ya'ni
+  `pytest` ham, `ruff` ham yo'q edi. 85–87-runlarning har biri mutatsiya
+  bilan 1–6 survivor topgan — bu shakldagi 50+ testli fayl birinchi
+  urinishda **hech qachon** to'g'ri chiqmagan, shuning uchun uni
+  tekshirmasdan qo'shish `CLAUDE.md` §2 ga zid bo'lardi. `01` §9/§10
+  ning to'qqizta `AC` yarmi va uchta `Use Case` i **qo'lda** (`Read`/`Grep`)
+  kod bilan solishtirildi; modul (`app/release/user_stories.py`,
+  `Realized` × `Reachable` × `Named` o'qlari) va testi **89-runga**
+  qoldirildi — dalillar va kutilayotgan beshta tuzoq
+  `cowork_session/88_foydalanuvchi_hikoyalari_871cf31f.md` §3 da.
+  **Asosiy topilma:** `US-S2` ning `AC` si «число **независимых**
+  сообщений **рядом** за **последний час**» deydi va uchala sifatlovchi
+  ham loyihada ta'riflangan — `05` §4.3 ning `COUNT(DISTINCT user_id)` +
+  trust + akkaunt yoshi + masofa ta'rifi, `outages.independent_reporters`
+  ustuni, `count_independent()` funksiyasi, hatto ma'muriy javobning
+  maydoni. `reply.py:117–125` esa uchtasining birortasini ishlatmaydi:
+  `CONFIRMED` da `count_attached` (**xabarlar** soni, **o'zi ham ichida**,
+  oyna — hodisaning butun umri, `autoclose_after` = 2 soatgacha),
+  `PENDING` da `total - 1`, qolganlarida son yo'q. Bitta `AC`, ikkita
+  **har xil** son, ikkalasi ham «mustaqil» emas. ⚠️ To'g'ri son **bir
+  maydon narida**: `_situation` allaqachon `cluster_repo.get(...)` bilan
+  hodisani oladi (`service.py:427`), lekin tanlov ekani na `05` §6.2 da,
+  na `reply.py` da yozilgan.
+  ⚠️ **Ikkinchi — `US-S2` ning ikkinchi yarmi `05` §6.2 bilan ziddiyatda,
+  va ziddiyat ikkalasi ham to'g'ri bo'lganda ro'y beradi.** `AC`:
+  «сообщений рядом нет → данных недостаточно, **а не что аварии нет**».
+  `decide()` esa boshqa o'q bo'yicha bo'linadi (`coverage_ok` →
+  `NO_OUTAGE_COVERED`), ya'ni «qamrov bor + xabar yo'q» holatida aynan
+  taqiqlangan gapni aytadi. E7 ning mantig'i asosli; §9 esa qamrov degan
+  tushunchani umuman ko'rmaydi va `05` §6.2 ning to'rtta verdiktidan
+  ikkitasini biladi. Ikkala tomon **o'z ichida izchil** va ikkalasining
+  ham testi yashil — shuning uchun nomuvofiqlik hech qayerdan
+  ko'rinmaydi.
+  ⚠️ **Uchinchi — `US-S1` ning `Given` i `FR-S-601` bilan bir xil
+  imkonsiz:** «новый пользователь **с геолокацией**… выполняет `/start`».
+  87-run buni §8 uchun o'lchagan; §9 o'sha shartni **so'zma-so'z**
+  takrorlaydi. 86-run ning «takrorlanish xatoni himoyalaydi» mexanizmi
+  **uchinchi marta**, endi bitta faylning §8 va §9 bo'limlari orasida —
+  topish uchun tashqi manba kerak emas edi. Qatorning ikkinchi yarmi ham
+  yiqiladi: «переключение языка **одной командой**», repoda esa jami
+  ikkita komanda bor (`/start`, `/help`, `handlers.py:388–389`) va til
+  almashtirish **ikki qadamli** tugma yo'li.
+  ⚠️ **To'rtinchi — `US-S3` ning `Given` i uchun surface yo'q:**
+  «я **выбрал** махаллю». `app/bot/` da `mahalla` so'zi to'rt marta
+  uchraydi va to'rtalasi ham `mahalla_id` ni **koordinatadan** oladi;
+  klaviaturalarda ham, `Action` da ham mahalla yo'q. `Then` ning uch
+  elementidan bittasi (dislaymer) bor, ikkitasi mahalla kesimida hech
+  qayerda yig'ilmaydi, indeks esa bor, lekin `mahallas` bo'sh.
+  ⚠️ **Eng jim topilma — repo to'qqizta `AC` yarmidan bittasini
+  nomlaydi, va u eng past prioritetli hikoyaning oson yarmi.**
+  `US-S*`/`UC-S*` `.py` fayllarda **to'rt** marta uchraydi va uchtasi
+  bitta narsa haqida: `US-S5` ning «версия справочника границ» i
+  (`export.py:133` + `test_stats_export.py:193` +
+  `test_stats_api_db.py:687`). `P0` ning ikkala gherkin bloki ham,
+  `P1` niki ham — nomsiz. Ustiga `US-S5` ning **qiyin** yarmi jimgina
+  qayta talqin qilingan: `AC` «индекс покрытия **по каждой махалле**»
+  deydi, eksport esa **yig'ma** izoh qatori yozadi va kodning o'z izohi
+  buni ochiq tan oladi («Ustun emas, izoh… to'liq oladigan format —
+  JSON javobi»). Sabab asosli, lekin natija qayd etilmagan; bugun
+  `available=no`, ya'ni yig'ma qiymat ham bo'sh. Bitta qatorda ikkala
+  uchi ham bor.
+  ⚠️ **Oltinchi — `UC-S3` ning «миграция обратима» si o'z kodimiz
+  tomonidan inkor qilinadi:** `import_boundaries.py:358–360` promote ni
+  «quvurdagi **yagona qaytarib bo'lmaydigan** qadam» deb ataydi va
+  `rollback` komandasi yo'q. Ma'lumot yo'qolmaydi (BR-002, `valid_to`),
+  ya'ni «Потеря исторической привязки → блокирующая» bajarilgan — lekin
+  hujjat kuchsizrog'ini emas, **kuchlirog'ini** va'da qilgan.
+  ⚠️ **Yettinchi — `UC-S1`/`UC-S2` nomlagan ikkala xato kodi paketda
+  ikki marta yozilgan va noldan marta qurilgan:** `GEO_OUT_OF_COVERAGE`
+  kodda **`out_of_region`** (`core/errors.py:43`) — 86-run ning
+  `region_id`→`region` renomi bilan bir xil shakl; `GEOCODER_UNAVAILABLE`
+  umuman yo'q va geokoder ham yo'q. `UC-S2` ning oltita bandidan uchtasi
+  mavjud bo'lmagan mexanizmga tayanadi: mahalla poligonlari
+  (`cmd_activate` buni **tekshirmaydi**), «зона покрытия»
+  (`coverage_zones` jadvali yo'q — 72-run) va nazorat namunasi
+  (70-run ning `control_sample`, `Evidence.MANUAL`).
+  **Bitta narsa tuzatildi va u mahsulot defekti emas:**
+  `acceptance.py:382` (70-run) «Смоук-проверка на контрольных точках»
+  ni `UC-S3` ning 5-qadami degan edi — ibora **`UC-S2`** niki, `UC-S3`
+  da beshinchi qadam umuman yo'q. `note=` matni, birorta test uni
+  o'qimaydi. 👤 Beshta savol (`PROGRESS.md`). Vaqtinchalik fayl
+  yaratilmadi.
+
+- **87-run — bir paketning ikki bo'limi bitta son haqida teskari
+  ko'rsatma beradi.** `01` §8 `app/release/functional_requirements.py`
+  da oltita `FR-S-*` qatori bilan yozildi va uch o'q bilan:
+  `Delivered` (repo qator aytgan qoida bilan nima qilgan — besh sinf)
+  × `Witness` (`AC` bugun umuman tekshira oladimi — besh sinf) ×
+  `Openness` (qator ochiq deb e'lon qilgan qaror ochiq qolganmi —
+  besh sinf). §8 qolgan reyestrlardan **shakli** bilan farq qiladi:
+  u o'z tekshiruvini o'zi bilan olib yuradi — har qatorning oxirgi
+  katagi `AC`, Given/When/Then.
+  **Asosiy topilma:** `FR-S-804` H3 rezolyutsiyasini «подлежит
+  калибровке, **не фиксируется в спецификации до Ph.0**» deydi;
+  `05` §3 esa uni spetsifikatsiyada **qotiradi**
+  (`latlng_to_cell(lat, lon, 9)`). Kod ikkinchisini bajaradi va uch
+  qatlamda: sozlama (`h3_resolution = 9`), **ustun nomi**
+  (`reports.h3_r9` — kalibrlash migratsiya talab qiladi va
+  o'zgartirilmasa ustun r8 qiymatlarini `h3_r9` deb ataydi) va
+  **ikkita yashil test** (`test_config`, `test_geo_h3` — ikkalasi ham
+  literal `9` ga tenglashtiradi). Ya'ni Ph.0 ga rejalashtirilgan
+  ishning o'zi bugun **o'z to'plamimizga qarshi** bajariladi. Hech kim
+  xato qilmagan: 44-run ADR-03 ni, 60-run `05` §3 ni, `test_geo_h3`
+  ustun nomini o'qigan va uchalasi ham to'g'ri o'qigan — §8 ning
+  kechiktirish talabining ularning birortasida ham vakili yo'q.
+  ⚠️ **Uchinchi qorovulni ajratish kerak edi va buni mutatsiya
+  ko'rsatdi:** 60-run sonni `05` §3 dan **parse qiladi**, ya'ni to'siq
+  emas, **bog'lam** — u faqat kod bilan hujjatning birga
+  o'zgarishini talab qiladi, aynan §8 so'ragan narsani. Birinchi
+  variant uchala faylni bir xil deb yozgan va bitta faylni nomlagan
+  edi; mutatsiya nomni almashtirib omon chiqdi. Endi ro'yxat `ast`
+  bilan **hisoblanadi** va uch xil tenglashtirish ajratiladi
+  (literal / hujjatdan parse qilingan / sozlamaning o'ziga).
+  ⚠️ **Ikkinchi topilma — qator o'z ichida o'ziga zid.** `FR-S-802`
+  ning «Ошибки» katagi mahalla poligoni yo'qligi uchun xato kodini
+  nomlaydi, o'sha qatorning `AC` si esa **«без ошибки»** deb talab
+  qiladi. Kod `AC` ni tanlagan (kod repoda yo'q — 75- va 85-runlar
+  buni ikki tomondan o'lchagan), lekin tanlov ekani hech qayerda
+  yozilmagan. Va `AC` ning **birinchi** yarmi ro'y bera olmaydi:
+  `mahallas` bo'sh, unga yozadigan yo'l butun daraxtda yo'q — ikkala
+  yarmi ham «bajarilgan» ko'rinadi, birinchisi hech qachon
+  tekshirilmagani uchun (`Witness.VACUOUS`).
+  ⚠️ **Uchinchi — `Given` moment ta'minlay olmaydigan faktni
+  so'raydi.** `FR-S-601`: «Given новый пользователь **из региона
+  samarkand**, When он выполняет `/start`». `/start` bilan koordinata
+  kelmaydi va `register_user` buni ochiq yozadi
+  (`analytics.bot_start(region=None)` — `ast` bilan o'lchandi, izoh
+  o'qilmadi). Ishlaydigan yagona disyunkt esa **kengroq** ishlaydi:
+  `DEFAULT_LANGUAGE = 'uz'` tufayli tegi noma'lum har kim o'zbekcha
+  ekran oladi, tegi `ru` bo'lgan samarqandlik esa ruscha — `AC` aynan
+  shuni taqiqlaydi. Qatorning yagona to'liq bajarilgan yarmi —
+  «параметр конфигурации, изменяемый без релиза»
+  (`regions.default_language`, `server_default`), va u `Openness.OPEN`
+  ning yagona egasi.
+  ⚠️ **To'rtinchi — epigraf o'n ikkita modulni yo'q hujjatdan meros
+  qiladi.** «Модули M1–M12 наследуются из
+  `03_Functional_Requirements.md`» — fayl paketda yo'q. 86-run ning
+  `17_OpenAPI.yaml` topilmasi bilan bir xil shakl, lekin kattaroq:
+  u yerda oltita interfeys xossasi, bu yerda mahsulotning **butun
+  funksional sathi**. Ustiga **prefiks to'qnashuvi**: paketning o'z
+  `03_` fayli — `03_Development_Roadmap.md`, ya'ni repoda `03_` ni
+  ko'rgan o'quvchi havola bajarilgan deb o'ylaydi (86-run ning
+  «takrorlanish xatoni himoyalaydi» mexanizmi, boshqa tomondan).
+  O'n ikki moduldan uchtasi nomlangan; qolgan to'qqiztasining kodi
+  yettala hujjatda ham uchramaydi.
+  ⚠️ **Eng jim topilma — `AC` siz qolgan ikkala qator aynan
+  noaniqlikni e'lon qilgan qatorlar.** Oltitadan to'rttasida `AC`
+  bor; `FR-S-804` va `FR-S-901` da uning o'rnida «Параметр» turadi
+  («подлежит калибровке», «подлежит определению»). Ya'ni §8 ishonchi
+  komil har qatorga bajariladigan da'vo beradi va ishonchsiz
+  qatorlarning birortasiga bermaydi — natijada eng shubhali ikkita
+  qaror hech qachon yiqila olmaydigan holda kodga tushgan
+  (`unwitnessed_deferrals`, ikkala o'qning kesishmasidan
+  **hisoblanadi**).
+  **Teskari yo'nalish:** to'rtta qurilgan o'zgarish §8 ning uchala
+  modul deltasida ham nomsiz — mintaqa reyestri va `pick_for_point`,
+  mintaqaning standart tili **sxema ustuni** sifatida (§8 uni
+  «параметр конфигурации» deydi, ya'ni mexanizm qator aytganidan
+  kuchliroq), mahalla darajasidagi Coverage Index va chegaralarning
+  `ODbL` atributsiyasi.
+  ⚠️ **75-run ning tripwire i ishladi va u haq edi:** modul
+  docstringi izlanayotgan xato kodini yozgan edi va
+  `test_risk_register_contract` uni `app/` da ko'rib yiqildi (57-run
+  ning tuzog'i: reyestrni yozish qorovulni jimgina o'chiradi). Qoida
+  **yumshatilmadi** — docstring nomsiz qayta yozildi (85-run ning
+  `registries.py` yechimi bilan bir xil), va yangi test o'sha
+  qorovullarning **mavjudligini** talab qiladi.
+  **Hisob:** `Delivered` — BUILT 2, PARTIAL 1, SUBSTITUTED 1,
+  DORMANT 1, FORKED 1; `Witness` — EXERCISED 1, DERIVABLE 1,
+  VACUOUS 1, FORECLOSED 1, UNWRITTEN 2; `Openness` — OPEN 1,
+  FROZEN 2, HARDENED 1, MOOT 1, SETTLED 1 (o'n beshala sinf ham
+  ishlatilgan); `deltas_hold`, `acceptance_holds`, `deferrals_hold`
+  va `accurate` — to'rttasi ham `False` va **alohida** o'lchanadi
+  (82-run ning sabog'i); oltala qatorning ham farqi bor, hatto eng
+  puxtasi `F-3` ning ham (uning «Обоснование» katagi ta'riflanmagan
+  `OQ-01` ga tayanadi). Hech narsa tuzatilmadi **ataylab**.
+  80-run ning `SPEC` tripwire i ishladi: `registries.py` ga
+  `functional_requirements` qatori (`SELF_CONTAINED`) va UZ/RU
+  kalitlari qo'shildi; `_probe_functional` ning `flagged` i uchta
+  sababni **birlashtiradi**, yig'maydi (`F-4` uchalasida ham bor).
+  1 yangi modul, 1 yangi test fayli (48 test), migratsiyasiz,
+  **2500 passed, 232 skipped**, ruff yashil; **41 mutatsiya,
+  0 survivor** — oltita survivor topildi va tuzatildi: H3 qorovuli
+  bitta emas edi; `binds` kortej ekani majburlanmasdi (bitta
+  elementli `("x")` — satr, va u bo'ylab iteratsiya harflarni
+  beradi); `SPEC_FIELDS` faqat bir yo'nalishda tekshirilardi;
+  teskari yo'nalishdagi qatorning modul yorlig'i hech narsaga
+  bog'lanmagandi; `MODULE_PACKAGES` bo'linish emasdi; `gap` ning
+  bo'sh qolishi hech narsani yiqitmasdi.
+  👤 To'rtta savol (`PROGRESS.md`). Vaqtinchalik fayl
+  **yaratilmadi**: mutatsiya harnessi `/tmp/mut87/` da yashadi va run
+  oxirida o'chirildi.
+
+- **86-run — ikkita hujjat bir xil narsani aytadi va ikkalasi ham
+  noto'g'ri.** `01` §16 `app/core/api_requirements.py` da yettita delta
+  qatori bilan yozildi, uch o'q bilan: `Delivery` (qurilgan interfeys
+  qator bilan nima qilgan — yetti sinf) × `Obligation` (modallik
+  kuchdami — to'rt sinf) × `Echo` (qator paketning boshqa joyida qanday
+  takrorlangan — besh sinf). `Echo` **ataylab alohida o'q**: qatorning
+  qayerda takrorlangani uning rostligidan mustaqil fakt.
+  §16 qolgan reyestrlardan **mavzusi** bilan farq qiladi — u mahsulot
+  haqida emas, **shartnoma** haqida. Bunday qatorning yolg'onligi
+  funksiyaning yo'qligiday ko'rinmaydi: kod ishlaydi, testlar yashil,
+  va faqat integratsiya qilayotgan uchinchi tomon hujjat aytgan
+  parametrni yuborib `422` oladi.
+  **Asosiy topilma:** §16 parametrni `region_id` deb ataydi va
+  «обязателен во всех гео-запросах» deydi; `05` §7.2 o'sha da'voni
+  **so'zma-so'z takrorlaydi** va manba sifatida §16 ga havola qiladi.
+  Kod ikkalasini ham bajarmaydi — nomi `region`, qiymati mintaqa
+  **kodi** (`uuid` emas), va u **ixtiyoriy**: o'n ikkala yo'lda
+  `settings.default_region_code` ga tushadi. ⚠️ Takrorlanish xatoni
+  tuzatmaydi, uni **himoyalaydi**: ikki hujjatni solishtirgan o'quvchi
+  kelishuvni ko'radi va tekshirishni to'xtatadi. Uchinchi ovoz aslida
+  bor edi — `05` §7.1 ning **o'z misoli** `?region=samarkand` yozadi,
+  ya'ni bitta hujjat ikki bo'limda ikki xil parametrni nomlaydi
+  (`Echo.SPLIT`, hukm ikkala manbadan **hisoblanadi**).
+  ⚠️ **Ikkinchi topilma — qatorning ikkinchi yarmi koddan emas,
+  hujjatdan talab qiladi:** «отсутствие → регион по умолчанию, что
+  подлежит **явной фиксации в спецификации**». Mexanizm qurilgan,
+  qoida esa hech qayerda yozilmagan — ibora paketning yettala
+  hujjatida faqat shu qatorning o'zida uchraydi, ya'ni talab o'zini
+  bajarilmagan deb e'lon qiladi va buni hech narsa ko'rsatmaydi
+  (tekshiradigan odam koddan boshlaydi, kodda esa hammasi joyida).
+  ⚠️ **Uchinchi — «наследуются без изменений» merosxo'r hujjatsiz:**
+  epigraf `17_OpenAPI.yaml` dan oltita xossa meros qiladi va o'sha
+  fayl **paketda yo'q**. Ikkitasi hal qiluvchi: **rate limit**
+  ommaviy API da umuman yo'q (71-run ning `rate_limit_api` topilmasi,
+  boshqa tomondan) va **idempotentlik** tasodifan bajariladi —
+  ommaviy sathda hammasi `GET`, ma'muriy `POST` lar
+  (`reject`, `merge`, `block`, `trust`) `Idempotency-Key` ni
+  o'qimaydi. **Версионирование** ham `INCIDENTAL` va sababi
+  kutilmagan: `/api/v1` — **sozlama** (`API_PREFIX`, 44-run ning ochiq
+  savoli), uni o'zgartirish versiya **qo'shmaydi**, mavjudini
+  ko'chiradi va eski yo'lni o'sha zahoti yo'q qiladi.
+  **Teskari yo'nalish:** mijoz bilishi shart bo'lgan beshta narsa §16
+  da yo'q — `ETag`/`304`, `Vary: Accept-Language`, `X-Admin-Token`
+  (§16 esa OAuth/JWT deydi), JSON dan boshqa ikkita media turi va
+  yagona xato tanasi (`ErrorResponse`). Yo'l-yo'lakay **yangi defekt**:
+  `/stats.csv` va `/metrics` uchun `/openapi.json` `text/plain` deb
+  e'lon qiladi, server esa `text/csv` yuboradi — sxemadan yasalgan
+  mijoz javobni boshqa nom bilan qabul qiladi. Tuzatilmadi:
+  `/openapi.json` ning tanasi o'zgarardi (👤 savol).
+  ⚠️ **Skanerdan bitta fayl chiqarildi va qoida yumshatilmadi.**
+  Reyestr o'zi qidirayotgan iboralarni izohida yozadi (`WebSocket`,
+  `Idempotency-Key`, `OAuth/JWT`), ya'ni matn skaneri o'z matnini
+  topardi. Fayl ro'yxatdan chiqarildi, skanerlar esa **kuchaytirildi**:
+  matn qidirish o'rniga `ast` import grafi va OpenAPI sxemasi
+  o'lchanadi. `app/admin/auth.py` shuni ko'rsatdi — u OAuth ni **rad
+  etish sababini** izohida yozadi.
+  **Hisob:** `Delivery` — HONORED 5, RENAMED 2, INCIDENTAL 2, EMPTY 1,
+  WITHHELD 1, ABSENT 1, EXTERNAL 1; `Obligation` — BINDING 1,
+  RELAXED 1, SILENT 4, UNWITNESSED 1; `Echo` — SOLE 3, ECHOED 1,
+  SPLIT 1, HOMONYM 1, INHERITED 1 (o'n oltita sinfning hammasi
+  ishlatilgan); `accurate` `False`, `names_hold` `False`,
+  `contract_holds` `False`; hech narsa tuzatilmadi **ataylab**.
+  80-run ning `SPEC` tripwire i ishladi: `registries.py` ga
+  `api_requirements` qatori (`SELF_CONTAINED`) va UZ/RU kalitlari
+  qo'shildi; `_probe_api_requirements` ning `flagged` i uchta sababni
+  **birlashtiradi**, yig'maydi (`A-1` uchalasida ham bor). 79-run ning
+  modul chegarasi qorovuli modulning **joyini** hal qildi: tabiiy joyi
+  `app/api/` edi, lekin indeks uni import qilganda `admin → api`
+  qirrasi paydo bo'lardi — `app/core/` tanlandi.
+  1 yangi modul, 1 yangi test fayli (32 test), migratsiyasiz,
+  **2452 passed, 232 skipped**, ruff yashil; **26 mutatsiya,
+  0 survivor** (uchta survivor topildi va tuzatildi: `DELIVERY_KEPT`
+  a'zoligi hech narsani yiqitmasdi, `accurate` ning to'rtala sharti
+  bugun ustma-tush tushadi, `A-4` ning ikkinchi o'qishi matn edi).
+  👤 To'rtta savol (`PROGRESS.md`). Vaqtinchalik fayl **yaratilmadi**:
+  mutatsiya harnessi `/tmp/mut86/` da yashadi.
+
+- **85-run — bitta yo'q mexanizm uchala ro'yxatning ham qatorini
+  hal qiladi.** `01` §7 `app/release/scope.py` da o'n sakkiz qator
+  bilan yozildi (8 MVP + 5 Future Release + 5 Out of Scope) va uch
+  o'q bilan: `Presence` (repo nima qilgan — olti sinf) × `Fence`
+  (chegara da'vosi rostmi — to'rt sinf) × `Warrant` («Обоснование»
+  katagi nimaga tayanadi — besh sinf). 84-run ning ogohlantirishi
+  bajarildi: bo'lim §24/§25/§28/§4 bilan **ustma-tushadi** va modul
+  ularni qayta o'lchamaydi — `PG-S*` havolasining gorizonti `01` §3
+  ning **o'z jadvalidan** parse qilinadi, ya'ni `MISDATED` hukmi
+  hisoblanadi.
+  **Asosiy topilma:** `06` §2 ning olti qatorli manba registri bor va
+  `intake.create_report` ning `source_code` iga **butun repoda
+  birorta chaqiruvchi literal bermaydi** (AST bilan o'lchandi: har
+  chaqiruv — mavjud qatordan ko'chirish, SQL natijasining ustuni yoki
+  funksiya ichidagi o'tkazish). Shu bo'shliq **to'rt** qatorni hal
+  qiladi va ular **uchala** ro'yxatda ham turibdi: `S-7` (1055 ni
+  qo'lda kiritish — `official` bazada, `is_authoritative=True`, uni
+  tanlaydigan kod yo'q → `HOLLOW`), `S-8` (`mahalla_active` og'irligi
+  ham tanlanmaydi), `F-4` (operator integratsiyasi — `operator_api`
+  `0003` da **allaqachon** seed qilingan; chegara ushlanadi, lekin
+  o'z sababi bilan emas) va `O-3` (rasmiy statusni ushlab turgan
+  narsa dislaymer emas, o'sha yetib bo'lmaslik). To'rttasi bitta
+  kunda bir vaqtda ma'nosini o'zgartiradi; §7 ni o'qigan odam uchun
+  bular to'rtta mustaqil qaror.
+  ⚠️ **Yagona `CROSSED` — `F-5`, va u eng katta:** «распространение
+  на другие города области» Future Release da, repo esa **ko'plikni**
+  qurgan (`active_regions` tuple qaytaradi, `pick_for_point` tanlaydi,
+  `region_admin` `N`-mintaqani qo'sha oladi, `GET /regions` ro'yxat
+  beradi). Bitta mintaqali mahsulotga bularning birortasi kerak emas
+  edi; §7 ning MVP qatori faqat **birlikni** ruxsat beradi, `03` §3
+  esa ko'plikni `R3.0` ga qo'yadi — bir xil ishning uchinchi hujjatda
+  uchinchi joyga qo'yilishi (77 — `R3.0` to'qnashuvi, 82 — fazalar).
+  Farqni sezish qiyin, chunki qurilgani ma'lumot emas, **mexanizm**.
+  ⚠️ **Eng jim topilma `Warrant` o'qida:** `S-6` (obuna, MVP =
+  Ph.0 + Ph.1) o'zini `PG-S2` bilan asoslaydi va `PG-S2` ning
+  gorizonti **Ph.2** — MVP qatori o'zidan **keyinroq** keladigan
+  maqsadga tayanadi; ustiga `PG-S2` obuna haqida emas («Карта
+  осмысленна на уровне махалли»), ya'ni katak vaqt bo'yicha ham,
+  ma'no bo'yicha ham noto'g'ri manzil.
+  ⚠️ **Ikkinchi jim topilma `O-5` da:** «гарантии времени
+  восстановления» chetda qoldirilgan va chegara ushlanadi — lekin
+  uning **ruxsat etilgan yarmi ham** yo'q: `01` §3 ning User Goals i
+  «понять, когда ориентировочно вернётся свет» ni maqsad qilib
+  qo'yadi va repo taxminni ham bermaydi. **Uchinchi:** `O-4` (SMS) ni
+  to'sib turgan yagona narsa `admin.security:USERS_ALLOWED_COLUMNS`,
+  u esa §20 ning ПДн pozitsiyasi uchun yozilgan — katakdagi sabab
+  (narx) repoda umuman yo'q (74-run ning topilmasi, boshqa yo'ldan).
+  **Teskari yo'nalish:** ommaviy API (E15), moderatsiya (E8) va H3
+  issiqlik xaritasi (E16) §7 ning uchala ro'yxatida ham yo'q —
+  ommaviy API uchun bu **to'rtinchi** hujjat (77 — §25, 82 — §24,
+  84 — §4).
+  ⚠️ **Ikkita eski tripwire ishladi va ikkalasi ham haq edi.**
+  77-run ning `P0-*` skaneri (`S-7` ning asosi `P0-1`): fayl
+  ro'yxatdan chiqarildi, qoida **yumshatilmadi** —
+  `roadmap.evaluate().recorded == ()` o'z kuchida. 75-run ning
+  `MAHALLA_POLYGON_MISSING` qorovuli: reyestrning izohi kod satri
+  bo'lardi, shuning uchun izoh **nomsiz** qayta yozildi.
+  **Hisob:** `Presence` — BUILT 3, PARTIAL 1, DISPLACED 1,
+  UNREACHABLE 4, ABSENT 8, EXTERNAL 1; `Fence` — HELD 12, CROSSED 1,
+  HOLLOW 4, UNWITNESSED 1; `Warrant` — ANCHORED 4, MISDATED 1,
+  FOREIGN 1, PROSE 2, NONE 10 (o'n besh sinfning hammasi ishlatilgan);
+  `boundaries_hold` `False` **ikkala tomondan**, `accurate` `False`;
+  hech narsa tuzatilmadi **ataylab**. 80-run ning `SPEC` tripwire i
+  ishladi: `registries.py` ga `scope` qatori (`SELF_CONTAINED`) va
+  `registry.scope` UZ/RU kalitlari qo'shildi; `_probe_scope` ning
+  `flagged` i ikkita sababni **birlashtiradi**, yig'maydi (`S-1`
+  ikkalasida ham bor). 1 yangi modul, 1 yangi test fayli (51 test),
+  migratsiyasiz, **2420 passed, 232 skipped**, ruff yashil;
+  **31 mutatsiya, 0 survivor** (bitta survivor topildi va tuzatildi:
+  `F-4` ning `UNREACHABLE` → `ABSENT` i hech narsani yiqitmasdi —
+  endi `0003` ning seedi qulflangan). 👤 To'rtta savol
+  (`PROGRESS.md`). Vaqtinchalik fayl **yaratilmadi**: mutatsiya
+  harnessi `/tmp` da yashadi va run oxirida o'chirildi.
+
+- **84-run — jadval o'zini teskari tartibda ko'rsatadi.** `01` §4
+  `app/release/success.py` da ikkita o'q bilan yozildi: `Reading`
+  (repo sonni bugun chiqara oladimi — olti sinf) × `Target` (ustun
+  nima da'vo qiladi — uch sinf). Bo'lim boshqa reyestrlardan
+  **savoli** bilan farq qiladi: o'n ikki qatordan sakkiztasi
+  «подлежит замеру после Ph.0», ya'ni «bajarilganmi?» ularga
+  berilmaydi. Beriladigan yagona savol — maqsad qiymati yo'q bo'lsa
+  ham **o'lchagich** bormi; aks holda Faza 0 tugagan kunda o'lchash
+  uchun hech narsa bo'lmaydi (82-run: `recorded == ()`).
+  **Asosiy topilma:** sonli maqsad ikkita va repo ikkalasiga ham javob
+  bera olmaydi — `Time to Value ≤10 с` ning iborasi paketning yettala
+  hujjatida **bir marta** uchraydi (ta'rif yo'q, ya'ni sonni
+  tekshirib bo'lmaydi), `Coverage Index ≥50% выше низкого` ning
+  semantikasi esa **qurilgan** (`BAND_THRESHOLDS` da
+  `(50, MEDIUM)`) va ma'lumoti hech qachon kelmaydi. Repo haqiqatan
+  chiqaradigan ikkita qator — `DurationCut.median_min` va `.p90_min` —
+  aynan «**не применимо как target**» deb belgilangan. Bosh xossa
+  shuning uchun `targets_are_answerable` va u bugun `False`.
+  ⚠️ **Tuzoq nom bilan qulflandi:** `NPS` katagida `≥100` bor va belgi
+  bo'yicha avtomatik tasnif uni sonli maqsad deb o'qiydi — aslida bu
+  **namuna hajmi**. ⚠️ **Ikkinchi jim topilma — yaqin atrofdagi
+  ikkinchi `0.5`:** `mahalla_coverage.MIN_MEASURED_RATIO` §4 ning
+  maqsadi emas, ogohlantirish chegarasi; ikkalasi bir xil son va
+  turli savolga javob beradi. **Uchinchi:** `dashboards.
+  activation_funnel` ning `no_user_dimension` cheklovi `K-4`
+  (Activation) ga **o'tmaydi** — hodisalarda identifikator yo'q,
+  qatorlarda bor (`users.created_at` = `/start`, `reports.user_id`),
+  ya'ni voronka javob bera olmaydigan savolga baza javob beradi.
+  **Teskari yo'nalish:** o'n ikkala KPI ham botga yoki uzilishga
+  tegishli — ommaviy API ham, veb sirti ham jadvalda yo'q (77- va
+  82-runlardan keyin uchinchi hujjat), va `01` §21 ning «главная
+  метрика запуска» si §4 da umuman yo'q.
+  **Hisob:** `SERVED` 2, `DERIVABLE` 3, `EMITTED` 1, `BLIND` 3,
+  `UNREACHABLE` 1, `EXTERNAL` 1 (oltala sinf ham ishlatilgan — test
+  buni talab qiladi); `QUANTIFIED` 2, `DEFERRED` 8, `DISCLAIMED` 2 →
+  `accurate` `False`; hech narsa tuzatilmadi **ataylab**. 1 yangi
+  modul, 1 yangi test fayli (43 test), migratsiyasiz, **2369 passed,
+  232 skipped** (bazasiz — disk to'lgan), ruff yashil; **18 mutatsiya,
+  0 survivor**. 👤 To'rtta savol (`PROGRESS.md`) + `tools/_mut84.py`
+  ni o'chirish.
+
+- **82-run — uchta reyestr havola qilgan bo'shliq nihoyat o'lchandi.**
+  `01` §24 `app/release/roadmap.py` da uchta ro'yxat bilan yozildi
+  (yettita Faza 0 vazifasi, beshta chiqish mezoni, uchta faza) va
+  ikkita o'q bilan: `Landing` (natija repoda qayerga tushadi) ×
+  `Bearing` (repo gipotezani tekshirilishidan **oldin** nima qilgan).
+  **Asosiy topilma — gate yopilmagan, ortidagi mazmun esa qurilgan.**
+  Epigraf loyihaning eng qat'iy rejalashtirish qoidasini beradi
+  («Phase 0 — единственный шлюз; бюджеты Phase 1–2 не утверждаются…»),
+  gate esa yopilmagan va buni **hujjatning o'zi** aytadi: beshala
+  chiqish mezoni ham `- [ ]`. Gate ortidagi Phase 1 to'liq qurilgan
+  (mintaqa konfiguratsiyasi, spravochniklar, UZ-first, mahalla
+  Coverage Index, dislaymerli vitrina) va mintaqa **prodda jonli**;
+  Phase 2 ning uchdan biri ham. Ya'ni bu tugallanmagan ish emas —
+  reja o'z qoidasini bugungi holatga nisbatan yolg'on qilib qo'ygan.
+  **`RECORDED` sinfi bo'sh** (`INSTRUMENTED` 5, `UNRECORDED` 5,
+  `EXTERNAL` 2) va ataylab saqlanadi: u 75-, 76- va 77-runlarni
+  to'xtatgan bo'shliqni nomlaydi. ⚠️ `INSTRUMENTED` unga yaqin emas —
+  repo javobni hisoblay oladi, saqlamaydi, ya'ni javob har safar
+  qaytadan olinadi va gate ni yopa olmaydi.
+  **Ikkinchi o'q:** ustun «Проверяемая гипотеза» deb **ataladi**, uch
+  qatorda esa bu yolg'on — `P0-1` `ASSUMED` (`0003` `official` ni
+  `is_authoritative=True` bilan seed qiladi, ya'ni birinchi rasmiy
+  xabar hodisani darhol `confirmed` qiladi), `P0-3` `ASSUMED`
+  (`DEFAULT_LANGUAGE = "uz"`), `P0-5` `FORECLOSED` (mahsulot manzilni
+  umuman geokodlamaydi, ya'ni vazifa yiqila olmaydi; sozlamalar joyida
+  va ularni hech kim o'qimaydi — test buni `ast.Attribute` bo'yicha
+  o'lchaydi, matn bo'yicha emas).
+  ⚠️ **Eng jim topilma — eng kuchli chiqish mezoni yarim:** `EX-2`
+  «Полигоны махаллей **получены и валидны**» ikkala yarmini bitta
+  katakka sig'diradi, repo esa faqat ikkinchisini bajaradi —
+  `geo.quality` oltita tekshiruv beradi, `tools/import_boundaries.py`
+  da `mahalla` so'zi **bir marta ham** uchramaydi, va tekshiruvlar
+  `districts` ustida yuriladi, ya'ni bo'sh to'plamda ham «o'tgan»
+  ko'rinadi. **Teskari yo'nalish:** fazalar uchta qurilgan sirtni
+  nomlamaydi — ommaviy API (eng yaqin ibora Phase 3 ning «Open Data»
+  si, ya'ni ikkita yopilmagan gate ortida), moderatsiya va issiqlik
+  xaritasi; birinchi ikkitasini 77-run `01` §25 da ham topgan.
+  ⚠️ **Uchta eski tripwire ishladi va uchalasi ham haq edi.** Eng
+  muhimi 77-run ning `P0-*` skaneri: yangi reyestr yettala vazifani
+  nom bilan sanaydi, ya'ni skaner uni «natija saqlanadigan joy» deb
+  o'qidi — 57-run ning tuzog'i (reyestrni yozish tripwire ni jimgina
+  o'chirardi). Qoida **yumshatilmadi**: fayl ro'yxatdan chiqarildi va
+  o'rniga `roadmap.evaluate().recorded == ()` talab qilinadi.
+  2 yangi fayl, migratsiyasiz, **2517 passed, 1 skipped**
+  (`requires_db` bilan birga), ruff yashil; 18 mutatsiya, 1 survivor
+  topildi va tuzatildi (`accurate` ning uchala sharti endi alohida
+  o'lchanadi). 👤 Uchta savol (`PROGRESS.md`): Faza 0 uchun joy;
+  `P0-5`/`GEOCODER_*`; §24 ga uchta qator.
 
 - **80-run — o'n to'rtta rundan keyin ularning natijasini birinchi
   marta odam ko'radi.** `GET /api/v1/admin/registries` — o'n uchta
@@ -894,7 +1789,44 @@ Ziddiyat chiqsa — `PROGRESS.md` haq.
 
 ---
 
-## 6. Sandboxda PostGIS ko'tarish (78-run, 79-run da aniqlashtirildi)
+## 6. Sandboxda PostGIS ko'tarish (78-run; 79- va **81-run** da aniqlashtirildi)
+
+> ⚡⚡ **81-run: 80-run ning sababi noto'g'ri edi, retsept esa ishlaydi.**
+> 80-run «§6 retsepti bitta `bash` chaqiruvining vaqt chegarasiga
+> sig'madi» deb yozgan. Haqiqiy sabab boshqa:
+>
+> ```
+> error libmamba Could not write to file
+>   /sessions/<...>/.local/share/mamba/pkgs/... : No space left on device
+> ```
+>
+> `$HOME` (`/sessions`) **100% to'la** (9.8G, bo'sh 5.4M), micromamba esa
+> paketlar keshini standart holda **`$HOME` ga** yozadi — `-p /tmp/pg`
+> bunga ta'sir qilmaydi. Yechim bitta qatorda:
+>
+> ```bash
+> export CONDA_PKGS_DIRS=/tmp/pkgs81 MAMBA_ROOT_PREFIX=/tmp/mamba81
+> ```
+>
+> Shundan keyin `micromamba create -p /tmp/pg -c conda-forge
+> "postgresql=16" postgis` **~2 daqiqada** tugadi.
+>
+> Ikkinchi aniqlik: `bash` chaqiruvining haqiqiy chegarasi ~**180 s**
+> (`timeout_ms` ni 600000 qilish yordam bermaydi — hostda qattiq
+> chegara bor). Ya'ni ish **uchta** chaqiruvga bo'linadi:
+>
+> 1. `micromamba create` (~2 daq, `CONDA_PKGS_DIRS` bilan);
+> 2. `initdb -D /tmp/pgdataNN -U postgres -A trust`;
+> 3. `pg_ctl start` + `create role/database/extension` + `alembic
+>    upgrade head` + `pytest` — **hammasi bitta chaqiruvda**, chunki
+>    server chaqiruv oxirida o'ladi (`nohup` va `setsid` saqlamaydi;
+>    81-run buni yana bir marta tekshirdi — fon jarayoni 100 soniyada
+>    bir qadam ham yurmadi).
+>
+> To'liq yurish (3-qadam) ~150 s oladi — chegaraga sig'adi.
+> Odamga eslatma: `$HOME` ning to'lib qolishi `cleanup-sessions.ps1`
+> bilan hal bo'ladi.
+
 
 > ⚡ **79-run: o'rnatish takrorlanmadi, klaster esa qaytadan yaratildi.**
 > `/tmp/pg` (micromamba muhiti) va `/tmp/venv78` (Python 3.12) sessiyadan

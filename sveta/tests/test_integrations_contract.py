@@ -448,7 +448,10 @@ def test_geocoder_has_no_call_site() -> None:
     75-run to'rtinchi faylni qo'shdi — `app.release.risks`, `01` §26 ning
     reyestri. U ham chaqiruv emas, izoh: `RS-04` ning `FORECLOSED`
     bahosi aynan geokoder yo'qligiga tayanadi va sabab `GEOCODER_*`
-    sozlamalarini nomlab o'tadi.
+    sozlamalarini nomlab o'tadi. 82-run oltinchisini qo'shdi —
+    `app.release.roadmap`, `01` §24 ning `P0-5` qatori: Faza 0 vazifasi
+    mahsulotda yo'q komponentni tekshiradi va shu sababdan
+    `Bearing.FORECLOSED`.
     """
     hits = sorted(
         path.relative_to(SVETA_ROOT).as_posix()
@@ -462,6 +465,13 @@ def test_geocoder_has_no_call_site() -> None:
         # 76-run: `01` §28 ning geokoder qatori — beshinchi reyestr.
         "app/release/dependencies.py",
         "app/release/risks.py",
+        # 82-run: `01` §24 ning `P0-5` vazifasi — oltinchi reyestr.
+        "app/release/roadmap.py",
+        # 97-run: `01` §9 ning reyestri (89-run yozgan) — yettinchi.
+        # `C-2` ning «Ошибки» katagi `GEOCODER_UNAVAILABLE` ni hujjat
+        # so'zi sifatida qayd etadi — chaqiruv emas, izoh, ya'ni oldingi
+        # oltitasi bilan bir sinf.
+        "app/release/user_stories.py",
     ]
 
 

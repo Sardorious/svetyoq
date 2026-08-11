@@ -54,12 +54,59 @@
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].textContent = t(nodes[i].getAttribute("data-i18n"));
     }
+    /* Bannerning `tiles` uyasi ham shu yerda qayta hisoblanadi, chunki u
+       — sahifadagi yagona i18n matni bo'lib, o'zidan keyin **hech qachon
+       qayta yozilmaydi**: `map` uyasini `refresh()`, `heat` uyasini
+       `refreshHeat()` har tikda yangilaydi, `tiles` esa faqat bir marta,
+       xarita qurilayotganda qo'yilardi. Til almashganda (`#lang` ning
+       `change` i `applyStrings` ni chaqiradi) qolgan ikkitasi yangi
+       tilga o'tar, `tiles` esa eskisida qolardi — ya'ni ADR-08 ochiq
+       bo'lgan bugungi holatda (tayl manbasi yo'q, demak bu uya deyarli
+       doim to'la) banner **aralash tilda** ko'rinardi.
+
+       Uya `config` ning sof hosilasi, shuning uchun uni qayta hisoblash
+       xavfsiz: shart har chaqiruvda bir xil javob beradi. Shu sababdan
+       `baseStyle()` endi bannerga umuman yozmaydi va sof funksiya
+       bo'lib qoladi. */
+    banner("tiles", config && !config.tile_url ? t("map.tiles_missing") : "");
   }
 
-  function banner(message) {
+  /* Bannerda ekranda bitta joy bor, unga yozadigan **mustaqil** manba esa
+     uchta: tayl manbasining yo'qligi (`baseStyle`), xarita snapshotining
+     holati (`refresh`) va zichlik qatlamining ogohlantirishi
+     (`refreshHeat`). Ilgari uchalasi bitta argumentli `banner()` ni
+     chaqirardi, ya'ni oxirgi chaqiruv oldingisini **jimgina o'chirardi**.
+     Bu uchta yozilgan qoidani buzardi:
+
+     1. `map.tiles_missing` xarita qurilayotganda qo'yiladi va birinchi
+        `refresh()` (bir necha yuz millisekunddan keyin) uni o'chirardi —
+        foydalanuvchi fonsiz xaritani sababsiz ko'rardi;
+     2. `!data.sufficient` ogohlantirishi keyingi `refresh()` tikida
+        (`refresh_s`, kamida 15 s) yo'qolardi, zichlik qatlami esa
+        ko'rinishda qolardi — aynan quyidagi §`refreshHeat` izohi
+        taqiqlagan holat: «kam ma'lumotli xaritani jimgina chizish undan
+        noto'g'ri xulosa chiqarishga olib kelardi»;
+     3. `setHeat(false)` ning `banner("")` i xaritaning o'z
+        `map.empty` tushuntirishini o'chirardi (`01` §13 `UX-S3`).
+
+     Endi har manbaning o'z uyasi bor va matn ulardan **yig'iladi**, ya'ni
+     hech bir manba boshqasini o'chira olmaydi. `reload` tugmasi
+     `refresh()` va `refreshHeat()` ni birga chaqiradi — uyalarsiz natija
+     qaysi so'rov oldin tugashiga bog'liq, ya'ni noaniq edi.
+     Bir xil matn (masalan ikkala so'rov ham `map.error` bergani)
+     takrorlanmaydi. */
+  var notices = { tiles: "", map: "", heat: "" };
+
+  function banner(slot, message) {
+    notices[slot] = message || "";
+    var text = [notices.tiles, notices.map, notices.heat]
+      .filter(function (part, i, all) {
+        return part && all.indexOf(part) === i;
+      })
+      .join(" · ");
     var el = document.getElementById("banner");
-    el.textContent = message || "";
-    el.hidden = !message;
+    el.textContent = text;
+    el.hidden = !text;
   }
 
   function qs(extra) {
@@ -81,10 +128,11 @@
     });
   }
 
-  /* Fon rasmi bo'lmasa ham xarita ishlaydi: bo'sh (rasmsiz) style. */
+  /* Fon rasmi bo'lmasa ham xarita ishlaydi: bo'sh (rasmsiz) style.
+     Tushuntirish bannerga bu yerdan emas, `applyStrings()` dan
+     yoziladi — sabab o'sha funksiyaning izohida. */
   function baseStyle(cfg) {
     if (!cfg.tile_url) {
-      banner(t("map.tiles_missing"));
       return { version: 8, sources: {}, layers: [] };
     }
     return {
@@ -168,20 +216,73 @@
         "circle-opacity": 0.22,
       },
     });
+    /* `A11Y-06` (`01` §14: «Статус кодируется цветом **и** формой»,
+       `UX-S7` orqali WCAG 2.1 AA).
+
+       Bu yerda rang yagona tashuvchi bo'lishi haqiqiy xavf edi:
+       `#e2483d` (tasdiqlangan) va `#e8a33d` (kutilmoqda) — qizil va
+       sariq, ya'ni deyteranopiya/protanopiyada deyarli farqsiz, va
+       ular aynan bir-biridan ajratilishi kerak bo'lgan ikki holat.
+       Ilgari uchala status bir xil doira edi: `circle-radius` ham,
+       `circle-stroke-*` ham konstanta.
+
+       Shakllar **sprite siz** quriladi. Bu majburiy: ADR-08 hali ochiq,
+       ya'ni `baseStyle()` bo'sh (rasmsiz) style qaytarishi mumkin va
+       unda na ikonka atlasi, na glif serveri bor — `symbol` qatlami
+       yoki `text-field` u yerda jimgina chizilmasdi.
+
+       - tasdiqlangan — **to'ldirilgan** doira (`заливка`);
+       - kutilmoqda — **ichi bo'sh** halqa (`пунктир` ning sprite siz
+         muqobili: MapLibre ning `circle` konturi punktir bo'la olmaydi);
+       - rasmiy e'lon — **halqa + markaz** (`иконка`), ikkinchi qatlam
+         bilan.
+
+       Rang ikkala shaklda ham qoladi, faqat boshqa xossada: to'ldirilgan
+       doirada — to'ldirishda (kontur oq halo), ichi bo'sh halqada —
+       konturning o'zida. Aks holda «rang **va** shakl» jimgina «faqat
+       shakl» ga aylanardi. */
+    var STATUS_COLOR = [
+      "case",
+      ["==", ["get", "layer"], "official"], "#3d6fe2",
+      ["==", ["get", "status"], "confirmed"], "#e2483d",
+      "#e8a33d",
+    ];
+    /* Bitta predikat uchala xossada: to'ldirish, kontur qalinligi va
+       kontur rangi bir-biriga zid bo'lib qolmasligi kerak. Rasmiy e'lon
+       `status` dan **ustun** — yuqoridagi rang ifodasidagi tartib ham
+       shunday, ya'ni `official` + `confirmed` yozuvi ikkala xossada bir
+       xil (rasmiy) shaklni oladi. */
+    var SOLID = [
+      "all",
+      ["!=", ["get", "layer"], "official"],
+      ["==", ["get", "status"], "confirmed"],
+    ];
     map.addLayer({
       id: "outage-point",
       type: "circle",
       source: "outages",
       paint: {
         "circle-radius": 7,
-        "circle-color": [
-          "case",
-          ["==", ["get", "layer"], "official"], "#3d6fe2",
-          ["==", ["get", "status"], "confirmed"], "#e2483d",
-          "#e8a33d",
-        ],
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#ffffff",
+        "circle-color": STATUS_COLOR,
+        "circle-opacity": ["case", SOLID, 0.95, 0.12],
+        "circle-stroke-width": ["case", SOLID, 2, 3],
+        "circle-stroke-color": ["case", SOLID, "#ffffff", STATUS_COLOR],
+      },
+    });
+    /* «Иконка» — halqa **va** markaz. Alohida qatlam, chunki bitta
+       `circle` ikkita konsentrik shakl chiza olmaydi. Faqat rasmiy
+       e'londa ko'rinadi, ya'ni u qolgan ikkala shakldan bir qarashda
+       ajraladi. Bosish hodisasi bu qatlamga ulanmaydi: u `outages`
+       manbasining o'sha nuqtasini chizadi, `outage-point` ning
+       ishlovchisi esa baribir ishlaydi. */
+    map.addLayer({
+      id: "outage-official-core",
+      type: "circle",
+      source: "outages",
+      filter: ["==", ["get", "layer"], "official"],
+      paint: {
+        "circle-radius": 2.5,
+        "circle-color": "#3d6fe2",
       },
     });
 
@@ -225,7 +326,10 @@
   function refresh() {
     return getJson("/map" + qs())
       .then(function (data) {
-        banner(data.stale ? t("map.stale") : data.features.length ? "" : t("map.empty"));
+        banner(
+          "map",
+          data.stale ? t("map.stale") : data.features.length ? "" : t("map.empty")
+        );
         var src = map && map.getSource("outages");
         if (src) src.setData(data);
         document.getElementById("updated").textContent = data.built_at
@@ -233,7 +337,7 @@
           : "";
       })
       .catch(function () {
-        banner(t("map.error"));
+        banner("map", t("map.error"));
       });
   }
 
@@ -292,12 +396,18 @@
         if (src) src.setData(data);
         showCoverage(data.coverage);
         showMaturity(data.maturity);
+        /* `else` shart: ogohlantirish o'z uyasida turgani uchun endi uni
+           hech kim o'chirmaydi, ya'ni ma'lumot yetarli bo'lgan keyingi
+           javobdan keyin u **yopishib qolardi**. Ilgari buni
+           `refresh()` ning ustiga yozishi tasodifan qoplardi. */
         if (data.warning_texts && data.warning_texts.length && !data.sufficient) {
-          banner(data.warning_texts[data.warning_texts.length - 1]);
+          banner("heat", data.warning_texts[data.warning_texts.length - 1]);
+        } else {
+          banner("heat", "");
         }
       })
       .catch(function () {
-        banner(t("map.error"));
+        banner("heat", t("map.error"));
       });
   }
 
@@ -308,8 +418,10 @@
       if (map && map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
     });
     document.getElementById("heat-legend").hidden = !on;
+    /* Faqat **o'z** uyasi tozalanadi: xaritaning `map.empty` yoki
+       `map.stale` tushuntirishi qatlamni o'chirishga bog'liq emas. */
     if (on) refreshHeat();
-    else banner("");
+    else banner("heat", "");
   }
 
   /*
@@ -372,7 +484,7 @@
         });
       })
       .catch(function () {
-        banner("…"); /* i18n hali yuklanmagan — neytral belgi */
+        banner("map", "…"); /* i18n hali yuklanmagan — neytral belgi */
       });
   }
 

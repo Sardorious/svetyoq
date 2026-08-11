@@ -379,6 +379,9 @@ def test_the_product_still_does_not_geocode() -> None:
     to'rtinchisini qo'shdi — `app.release.risks`: `01` §26 ning `RS-04`
     qatori bugun **sodir bo'la olmaydi** aynan shu sababdan, ya'ni
     bitta bo'shliq endi uchta reyestrda uch xil savolga javob beradi.
+    82-run oltinchisini qo'shdi — `app.release.roadmap`: `01` §24 ning
+    `P0-5` vazifasi geokoderning to'liqligini tekshiradi, ya'ni Faza 0
+    ning bandi mahsulotda **yo'q** komponentga qaratilgan.
     """
     hits = {
         path.relative_to(SVETA_ROOT).as_posix()
@@ -394,6 +397,17 @@ def test_the_product_still_does_not_geocode() -> None:
         # ning bog'liqligi hali ham voz kechilganmi».
         "app/release/dependencies.py",
         "app/release/risks.py",
+        # 82-run: `01` §24 ning `P0-5` vazifasi — oltinchi reyestr.
+        # Bu yerdagi savol: «Faza 0 ning bandi hali ham predmetsizmi».
+        "app/release/roadmap.py",
+        # 97-run: `01` §9 ning reyestri (89-run yozgan) — yettinchi.
+        # `C-2` ning «Ошибки» katagi `GEOCODER_UNAVAILABLE` ni hujjatning
+        # so'zi sifatida qayd etadi va gap aynan uni ishlab chiqaradigan
+        # geokoder yo'qligi haqida. Bu yerdagi savol: «hikoyaning xato
+        # kodi hali ham qurilmaganmi». Modul 89-run da yozilgan, bu
+        # ro'yxat esa pytest sandboxsiz o'tgan runlarda yangilanmagan —
+        # birinchi haqiqiy yurgizish (97) aynan shu driftni ushladi.
+        "app/release/user_stories.py",
     }
 
     fields = set(Settings.model_fields)

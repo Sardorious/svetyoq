@@ -85,16 +85,23 @@ from pathlib import Path
 
 from app.admin import security as security_mod
 from app.analytics import dashboards as dashboards_mod
+from app.core import api_requirements as api_requirements_mod
 from app.core import architecture as architecture_mod
+from app.core import glossary as glossary_mod
 from app.db import data_model as data_model_mod
 from app.integrations import registry as integrations_mod
 from app.notifications import channels as channels_mod
 from app.obs import monitoring as monitoring_mod
 from app.release import acceptance as acceptance_mod
 from app.release import dependencies as dependencies_mod
+from app.release import functional_requirements as functional_mod
 from app.release import measures as measures_mod
 from app.release import plan as plan_mod
 from app.release import risks as risks_mod
+from app.release import roadmap as roadmap_mod
+from app.release import scope as scope_mod
+from app.release import success as success_mod
+from app.release import user_stories as user_stories_mod
 
 #: i18n kalitlarining prefiksi (`gates.py` ning `release.gate` naqshi).
 KEY_PREFIX = "registry"
@@ -286,6 +293,192 @@ def _probe_plan(_doc: str | None = None) -> Probe:
     )
 
 
+def _probe_roadmap(_doc: str | None = None) -> Probe:
+    """`01` §24 — uchta ro'yxat, bitta hukm.
+
+    `total` bo'limning **hamma** qatorini oladi (vazifalar, chiqish
+    mezonlari va fazalar): hukm ularning uchalasidan birga chiqadi.
+    `flagged` esa faqat hujjat kod bilan ajralib ketgan joylarni
+    sanaydi — gipotezasi allaqachon hal qilingan vazifalar va gate
+    yopilmasdan boshlangan fazalar.
+    """
+    report = roadmap_mod.evaluate()
+    flagged = {t.code for t in report.prejudged} | {p.code for p in report.built_ahead}
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.tasks) + len(report.criteria) + len(report.phases),
+        flagged=len(flagged),
+        undeclared=len(report.ahead),
+    )
+
+
+def _probe_glossary(_doc: str | None = None) -> Probe:
+    """`01` §30 — o'nta atama, uchtasi rost.
+
+    `flagged` ta'rifi qurilgan xulqqa mos kelmagan har qatorni oladi:
+    sinf farqi (`NARROWER`/`WIDER`/`SUPERSEDED`/`UNREACHABLE`) bu yerda
+    ahamiyatsiz — lug'at o'quvchisi uchun ular bir xil oqibat beradi.
+    `undeclared` esa kod tayanadigan, lug'at nomlamaydigan
+    tushunchalar.
+
+    Hujjat kerak emas: `marked` reyestrda saqlanadi va uni hujjat bilan
+    `test_glossary_contract` ikki tomonlama qulflaydi. Shuning uchun
+    `SELF_CONTAINED`, `architecture` dan farqli.
+    """
+    report = glossary_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.terms),
+        flagged=len(report.imprecise),
+        undeclared=len(report.missing),
+    )
+
+
+def _probe_success(_doc: str | None = None) -> Probe:
+    """`01` §4 — o'n ikkita KPI, ikkitasi o'lchanadi.
+
+    `flagged` ikkita mustaqil sababni **birlashtiradi**, yig'maydi:
+    sonli maqsadi bor, lekin o'lchagichi yo'q qatorlar va nomi paketda
+    ta'riflanmagan qatorlar. Bugun ikkala to'plam ham `K-9` ni o'z
+    ichiga oladi — aynan shuning uchun yig'indi emas, birlashma
+    (`flagged > total` bo'lib qolardi). `undeclared` — repo
+    o'lchaydigan, §4 nomlamaydigan narsalar.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_success_metrics_contract` ikki tomonlama qulflaydi.
+    """
+    report = success_mod.evaluate()
+    flagged = {k.code for k in report.broken_promises} | {k.code for k in report.undefined}
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.kpis),
+        flagged=len(flagged),
+        undeclared=len(report.unnamed),
+    )
+
+
+def _probe_scope(_doc: str | None = None) -> Probe:
+    """`01` §7 — o'n sakkiz qator, chegara ikki tomondan.
+
+    `flagged` ikkita mustaqil sababni **birlashtiradi**, yig'maydi:
+    chegarasi buzilgan qatorlar (`HOLLOW` va `CROSSED`) va asosi
+    ishlamaydigan qatorlar. Bugun ikkala to'plam ham `S-1` ni o'z
+    ichiga oladi — u ham bo'sh, ham chet ellik asosga tayanadi —
+    ya'ni yig'indi `flagged > total` bo'lib qolardi.
+    `undeclared` — repo qurgan, §7 esa uchala ro'yxatida ham
+    nomlamagan sirtlar.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_scope_contract` ikki tomonlama qulflaydi.
+    """
+    report = scope_mod.evaluate()
+    broken = {i.code for i in report.hollow + report.crossed}
+    flagged = broken | {i.code for i in report.unsound_warrants}
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.items),
+        flagged=len(flagged),
+        undeclared=len(report.unlisted),
+    )
+
+
+def _probe_api_requirements(_doc: str | None = None) -> Probe:
+    """`01` §16 — yettita delta qatori, ustiga oltita meros xossasi.
+
+    `flagged` uchta sababni **birlashtiradi**, yig'maydi: shartnomani
+    bajarmagan qatorlar, modalligi kuchsizlangan qatorlar va paket
+    ikki xil gapiradigan qatorlar. Bugun uchala to'plam ham `A-1` ni
+    o'z ichiga oladi — u bir vaqtning o'zida qayta nomlangan, ixtiyoriy
+    qilingan va ikki joyda ikki xil yozilgan — ya'ni yig'indi
+    `flagged > total` bo'lib qolardi.
+
+    `total` faqat delta jadvalining qatorlarini sanaydi: meros
+    xossalari hujjatning **epigrafi**, jadvalning qatori emas, va
+    ularning hukmi paketda umuman yo'q faylga bog'liq. `undeclared` —
+    qurilgan va §16 nomlamagan interfeys shartlari.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_api_requirements_contract` ikki tomonlama qulflaydi.
+    """
+    report = api_requirements_mod.evaluate()
+    unkept = {
+        r.code for r in report.requirements if r.delivery not in api_requirements_mod.DELIVERY_KEPT
+    }
+    flagged = unkept | {r.code for r in report.relaxed} | {r.code for r in report.restated}
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.requirements),
+        flagged=len(flagged),
+        undeclared=len(report.undeclared),
+    )
+
+
+def _probe_functional(_doc: str | None = None) -> Probe:
+    """`01` §8 — oltita `FR-S-*` qatori, uchta o'q.
+
+    `flagged` uchta sababni **birlashtiradi**, yig'maydi: qoidasi
+    boshqacha qurilgan qatorlar, `AC` si tekshirmaydigan qatorlar va
+    ochiq deb e'lon qilingan qarori jimgina yopilgan qatorlar. Bugun
+    uchala to'plam ham `F-4` ni o'z ichiga oladi — u bir vaqtning
+    o'zida boshqa qoidani yurgizadi, `AC` siz qolgan va sonini test
+    bilan qulflagan — ya'ni yig'indi `flagged > total` bo'lib qolardi.
+
+    `total` faqat delta qatorlarini sanaydi: epigraf meros qilgan
+    o'n ikki modul jadvalning qatori emas va ularning hukmi paketda
+    umuman yo'q faylga bog'liq. `undeclared` — qurilgan va §8 o'zi
+    «o'zgargan» deb atagan uchta modulda nomsiz qolgan sirtlar.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_functional_requirements_contract` ikki tomonlama
+    qulflaydi.
+    """
+    report = functional_mod.evaluate()
+    flagged = (
+        {d.code for d in report.diverged}
+        | {d.code for d in report.toothless}
+        | {d.code for d in report.closed_deferrals}
+    )
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.deltas),
+        flagged=len(flagged),
+        undeclared=len(report.unnamed),
+    )
+
+
+def _probe_user_stories(_doc: str | None = None) -> Probe:
+    """`01` §9/§10 — to'qqizta band, uchta o'q.
+
+    `total` — **bandlar**, hikoyalar emas: bitta hikoyaning ikki yarmi
+    har xil holatda bo'lishi mumkin va `US-S5` da aynan shunday.
+
+    `flagged` uchta sababni **birlashtiradi**, yig'maydi: boshqacha
+    bajarilgan bandlar, `Given` i ro'y bermaydigan hikoyaning bandlari
+    va repo nomlamagan bandlar. Bugun uchala to'plam ham bir-birini
+    qoplaydi (masalan `C-6` uchalasida ham bor), ya'ni yig'indi
+    `flagged > total` bo'lib qolardi.
+
+    `undeclared` — qurilgan, lekin hujjat hech qanday tekshiriladigan
+    da'vo qilmagan hikoyalar. Bugun bitta: `US-S4` ning obunasi
+    mexanizm sifatida bor va §9 unga gherkin bloki yozmagan.
+
+    Hujjat kerak emas: baholar reyestrda saqlanadi va ularni hujjat
+    bilan `test_user_stories_contract` ikki tomonlama qulflaydi.
+    """
+    report = user_stories_mod.evaluate()
+    flagged = (
+        {c.code for c in report.diverged}
+        | {c.code for c in report.vacuous}
+        | {c.code for c in report.unnamed}
+    )
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.clauses),
+        flagged=len(flagged),
+        undeclared=len(report.stories_without_gherkin),
+    )
+
+
 def _probe_risks(_doc: str | None = None) -> Probe:
     report = risks_mod.evaluate()
     uncovered = tuple(e for e in report.entries if not e.is_covered)
@@ -422,6 +615,14 @@ REGISTRIES: tuple[Registry, ...] = (
         probe=_probe_plan,
     ),
     Registry(
+        code="roadmap",
+        spec=roadmap_mod.SPEC,
+        module="app.release.roadmap",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_roadmap,
+    ),
+    Registry(
         code="risks",
         # §27 ning nomeri `SPEC_ASSUMPTIONS` dan olinadi, hujjat nomi esa
         # takrorlanmaydi: ikkala bo'lim ham bitta hujjatda.
@@ -446,6 +647,54 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.DOC_BOUND,
         endpoint=None,
         probe=_probe_architecture,
+    ),
+    Registry(
+        code="glossary",
+        spec=glossary_mod.SPEC,
+        module="app.core.glossary",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_glossary,
+    ),
+    Registry(
+        code="scope",
+        spec=scope_mod.SPEC,
+        module="app.release.scope",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_scope,
+    ),
+    Registry(
+        code="functional_requirements",
+        spec=functional_mod.SPEC,
+        module="app.release.functional_requirements",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_functional,
+    ),
+    Registry(
+        code="user_stories",
+        spec=user_stories_mod.SPEC,
+        module="app.release.user_stories",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_user_stories,
+    ),
+    Registry(
+        code="api_requirements",
+        spec=api_requirements_mod.SPEC,
+        module="app.core.api_requirements",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_api_requirements,
+    ),
+    Registry(
+        code="success",
+        spec=success_mod.SPEC,
+        module="app.release.success",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_success,
     ),
     Registry(
         code="measures",
@@ -546,9 +795,7 @@ class IndexReport:
     @property
     def inaccurate(self) -> tuple[Finding, ...]:
         """Hujjat bugungi kodga zid, deb o'z reyestri aytgan bo'limlar."""
-        return tuple(
-            f for f in self.findings if f.probe and f.probe.verdict is Verdict.INACCURATE
-        )
+        return tuple(f for f in self.findings if f.probe and f.probe.verdict is Verdict.INACCURATE)
 
     @property
     def unsurfaced(self) -> tuple[Finding, ...]:

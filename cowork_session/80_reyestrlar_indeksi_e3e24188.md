@@ -260,3 +260,8 @@ Ikkita oqibat:
 
 Yakuniy holat: `ruff` toza, **2241 passed, 232 skipped** (bazasiz;
 +31 — odamning `latency` ishi), migratsiyasiz.
+
+✅ **CI yashil — odam sessiya oxirida tasdiqladi.** Bu 80-run ning
+yagona ochiq texnik sharti edi (`requires_db` sandboxda yurmagan);
+endi uchala savol ham, CI ham yopiq — keyingi run hech narsani
+kutmasdan «sakkizta `inaccurate` dan bittasi» bilan boshlanadi.

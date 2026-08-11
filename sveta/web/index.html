@@ -29,8 +29,18 @@
       -->
       <select id="region" hidden></select>
       <button id="reload" data-i18n="map.reload"></button>
+      <!--
+        `autocomplete="off"` — brauzer sahifa qayta yuklanganda
+        kalitchaning oldingi holatini tiklaydi, `app.js` dagi `heatOn`
+        esa har doim `false` dan boshlanadi va `setHeat` faqat `change`
+        hodisasida chaqiriladi. Ya'ni tiklangan kalitcha «yoqilgan»
+        ko'rinardi, qatlam esa chizilmasdi va legenda yashirin qolardi.
+        Standart holat — o'chirilgan (`01` PG-S4,
+        `app/release/acceptance.py` ning `web_default` vitrinasi), shu
+        sababli tiklash yoqilmaydi, holat esa DOM da ham shu bo'ladi.
+      -->
       <label class="toggle">
-        <input type="checkbox" id="heat" />
+        <input type="checkbox" id="heat" autocomplete="off" />
         <span data-i18n="heatmap.toggle"></span>
       </label>
       <span id="updated" class="updated"></span>
