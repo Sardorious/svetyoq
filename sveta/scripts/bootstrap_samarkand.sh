@@ -39,7 +39,26 @@ BBOX="39.58,66.82,39.75,67.08"
 #   OVERPASS_URL=https://overpass.kumi.systems/api/interpreter \
 #       bash scripts/bootstrap_samarkand.sh survey
 # Boshqa oynalar: https://overpass.osm.ch/api/interpreter
+# Asbobning o'zi ham 429/502/503/504 da uch marta qayta urinadi (5/20/60 s).
 OVERPASS_URL="${OVERPASS_URL:-}"
+
+# Overpass javoblarini saqlash katalogi (konteyner ichida). Bo'sh bo'lsa —
+# kesh ishlatilmaydi. Kesh yoqilganda muvaffaqiyatli javob faylga tushadi
+# va keyingi urinish tarmoqqa **umuman chiqmaydi** — 504 seriyasida quvurni
+# oldinga surishning yagona ishonchli yo'li (118-run).
+#   CACHE_DIR=/tmp/osm bash scripts/bootstrap_samarkand.sh stage 6
+# Yangi ma'lumot kerak bo'lsa katalogni tozalang:
+#   docker compose exec -T api rm -rf /tmp/osm
+CACHE_DIR="${CACHE_DIR:-}"
+
+declare -a CACHE_ARGS=()
+
+set_cache() {  # $1 — kesh fayli nomi (buyruq + daraja bo'yicha, aralashmasin)
+    CACHE_ARGS=()
+    [[ -z "${CACHE_DIR}" ]] && return 0
+    docker compose exec -T api mkdir -p "${CACHE_DIR}" >/dev/null
+    CACHE_ARGS=(--cache "${CACHE_DIR}/$1.json")
+}
 
 run() {  # konteyner ichida — DATABASE_URL compose dan keladi
     local tool="$1"; shift
@@ -66,7 +85,11 @@ cmd_add() {
 
 cmd_survey() {
     echo "== 2. OSM darajalarini ko'rish (ADR-07 — tanlov SIZNIKI) =="
-    run import_boundaries survey --region "${REGION_CODE}"
+    # `survey` `out tags;` bilan so'raydi, `stage` esa `out geom;` — kesh
+    # fayllari aralashmasligi uchun nomlar alohida.
+    set_cache "survey"
+    run import_boundaries survey --region "${REGION_CODE}" \
+        ${CACHE_ARGS[@]+"${CACHE_ARGS[@]}"}
     echo
     echo "Yuqoridagi ro'yxatdan shahar TUMANLARIGA mos admin_level ni tanlang"
     echo "(O'zbekistonda shahar tumanlari odatda admin_level=8; viloyat=4,"
@@ -81,14 +104,17 @@ cmd_stage() {
     # uchun daraja bo'yicha etalon qo'shni hududlarni ham tortadi — id
     # afzalroq. Id larni `survey` chiqaradi.
     #   REFERENCE_REF=r123456 bash scripts/bootstrap_samarkand.sh stage 6
+    set_cache "stage-${level}"
     if [[ -n "${REFERENCE_REF:-}" ]]; then
         run import_boundaries stage \
             --region "${REGION_CODE}" \
-            --admin-level "${level}" --reference-ref "${REFERENCE_REF}"
+            --admin-level "${level}" --reference-ref "${REFERENCE_REF}" \
+            ${CACHE_ARGS[@]+"${CACHE_ARGS[@]}"}
     else
         run import_boundaries stage \
             --region "${REGION_CODE}" \
-            --admin-level "${level}" --reference-level 6
+            --admin-level "${level}" --reference-level 6 \
+            ${CACHE_ARGS[@]+"${CACHE_ARGS[@]}"}
     fi
     echo
     echo "Sifat hisobotini ko'rib chiqing. Hammasi joyida bo'lsa:"

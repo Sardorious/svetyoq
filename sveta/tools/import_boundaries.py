@@ -67,30 +67,74 @@ class OverpassError(RuntimeError):
     """
 
 
+#: Qayta urinishga arziydigan javoblar. `504`/`502`/`503` — oyna band
+#: (118-run: `overpass-api.de` va `overpass.kumi.systems` ketma-ket `504`
+#: berdi); `429` — tezlik cheklovi, u ham vaqt bilan o'tadi.
+#:
+#: `403` va `406` ataylab **kirmaydi**: ular mijozning o'zini rad etadi
+#: (`User-Agent`), ya'ni qayta urinish ham xuddi shunday rad etiladi va
+#: faqat begona serverni bezovta qiladi.
+OVERPASS_RETRY_STATUSES: frozenset[int] = frozenset({429, 502, 503, 504})
+
+#: Urinishlar orasidagi kutish (soniya). Uzunligi = qo'shimcha urinishlar soni.
+OVERPASS_RETRY_BACKOFF_S: tuple[int, ...] = (5, 20, 60)
+
+
+def is_retryable(status: int) -> bool:
+    """Shu HTTP holati bilan qayta urinishga arziydimi."""
+    return status in OVERPASS_RETRY_STATUSES
+
+
+def _status_hint(status: int) -> str:
+    if status in (406, 403):
+        return (
+            " Overpass mijozni rad etdi. Tekshiring: `User-Agent`"
+            f" ({osm.OVERPASS_USER_AGENT!r}) yoki boshqa oyna (`--overpass-url`)."
+        )
+    if is_retryable(status):
+        return (
+            " Oyna band yoki tezlik cheklovi. Boshqa oynani sinang"
+            " (`--overpass-url https://overpass.osm.ch/api/interpreter`)"
+            " yoki javobni saqlab qayta ishlating (`--cache`)."
+        )
+    return ""
+
+
 async def _overpass(query: str, url: str) -> dict[str, Any]:
     """So'rovni yuboradi. Sarlavhalar `app.geo.osm` dan (`OVERPASS_HEADERS`).
 
     `User-Agent` siz `overpass-api.de` **`406 Not Acceptable`** qaytaradi —
     so'rovning o'zi to'g'ri bo'lsa ham (74-run, prodda topildi).
+
+    Band oynada (`5xx`, `429`) so'rov `OVERPASS_RETRY_BACKOFF_S` bo'yicha
+    qayta yuboriladi: chegara importi ikki so'rovdan iborat va ulardan
+    birining tasodifiy `504` i butun quvurni to'xtatadi (118-run).
     """
+    attempts = len(OVERPASS_RETRY_BACKOFF_S) + 1
     async with httpx.AsyncClient(timeout=osm.OVERPASS_TIMEOUT_S + 30) as client:
-        try:
-            response = await client.post(url, data={"data": query}, headers=osm.OVERPASS_HEADERS)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as exc:
-            status = exc.response.status_code
-            hint = ""
-            if status in (406, 403, 429):
-                hint = (
-                    " Overpass mijozni rad etdi. Tekshiring: `User-Agent`"
-                    f" ({osm.OVERPASS_USER_AGENT!r}), tezlik cheklovi (bir necha"
-                    " daqiqadan keyin qayta urinib ko'ring) yoki boshqa oyna"
-                    " (`--overpass-url`)."
+        for attempt in range(attempts):
+            try:
+                response = await client.post(
+                    url, data={"data": query}, headers=osm.OVERPASS_HEADERS
                 )
-            raise OverpassError(f"Overpass {status} — {url}.{hint}") from exc
-        except httpx.HTTPError as exc:
-            raise OverpassError(f"Overpass ga ulanib bo'lmadi: {exc}") from exc
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                last = attempt == attempts - 1
+                if not is_retryable(status) or last:
+                    raise OverpassError(
+                        f"Overpass {status} — {url}.{_status_hint(status)}"
+                    ) from exc
+                pause = OVERPASS_RETRY_BACKOFF_S[attempt]
+                print(
+                    f"# Overpass {status} — {pause} s dan keyin qayta urinaman "
+                    f"({attempt + 2}/{attempts})"
+                )
+                await asyncio.sleep(pause)
+            except httpx.HTTPError as exc:
+                raise OverpassError(f"Overpass ga ulanib bo'lmadi: {exc}") from exc
+    raise AssertionError("erishib bo'lmaydi")  # pragma: no cover
 
 
 def _read_cache(cache: Path | None) -> dict[str, Any] | None:

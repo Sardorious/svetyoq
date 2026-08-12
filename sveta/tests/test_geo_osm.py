@@ -156,3 +156,46 @@ def test_relation_query_asks_for_one_relation_by_id() -> None:
     # bbox ham, admin_level filtri ham bo'lmasligi kerak: id yagona shart.
     assert "admin_level" not in query
     assert "boundary" not in query
+
+
+@pytest.mark.parametrize("status", [429, 502, 503, 504])
+def test_busy_overpass_is_retried(status: int) -> None:
+    """Oyna band bo'lsa qayta urinamiz — 118-run: ikkala oyna ham `504` berdi."""
+    from tools import import_boundaries as ib
+
+    assert ib.is_retryable(status)
+
+
+@pytest.mark.parametrize("status", [200, 400, 403, 406, 404])
+def test_client_rejection_is_not_retried(status: int) -> None:
+    """`403`/`406` mijozning o'zini rad etadi (`User-Agent`).
+
+    Qayta urinish xuddi shunday rad etiladi va faqat begona serverni
+    bezovta qiladi — OSM ning «Commons» qoidalariga zid.
+    """
+    from tools import import_boundaries as ib
+
+    assert not ib.is_retryable(status)
+
+
+def test_backoff_grows_and_bounds_the_attempts() -> None:
+    from tools import import_boundaries as ib
+
+    pauses = ib.OVERPASS_RETRY_BACKOFF_S
+
+    assert pauses == tuple(sorted(pauses)), "kutish vaqti kamaymasligi kerak"
+    assert len(set(pauses)) == len(pauses), "takroriy kutish — o'sish yo'q degani"
+    assert 1 <= len(pauses) <= 5, "urinishlar soni chegaralangan bo'lsin"
+
+
+def test_retry_hint_points_at_a_way_forward() -> None:
+    """504 xabari nima qilishni aytsin — asbob operator qo'lida ishlaydi."""
+    from tools import import_boundaries as ib
+
+    hint = ib._status_hint(504)
+
+    assert "--overpass-url" in hint
+    assert "--cache" in hint
+    # Mijoz rad etilganda esa boshqa maslahat — `User-Agent`.
+    assert "User-Agent" in ib._status_hint(406)
+    assert "--cache" not in ib._status_hint(406)
