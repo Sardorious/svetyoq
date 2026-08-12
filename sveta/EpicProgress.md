@@ -54,7 +54,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
-* **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3357
+* **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3365
   passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
   start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
   o'ladi); `alembic` 0001→0010 toza; `ruff` toza; mutatsiya qamrovi
@@ -66,6 +66,16 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `phase0_plan`, `ux_requirements`, `user_stories` va `nfr_appendix`
   ham 12/12 — **eski kontraktlarning mutatsiya qarzi to'liq yopildi**
   (107–116-runlar seriyasi).
+* **Mutatsiya endi mahsulot kodida ham:**
+  `app/clustering/confirmation.py` — 12/12 (118-run, birinchi
+  **mahsulot** moduli). Besh survivor `06` da yozilgan, lekin
+  testda yo'q xossalar edi: `dedupe_evidence` ning «eng erta»
+  qoidasi (§11 himoyasi), `W` ning `numeric(6,1)` miqyosi (§10),
+  tarqoqlikning **diametr** ekani va chegarasining `≥` ekani
+  (§4.3), `n_req > 0` qorovuli — beshalasi ham qulflandi.
+  Mahsulot kodi tegilmadi. Mutatsiyasiz mahsulot modullari
+  qoldi: `clustering/{scale,status,geometry,independence}.py`,
+  `reports/velocity.py`, `stats/coverage.py`, `geo/jitter`.
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
   (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
@@ -95,7 +105,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | — |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | — |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/nginx.conf`, `scripts/deploy.sh`, `0004` | ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/nginx.conf`, `scripts/deploy.sh`, `0004` | ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | E10, E11 |
@@ -141,7 +151,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 ## 2. Testlar epiclar bo'yicha
 
 Jami **147 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam (DB bilan) **3353 passed, 1 skipped**; `-m requires_db`
+to'plam (DB bilan) **3365 passed, 1 skipped**; `-m requires_db`
 **231 passed** — ⚠️ `pg_ctl start`, `alembic upgrade head` va
 `pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
 chaqiruv oxirida o'ladi va o'nlab yolg'on yiqilish chiqadi;
@@ -155,7 +165,7 @@ PostGIS — §6 retsepti.
 | E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry`, `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
-| E5b | `test_confirmation`, `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
+| E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). Qolganlari: `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
 | E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
@@ -172,7 +182,7 @@ PostGIS — §6 retsepti.
 | INT | `test_integrations_contract` |
 | ARCH | `test_architecture_contract` |
 | VIT | `test_admin_registries` |
-| UX-2 | `test_ux_requirements_contract` — **72 test**: uch o'quvchi (DOM, CSS kaskadi, JS chaqiruv grafi); §11 graf sifatida (`reachable`, `flow_completes`); o'quvchilarning o'zlari ham testlanadi; mutatsiya 12/12 (ikki survivor — `_bind_shape` ning `web/` nishonsiz yarmi va `accurate` kon'yunksiyasi — aynan qulflangan) |
+| UX-2 | `test_ux_requirements_contract` — **74 test**: uch o'quvchi (DOM, CSS kaskadi, JS chaqiruv grafi); §11 graf sifatida (`reachable`, `flow_completes`); o'quvchilarning o'zlari ham testlanadi; mutatsiya 12/12 (ikki survivor — `_bind_shape` ning `web/` nishonsiz yarmi va `accurate` kon'yunksiyasi — aynan qulflangan). 117-run: qattiq kodlangan `aria-label` qulfi **teskarisiga** o'zgardi (defekt tuzatildi) va uchta yangi test — markupda `aria-label` yo'q, ikkala nom `applyStrings` da, mintaqa nomlarining eskirishi |
 | UX | `test_user_stories_contract` — **71 test**, to'rt qatlam (`ast` bilan, matn qidirilmaydi); mutatsiya 12/12 (ikki survivor — `preconditions_hold` ning `if s.gherkin` filtri va `accurate` kon'yunksiyasi — aynan qulflangan) |
 | NFR | `test_nfr_appendix_contract` — **53 test**: hujjat + fayl tizimi + kod + boshqa kontraktlar; `Delivered` × `Enforcement` × `Baseline`; mutatsiya 12/12 (to'rt survivor — `SPEC` ankraji, `BASELINE_DOC` almashuvi, bind nuqta-qorovuli, `accurate` kon'yunksiyasi — aynan qulflangan) |
 | PH0 | `test_phase0_plan_contract` — **59 test**: hujjat (H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, sanalar mosligi, kritik yo'l tartibi), kod guvohlari, boshqa reyestrlar, fayl tizimi; qorovullar alohida; mutatsiya 12/12 (besh survivor — `CRITICAL_PATH` tartibi, ikki yurgizilmagan qorovul, EXIT-1 `any`/`all`, `accurate` kon'yunksiyasi — aynan qulflangan) |

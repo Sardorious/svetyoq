@@ -48,7 +48,23 @@
 
   function applyStrings() {
     document.documentElement.lang = lang;
-    document.getElementById("lang").value = lang;
+    var langSelect = document.getElementById("lang");
+    langSelect.value = lang;
+    /* Ikkala tanlagichning ham ko'rinadigan yorlig'i yo'q — ularning
+       yagona nomi `aria-label`, ya'ni u ekran o'quvchi o'qiydigan
+       **foydalanuvchi matni**. Shuning uchun ikkalasi ham katalogdan
+       keladi va ikkalasi ham **shu yerda** qo'yiladi: `applyStrings`
+       til almashganda qayta chaqiriladi.
+
+       `#region` niki ilgari `fillRegions` da qo'yilardi — u esa faqat
+       bir marta, sahifa qurilayotganda chaqiriladi, ya'ni til
+       almashganda nom eskisida qolardi. Bu `tiles` uyasi bilan aynan
+       bitta sinf (95-run): til almashganda qayta hisoblanmaydigan
+       yagona matn. Atribut `lang` ning sof hosilasi, shuning uchun
+       uni bu yerga ko'chirish xavfsiz va `fillRegions` faqat
+       ro'yxatni quradi. */
+    langSelect.setAttribute("aria-label", t("map.language"));
+    document.getElementById("region").setAttribute("aria-label", t("map.region"));
     document.title = t("map.title");
     var nodes = document.querySelectorAll("[data-i18n]");
     for (var i = 0; i < nodes.length; i++) {
@@ -434,7 +450,8 @@
   function fillRegions() {
     var select = document.getElementById("region");
     var rows = (config && config.regions) || [];
-    select.setAttribute("aria-label", t("map.region"));
+    /* `aria-label` bu yerdan olib tashlandi — u `applyStrings` da,
+       qolgan barcha matn bilan bitta joyda (sabab o'sha yerda). */
     if (rows.length < 2) {
       select.hidden = true;
       return;

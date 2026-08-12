@@ -64,6 +64,7 @@
   "map.error": "Ma'lumotni yuklab bo'lmadi. Biroz o'tib qayta urinib ko'ring.",
   "map.reload": "Yangilash",
   "map.region": "Hudud",
+  "map.language": "Interfeys tili",
   "map.privacy": "Nuqtalar aniq manzilni ko'rsatmaydi: ular maxfiylik uchun ataylab siljitilgan.",
   "map.tiles_missing": "Xarita foni sozlanmagan — faqat uzilish nuqtalari ko'rinadi.",
   "geo.disclaimer.mahalla_source": "Mahalla chegaralarining manbasi har bir yozuvda ko'rsatilgan; litsenziya spravochnikda saqlanmaydi — qayta tarqatishdan oldin manbani tekshiring.",

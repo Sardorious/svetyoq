@@ -1089,12 +1089,22 @@ CLAUSES: tuple[Clause, ...] = (
             "uzun o'zbek satri eng uzun rus satridan qancha uzun, va "
             "u 360 px da qaysi elementga sig'maydi. Bugun bunday "
             "o'lchov yo'q.\n\n"
-            "⚠️ Yo'l-yo'lakay topilgani: `web/index.html` da "
-            "`aria-label=\"uz / ru\"` — **qattiq kodlangan** va "
-            "tarjima qilinmaydigan yagona foydalanuvchi matni. Ekran "
-            "o'quvchi uchun u ko'rinadi, `04` §6 esa qattiq kodlangan "
-            "matnni bloklovchi defekt deb ataydi. Qo'shni `#region` "
-            "tanlagichi buni to'g'ri qiladi (`t(\"map.region\")`)."
+            "✅ 98-run ning yo'l-yo'lakay topilmasi **tuzatildi** "
+            "(117-run): `web/index.html` dagi `aria-label=\"uz / ru\"` "
+            "— sahifadagi oxirgi qattiq kodlangan foydalanuvchi matni "
+            "(`04` §6 uni bloklovchi defekt deb ataydi) — olib "
+            "tashlandi. Endi ikkala tanlagichning nomi ham katalogdan "
+            "keladi (`map.language`, `map.region`) va ikkalasi ham "
+            "`applyStrings` da qo'yiladi, ya'ni til almashganda "
+            "yangilanadi. `#region` niki ilgari `fillRegions` da edi "
+            "— u bir marta ishlaydi, ya'ni nom eski tilda qolardi "
+            "(`tiles` uyasining 95-rundagi sinfi).\n\n"
+            "⚠️ Shu sinfning qolgan yarmi: mintaqa **nomlari** "
+            "serverda tarjima qilinadi (`_summary(r, lang)`) va "
+            "`/map/config` faqat `boot()` da so'raladi — til "
+            "almashganda `<option>` matnlari eski tilda qoladi. "
+            "Bugun ko'rinmaydi (mintaqa bitta, tanlagich yashirin), "
+            "shuning uchun o'lchandi, tuzatilmadi — 👤 savol."
         ),
         binds=(
             "app.core.i18n:DEFAULT_LANGUAGE",
@@ -1102,8 +1112,9 @@ CLAUSES: tuple[Clause, ...] = (
             "web/index.html:#lang",
         ),
         gap=(
-            "Satr uzunligi gipotezasi o'lchanmaydi; `#lang` ning "
-            "`aria-label` i qattiq kodlangan (`04` §6)."
+            "Satr uzunligi gipotezasi o'lchanmaydi; mintaqa nomlari "
+            "til almashganda eski tilda qoladi (`/map/config` qayta "
+            "so'ralmaydi)."
         ),
     ),
 )

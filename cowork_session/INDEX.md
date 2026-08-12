@@ -12,6 +12,53 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **117-run: `web/` dagi oxirgi qattiq kodlangan matn olib tashlandi
+> — 98-run ning 2-savoli yopildi.** Mutatsiya seriyasi 116 da tugagach
+> navbatdagi ish qidirildi va «Ochiq savollar» ning deyarli hammasi
+> odam qaroriga bog'liq bo'lib chiqdi. Bitta bandda esa javob
+> **qoidada** yozilgan: `CLAUDE.md` §2 / `04` §6 qattiq kodlangan
+> foydalanuvchi matnini **bloklovchi defekt** deb ataydi, ya'ni
+> `<select id="lang" aria-label="uz / ru">` odam qarorisiz tuzatiladi.
+> Yangi kalit `map.language` (UZ «Interfeys tili», RU «Язык
+> интерфейса»), markupdan atribut olib tashlandi, nomni `applyStrings`
+> katalogdan qo'yadi.
+> 🔴 **Yo'l-yo'lakay ikkinchi defekt:** `#region` ning `aria-label` i
+> katalogdan kelardi, lekin `fillRegions` da qo'yilardi — u faqat bir
+> marta ishlaydi, ya'ni til almashganda nom **eski tilda qolardi**
+> (95-run ning `tiles` uyasi bilan aynan bitta sinf). U ham
+> `applyStrings` ga ko'chirildi.
+> 🟡 **Sinfning uchinchi yarmi o'lchandi, tuzatilmadi:** mintaqa
+> **nomlari** serverda tarjima qilinadi (`_summary(r, lang)`),
+> `/map/config` esa faqat `boot()` da so'raladi → `<option>` matnlari
+> eskiradi. Yechim ikkitadan biri va ikkalasi ham qaror talab qiladi
+> — 👤 savol. Bugun ko'rinmaydi: mintaqa bitta, tanlagich yashirin.
+> **Testlar:** defekt **mavjudligini** qulflagan
+> `test_the_language_selector_carries_hardcoded_text` olib tashlandi,
+> o'rniga uchta yangi; yo'l-yo'lakay
+> `test_the_language_change_refreshes_every_notice` ning kesimi
+> tuzatildi (ankraj endi `_LANG_HANDLER`, aks holda u butun `boot()`
+> ni qamrab jimgina kuchsizlanardi). Reyestr `UI-6` yangilandi.
+> **Yashil:** butun to'plam **3359 passed, 1 skipped** (116: 3357 —
+> aynan +2); `-m requires_db` 231 passed; `alembic` 0001→0010 toza;
+> `ruff` toza. Git chaqirilmadi.
+> ⚠️ **Muhit (118 o'qisin): 113–116 sandboxi o'lgan, hammasi noldan
+> qurildi.** `CONDA_PKGS_DIRS=/tmp/mamba/pkgs` + `HOME=/tmp` +
+> `XDG_CACHE_HOME=/tmp/cache` **majburiy** (`/sessions` 100% to'la —
+> standart kesh bilan `micromamba` «No space left» beradi); tizim
+> `python3` **3.10**, loyiha `StrEnum` ishlatadi → `micromamba`
+> `py311` shart, `pip --target` yetmaydi; **fon jarayoni (`nohup` ham)
+> bash chaqiruvlari orasida o'ladi** → butun to'plam **uch partiyada**
+> (`ls tests/test_*.py` ni 50/50/47 ga bo'lib), DB partiyasi esa
+> `pg_ctl status || start` bilan bitta chaqiruvda. `initdb -D
+> /tmp/pgdata117 -U sveta -A trust`, port **55617**. To'liq retsept —
+> `117_web_aria_i18n_6557d19c.md` §7.
+> **Keyingi qadam — 118-run:** (1) mintaqa nomlari savoli (👤);
+> (2) qolgan «Ochiq savollar» — §1–§7/§9–§12, §24↔§29, `OQ-*`
+> nomfazosi, lug'at; (3) `web/` ning qolgan `01` §13–§14 qarzlari
+> (`UI-5` Dark Mode, `outage-halo` ↔ `official`, to'rtinchi status)
+> — uchalasi ham 👤 javobsiz boshlanmaydi; (4) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi.
+
 > ✅ **116-run: `nfr_appendix` mutatsiyasi 12/12 — 107-runda boshlangan
 > eski kontraktlar mutatsiya seriyasi TUGADI.** 12 mutatsiya: 8 ushlandi,
 > **4 survivor**, to'rttasi ham tanish sinflar: M1 — `SPEC` ankraji
@@ -2333,6 +2380,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 117 | [web_aria_i18n](117_web_aria_i18n_6557d19c.md) | `local_6557d19c` | **`web/` dagi oxirgi qattiq kodlangan matn olib tashlandi (`04` §6) — 98-run ning 2-savoli yopildi** | ✅ **Tuzatildi, hammasi yashil.** 98-run topgan `aria-label="uz / ru"` — sahifadagi yagona qattiq kodlangan foydalanuvchi matni; bu «qilinsinmi?» savoli emas edi, `CLAUDE.md` §2 / `04` §6 uni **bloklovchi defekt** deb ataydi, ya'ni javob qoidada. Yangi kalit `map.language` (UZ «Interfeys tili», RU «Язык интерфейса»), markupdan atribut olib tashlandi, `applyStrings` uni katalogdan qo'yadi. 🔴 **Yo'l-yo'lakay ikkinchi defekt:** `#region` ning `aria-label` i katalogdan kelardi, lekin `fillRegions` da qo'yilardi — u bir marta ishlaydi, ya'ni til almashganda nom **eski tilda qolardi** (95-run ning `tiles` uyasi bilan aynan bitta sinf). U ham `applyStrings` ga ko'chirildi. 🟡 **Sinfning uchinchi yarmi — o'lchandi, tuzatilmadi:** mintaqa **nomlari** serverda tarjima qilinadi (`_summary(r, lang)`), `/map/config` esa faqat `boot()` da so'raladi → `<option>` matnlari til almashganda eskiradi; yechim ikkitadan biri va ikkalasi ham qaror talab qiladi (config qayta so'ralsinmi yoki nomlar tilga bog'liq bo'lmasinmi) — 👤 savol. Bugun ko'rinmaydi ham: mintaqa bitta, tanlagich `rows.length < 2` da yashirin. **Testlar:** defektning mavjudligini qulflagan `test_the_language_selector_carries_hardcoded_text` **olib tashlandi**, o'rniga uchta yangi (markupda bitta ham `aria-label` yo'q; ikkala nom katalogdan **va** `fillRegions` da yo'q; nom eskirishi + `_summary(r, lang)` dalili). ⚠️ **Yo'l-yo'lakay tuzatilgan test kuchsizlanishi:** mavjud `test_the_language_change_refreshes_every_notice` ishlovchini `getElementById("lang")` ning **birinchi** uchrashi bilan kesardi — 117-rundan beri u `applyStrings` ga tushadi va kesim butun `boot()` ni qamrardi; ankraj `_LANG_HANDLER` konstantasiga chiqarildi (yangi test buni darhol ko'rsatdi — birinchi yurgizishda `/map/config` ni `boot()` dan topib yiqildi). Reyestr `UI-6` yangilandi (`Surface.PARTIAL` o'zgarmadi — `[ГИПОТЕЗА]` yarmi hamon o'lchanmaydi). **Yashil:** butun to'plam **3359 passed, 1 skipped** (116: 3357 — aynan +2, −1 +3), `-m requires_db` **231 passed**, `alembic` 0001→0010 toza, `ruff` toza. Migratsiya yo'q, vaqtinchalik fayl yo'q, git chaqirilmadi. ⚠️ **Muhit noldan qurildi** (113–116 sandboxi o'lgan) — retsept `117_*.md` §7: `CONDA_PKGS_DIRS`/`HOME`/`XDG_CACHE_HOME` `/tmp` ga (aks holda `/sessions` to'laligidan `micromamba` yiqiladi), tizim `python3` **3.10** — `StrEnum` uchun `py311` shart, fon jarayoni (`nohup` ham) chaqiruvlar orasida o'ladi → to'plam **uch partiyada** |
 | 116 | [nfr_mutatsiya](116_nfr_mutatsiya_0bc44388.md) | `local_0bc44388` | **`nfr_appendix` mutatsiyasi 12/12 — eski kontraktlarning mutatsiya qarzi to'liq yopildi** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 8 ushlandi, 4 survivor (M1 `SPEC` ankraji refleksiv — 113 M8 sinfi; M4 `BASELINE_DOC`→`05_API.md` ikkala darvozadan o'tardi; M7 bind nuqta-qorovuli hech qachon otilmagan — 111 M8 sinfi; M12 `accurate` `and`→`or` — uchala kon'yunkt bugun `False`) — to'rt qulf testi bilan yopildi, fayl 53 test. To'plam 3357 passed, 1 skipped |
 | 115 | [us_mutatsiya](115_us_mutatsiya_56587e5b.md) | `local_56587e5b` | **`user_stories` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M11 `preconditions_hold` ning `if s.gherkin` filtri — ikkala gherkinli `Given` bugun yiqiq, filtr farq yaratmagan; M12 `accurate` `and`→`or` — to'rtala kon'yunkt bugun `False`) — ikki qulf testi bilan yopildi, fayl 71 test. To'plam 3353 passed, 1 skipped |
 | 114 | [ux2_mutatsiya](114_ux2_mutatsiya_81af1740.md) | `local_81af1740` | **`ux_requirements` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M10 `_bind_shape` ning `web/` nishonsiz yarmi — qorovulning o'zi testlanmagan; M12 `accurate` `and`→`or` — to'rtala kon'yunkt bugun `False`) — ikki qulf testi bilan yopildi, fayl 72 test. To'plam 3351 passed, 1 skipped |

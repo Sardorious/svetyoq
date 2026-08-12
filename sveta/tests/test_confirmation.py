@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 
@@ -24,6 +25,7 @@ from app.clustering.confirmation import (
     time_factor,
     weighted_score,
 )
+from app.clustering.models import Outage
 from app.clustering.params import DEFAULT_PARAMS, from_mapping
 from app.reports.sources import freeze_weight, get_source, is_authoritative, user_factor
 
@@ -210,6 +212,78 @@ def test_weighted_score_applies_time_factor():
 
 def test_max_pairwise_distance_of_single_point_is_zero():
     assert max_pairwise_distance_m([ev()]) == 0.0
+
+
+def test_dedupe_keeps_the_earliest_row_not_the_latest():
+    """`06` §11 — takroriy xabar `W` ni sun'iy ko'tara olmaydi.
+
+    `dedupe_evidence` ning nomi «eng erta» deydi, lekin sanoq testi
+    (`test_dedupe_keeps_first_row_per_user`) buni ko'rmaydi: u faqat ikkita
+    qator qolganini tekshiradi. Bu yerda **qaysi** qator qolgani qulflanadi —
+    aks holda modul eng kechini qoldirsa ham hech narsa yiqilmasdi va
+    foydalanuvchi og'irroq manbadan qayta yozib `W` ni o'stira olardi.
+    """
+    user = uuid.uuid4()
+    early = ev(user=user, weight=1.0, age_min=70)
+    late = ev(user=user, weight=3.0, age_min=0)
+
+    kept = dedupe_evidence([early, late])
+
+    assert kept == [early]
+    # `W` faqat vaqt bilan kamayadi: 1.0 × time_factor(70) = 0.4, 3.0 emas.
+    assert weighted_score(kept, now=NOW) == 0.4
+
+
+def test_weighted_score_is_rounded_to_the_column_scale():
+    """`06` §10 — `weighted_score numeric(6,1)`: `W` bitta kasr xonasida.
+
+    Yaxlitlash sxemaning bir qismi: ikkinchi kasr xonasi bazaga baribir
+    sig'maydi va toza modul bilan ustun o'rtasida jimgina farq paydo bo'lardi
+    (`06` §12.13 determinizmi shu farqda buziladi).
+    """
+    scale = Outage.__table__.c.weighted_score.type.scale
+    assert scale == 1
+
+    for weight in (0.25, 0.125):
+        w = weighted_score([ev(weight=weight)], now=NOW)
+        assert -Decimal(str(w)).as_tuple().exponent <= scale
+
+
+def test_spread_is_the_diameter_not_the_nearest_pair():
+    """`06` §4.3 — «xabarlar orasidagi **maksimal** masofa».
+
+    Uch nuqtada eng yaqin juftlik (60 m) va diametr (900 m) ajraladi;
+    `spread_line` da esa ular hech qachon ajralmaydi, shuning uchun
+    `min`/`max` almashuvi sezilmasdi.
+    """
+    rows = [ev(east=0), ev(east=60), ev(east=900)]
+
+    assert max_pairwise_distance_m(rows) == pytest.approx(900.0, rel=0.01)
+
+
+def test_spread_ok_holds_at_exactly_the_minimum_distance():
+    """`06` §4.3 — shart `≥`, ya'ni chegaraning o'zi o'tadi."""
+    rows = [ev(east=0), ev(east=SPREAD_MIN)]
+    exact = max_pairwise_distance_m(rows)
+
+    on_edge = evaluate(rows, a_local=15, now=NOW, params=CONFIRM, spread_min_distance_m=exact)
+    below_edge = evaluate(
+        rows, a_local=15, now=NOW, params=CONFIRM, spread_min_distance_m=exact * 1.01
+    )
+
+    assert on_edge.spread_ok is True
+    assert below_edge.spread_ok is False
+
+
+@pytest.mark.parametrize("n_req", [0, -1])
+def test_confidence_rejects_a_non_positive_required_score(n_req):
+    """Qorovulning o'zi: `N_req = 0` bo'lsa nolga bo'linish o'rniga xato.
+
+    `06` §4.2 `N_req` ni `clamp(3, …, 8)` deb ta'riflaydi, ya'ni nol faqat
+    chaqiruvchining xatosidan kelib chiqadi — u jim yutilmasligi kerak.
+    """
+    with pytest.raises(ValueError):
+        confidence(w=5.0, n_req=n_req, a_local=15, last_report_age_min=0.0)
 
 
 # --- `06` §7 ishlangan misollar ---

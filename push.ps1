@@ -78,6 +78,12 @@ if (-not $Message) {
 if (-not $Message) {
     $Message = "wip: " + (Get-Date -Format "yyyy-MM-dd HH:mm")
 }
+# Qo'shtirnoq xabardan OLIB TASHLANADI (117-run, 2026-08-12 da yiqildi).
+# Sabab: Windows PowerShell 5.1 tashqi dasturga argument uzatayotganda
+# satrni qayta qo'shtirnoqqa oladi, lekin ichkaridagi `"` ni ekranlamaydi.
+# `aria-label="uz / ru"` bo'lgan xabar git uchun bir necha argumentga
+# bo'linib ketdi va `commit` yiqildi. Bitta tirnoq xavfsiz.
+$Message = $Message -replace '"', "'"
 if ($Message.Length -gt 200) { $Message = $Message.Substring(0, 197) + "..." }
 
 Write-Host "Commit xabari:" -ForegroundColor White

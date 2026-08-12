@@ -812,26 +812,75 @@ def test_dark_mode_has_no_auto_switch(rules: list) -> None:
     assert {"--bg", "--text", "--confirmed", "--pending", "--official"} <= root
 
 
-def test_the_language_selector_carries_hardcoded_text(dom: Element) -> None:
-    """`UI-6` ning yo'l-yo'lakay topilmasi — qulflab qo'yiladi.
+def test_no_element_carries_a_hardcoded_aria_label(dom: Element) -> None:
+    """`04` §6 — sahifada qattiq kodlangan foydalanuvchi matni yo'q.
 
-    `#lang` ning `aria-label` i sahifadagi **yagona** qattiq kodlangan
-    foydalanuvchi matni (`04` §6 uni bloklovchi defekt deb ataydi):
-    ekran o'quvchi uni o'qiydi va u tarjima qilinmaydi. Qo'shni
-    `#region` buni to'g'ri qiladi — `aria-label` unga `app.js` dan,
-    katalogdan kelgan matn bilan qo'yiladi.
+    98-run ning topilmasi shu edi: `#lang` ning `aria-label` i
+    (`"uz / ru"`) sahifadagi **yagona** qattiq kodlangan matn bo'lib
+    qolgandi. Ekran o'quvchi uni o'qiydi, ya'ni u ko'rinadigan matn
+    bilan bir xil maqomda — `04` §6 esa bunday matnni bloklovchi
+    defekt deb ataydi. Bugun ikkala tanlagichning nomi ham katalogdan
+    keladi (`applyStrings`), shuning uchun HTML da bitta ham
+    `aria-label` bo'lmasligi kerak.
 
-    Test tuzatishni **talab qilmaydi** (reyestr o'lchaydi,
-    tahrirlamaydi), lekin holatni qulflaydi: `aria-label` lar ro'yxati
-    o'zgarsa reyestr ham yangilanishi kerak.
+    Test shaklni emas, **qoidani** qulflaydi: markupga qaytadan
+    yozilgan har qanday `aria-label` — yangi qattiq kodlangan matn.
     """
     labelled = {
         node.node_id: node.attrs["aria-label"]
         for node in dom.walk()
         if "aria-label" in node.attrs
     }
-    assert labelled == {"lang": "uz / ru"}
-    assert _by_id(dom, "region").attrs.get("aria-label") is None
+    assert labelled == {}
+
+
+def test_both_selectors_get_their_name_from_the_catalogue(
+    functions: dict[str, str],
+) -> None:
+    """Nom ikkala tanlagichga ham `applyStrings` dan, katalogdan keladi.
+
+    Ikkalasining ham ko'rinadigan yorlig'i yo'q, ya'ni `aria-label` —
+    ularning yagona nomi. U `applyStrings` da qo'yiladi, chunki aynan
+    shu funksiya til almashganda qayta chaqiriladi
+    (`test_the_language_change_refreshes_every_notice`).
+
+    `#region` niki ilgari `fillRegions` da edi — u bir marta, sahifa
+    qurilayotganda ishlaydi, ya'ni til almashganda nom eskisida
+    qolardi (`tiles` uyasining 95-rundagi sinfi). Test buni ikki
+    tomondan qulflaydi: `applyStrings` da bor **va** `fillRegions` da
+    yo'q.
+    """
+    apply_strings = functions["applyStrings"]
+    for key in ("map.language", "map.region"):
+        assert f't("{key}")' in apply_strings, key
+    assert apply_strings.count("aria-label") == 2
+    assert "aria-label" not in functions["fillRegions"]
+
+
+def test_the_region_names_still_go_stale_on_a_language_switch(js: str) -> None:
+    """Qolgan yarim: nomlar `/map/config` dan keladi, u qayta so'ralmaydi.
+
+    Mintaqa nomlari serverda tarjima qilinadi (`_summary(r, lang)`),
+    ya'ni ular `/map/config` javobining tilga bog'liq qismi. Sahifa
+    esa uni faqat `boot()` da bir marta so'raydi: til almashganda
+    `#lang` ning ishlovchisi faqat `/map/i18n` ni qayta oladi, demak
+    `<option>` matnlari eski tilda qoladi.
+
+    Bugun bu ko'rinmaydi — mintaqa bitta, tanlagich esa
+    `rows.length < 2` da yashiriladi. Shuning uchun holat
+    tuzatilmadi, **o'lchandi**: 👤 savol `PROGRESS.md` da (config
+    qayta so'ralsinmi yoki nomlar tilga bog'liq bo'lmasinmi).
+    """
+    code = _js_code(js)
+    handler = code[code.index(_LANG_HANDLER) :]
+    assert "/map/i18n" in handler
+    assert "/map/config" not in handler
+    assert "fillRegions()" not in handler
+    #: Nomlar haqiqatan serverdan, tanlangan til bilan keladi —
+    #: aks holda «eskiradi» degan da'vo bo'sh bo'lardi.
+    assert "_summary(r, lang)" in (
+        Path(__file__).parent.parent / "app" / "api" / "v1" / "map.py"
+    ).read_text(encoding="utf-8")
 
 
 def test_the_heat_toggle_does_not_let_the_browser_restore_it(dom: Element, js: str) -> None:
@@ -938,10 +987,19 @@ def test_apply_strings_recomputes_the_tile_notice(functions: dict[str, str]) -> 
     assert "t(" in body
 
 
+#: `#lang` ning ishlovchisini kesib oladigan **yagona** ankraj.
+#: Oddiy `getElementById("lang")` yaramaydi: 117-rundan beri
+#: `applyStrings` ham shu tanlagichni oladi (nomini katalogdan
+#: qo'yadi), ya'ni birinchi uchrash ishlovchi emas va kesim butun
+#: `boot()` ni ham qamrab olardi — «ishlovchida yo'q» degan har qanday
+#: tasdiq shunda jimgina kuchsizlanadi.
+_LANG_HANDLER = 'getElementById("lang").addEventListener'
+
+
 def test_the_language_change_refreshes_every_notice(js: str) -> None:
     """`#lang` ning ishlovchisi uchala yozuvchini ham chaqiradi."""
     code = _js_code(js)
-    handler = code[code.index('getElementById("lang")') :]
+    handler = code[code.index(_LANG_HANDLER) :]
     for call in ("applyStrings()", "refresh()", "refreshHeat()"):
         assert call in handler, call
 

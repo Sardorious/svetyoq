@@ -18,7 +18,16 @@
     <h1 data-i18n="map.title"></h1>
     <p class="subtitle" data-i18n="map.subtitle"></p>
     <div class="controls">
-      <select id="lang" aria-label="uz / ru">
+      <!--
+        `aria-label` bu yerda **yozilmaydi**: u ekran o'quvchi o'qiydigan
+        foydalanuvchi matni, ya'ni qattiq kodlansa `04` §6 bo'yicha
+        bloklovchi defekt bo'lardi (u tarjima qilinmasdi va til
+        almashganda o'zgarmasdi). Uni `applyStrings` katalogdan qo'yadi
+        (`map.language`) — qo'shni `#region` ham xuddi shunday qiladi.
+        `<option>` lardagi «UZ»/«RU» — tilning o'z endonimlari, ular
+        tarjima qilinmaydi (har ikkala tilda ham bir xil yoziladi).
+      -->
+      <select id="lang">
         <option value="uz">UZ</option>
         <option value="ru">RU</option>
       </select>
