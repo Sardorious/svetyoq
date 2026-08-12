@@ -107,3 +107,100 @@ def test_clamp_radius_over_limit_flags_moderator():
 
 def test_clamp_radius_negative_is_zero():
     assert clamp_radius(-5.0, 3000) == (0, False)
+
+
+# --- 122-run: mutatsiya survivorlarining qulflari ---------------------------
+#
+# Quyidagi oltita test mutatsiya o'lchovida tirik qolgan mutantlarni
+# qulflaydi. Har biri modulda **yozilgan**, lekin hech qaysi test
+# tekshirmagan xossani bayon qiladi.
+
+
+def test_haversine_of_antipodal_points_is_half_the_circumference():
+    """Formulaning eng chekka holati — antipod juftlik.
+
+    Bu yerda `h` suzuvchi nuqtada `1.0000000000000002` (1 dan bitta ulp
+    yuqori) bo'ladi, ya'ni `min(1.0, h)` qorovuli aynan shunday kirishlar
+    uchun yozilgan. Qorovul o'zi **otilmaydi**: `math.sqrt` 1 ulp lik
+    oshiqchani yaxlitlab yana `1.0` qaytaradi, shuning uchun `asin` ning
+    sohasi buzilmaydi (122-run, 1.5 mln antipodga yaqin juftlikda `h`
+    hech qachon 1 ulp dan yuqori chiqmadi).
+
+    Test o'lchaydigan narsa — natijaning o'zi: yarim aylana `pi * R`.
+    """
+    a = (-31.71010233003077, -125.6942973871793)
+    b = (31.710102330332642, 54.30570261196557)
+
+    # Yarim aylana: pi * R = 20 015 114 m (IUGG o'rtacha radiusi bo'yicha).
+    assert haversine_m(a, b) == pytest.approx(20_015_114.4, abs=1.0)
+
+
+def test_haversine_uses_the_iugg_mean_radius():
+    """`EARTH_RADIUS_M` — WGS84/IUGG **o'rtacha** radiusi, ekvatorial emas.
+
+    Chorak meridian `pi/2 * R` ga teng va faqat radiusga bog'liq:
+    6 371 008.8 m uchun 10 007 557 m, ekvatorial 6 378 137 m uchun esa
+    10 018 754 m — farq 11 km. Mahalliy testlar (`~500 m`, `rel=0.01`)
+    bu farqni ko'rmaydi, shuning uchun konstanta alohida qulflanadi.
+    """
+    assert haversine_m((0.0, 0.0), (90.0, 0.0)) == pytest.approx(10_007_557.2, abs=1.0)
+
+
+def test_grow_radius_keeps_the_old_circle_inside_when_it_dominates():
+    """Eski doira yangi nuqtadan **katta** bo'lgan holat.
+
+    Mavjud testlarda yangi nuqta har doim yutardi (`covers_new > covers_old`),
+    ya'ni `max` ning birinchi argumenti hech qachon tanlanmagan. Agar u
+    tanlanmasa, doira **kichrayadi** va allaqachon biriktirilgan xabarlar
+    tashqarida qoladi — `ST_DWithin` bo'yicha nomzod qidiruvi ularni
+    ko'rmay qoladi (`05` §4.2 ning 1-sharti).
+    """
+    point = _offset(C, 100, 0)
+    new_centroid = centroid_step(C, 9, point)
+
+    radius = grow_radius(
+        old_centroid=C, old_radius_m=1000.0, new_centroid=new_centroid, point=point
+    )
+
+    # Markaz ~10 m siljidi, eski radius 1000 m: 1000 + 10.
+    assert radius == pytest.approx(1010.0, abs=0.5)
+    assert radius > 1000.0
+
+
+def test_grow_radius_adds_the_centroid_shift_to_the_old_radius():
+    """Siljish **qo'shiladi** — eski radiusning o'zi yetarli emas.
+
+    Markaz 500 m siljiganda eski doiraning eng uzoq nuqtasi yangi markazdan
+    `500 + 500 = 1000 m` uzoqda qoladi. Siljish hisobga olinmasa radius
+    500 m bo'lib qolardi va eski doiraning yarmi tashqarida qolardi.
+    """
+    point = _offset(C, 1000, 0)
+    new_centroid = centroid_step(C, 1, point)  # o'rta nuqta, ~500 m shimolda
+
+    radius = grow_radius(
+        old_centroid=C, old_radius_m=500.0, new_centroid=new_centroid, point=point
+    )
+
+    assert radius == pytest.approx(999.4, abs=1.0)
+
+
+def test_clamp_radius_at_the_limit_itself_is_not_flagged():
+    """`05` §4.2: moderatorga **`max_radius` dan kattasi** tushadi.
+
+    Chegaraning o'zi hech qachon sinalmagan edi (1234 pastda, 4200 yuqorida).
+    `>` `>=` ga aylansa aynan chegaradagi hodisa ham bayroqlanardi va
+    moderator navbatiga qurilish bo'yicha ortiqcha ish tushardi.
+    """
+    assert clamp_radius(3000.0, 3000) == (3000, False)
+
+
+def test_clamp_radius_rounds_to_the_nearest_metre():
+    """Kesish emas, **yaxlitlash**.
+
+    `1234.4` ikkala qoidada ham `1234` beradi, shuning uchun mavjud test
+    farqni ko'rmaydi. Kesish radiusni har doim **kichraytiradi** (1 m
+    gacha), ya'ni chegaradagi xabar doiradan tashqarida qolishi mumkin —
+    `grow_radius` ning konservativ o'sishi bilan ziddiyat.
+    """
+    assert clamp_radius(1234.6, 3000) == (1235, False)
+    assert clamp_radius(1234.4, 3000) == (1234, False)

@@ -20,6 +20,7 @@ from app.clustering.scale import (
     district_threshold,
     estimate_households,
     mahalla_threshold,
+    raw_scale,
 )
 
 SCALE_PARAMS = DEFAULT_PARAMS.scale
@@ -210,3 +211,79 @@ def test_confirmed_outage_may_grow():
         current=Scale.MAHALLA, proposed=Scale.DISTRICT, status="confirmed"
     )
     assert result is Scale.DISTRICT
+
+
+# --- Qorovullar va chegaralarning O'ZI (121-run mutatsiya qulflari) ---
+#
+# To'rttalasi ham 119-run qoldirgan va 120-run qayta o'lchagan
+# survivorlar: modul ichidagi qorovul yoki chegara qiymati yakuniy
+# pog'onada ko'rinmay qolgani uchun hech bir test ularni sezmasdi.
+
+
+def test_zero_households_is_not_usable_instead_of_taking_the_lowest_threshold():
+    """`households > 0` qorovuli — `>= 0` bo'lsa BO'SH hudud eng oson ko'tarilardi.
+
+    `T_mahalla = clamp(5, ceil(0.35 × sqrt(H)), 15)` (`06` §5.2): `H = 0`
+    da natija **polning o'zi** (5), ya'ni narvonning eng past to'sig'i.
+    Ya'ni qorovul `>= 0` ga kuchsizlansa, aholisi nol deb yozilgan yoki
+    hali to'ldirilmagan hudud beshta xabardan «mahalla miqyosidagi
+    uzilish» bo'lardi — aynan `06` §5.4 ogohlantiradigan «kam
+    ma'lumotdan katta xulosa» xatosi, va u eng zaif hududda otiladi.
+    """
+    empty = facts(households=0, populated_cells=3)
+    assert empty.is_usable is False
+    assert mahalla_threshold(0, params=SCALE_PARAMS) == 5
+
+    decision = raw_scale(
+        w=5.0,
+        cells_with_reports=3,
+        mahallas_affected=1,
+        mahalla=empty,
+        district=None,
+        params=SCALE_PARAMS,
+    )
+    assert decision is Scale.LOCAL
+
+
+def test_coverage_ratio_of_an_empty_territory_is_zero_not_a_crash():
+    """`populated_cells <= 0` qorovuli — `< 0` bo'lsa nolga bo'linish.
+
+    `territory_stats` da `populated_cells = 0` fizik jihatdan mumkin
+    (hudud hali yig'ilmagan, `0003` da `CHECK` yo'q). Qorovul faqat
+    **manfiy** qiymatni to'ssa, shunday qator `ZeroDivisionError`
+    berardi — bitta bo'sh hudud butun javobni yiqitardi
+    (`stats/coverage.py` ning M7 sinfi, 120-run).
+    """
+    assert facts(households=460, populated_cells=0).coverage_ratio(3) == 0.0
+
+
+def test_the_mahalla_threshold_itself_reaches_mahalla_scale():
+    """`w >= T_mahalla` — chegaraning **o'zi** shart ichida (`06` §5.3).
+
+    Mavjud testlar 7.0 (pastda) va 9.0/12.0 (yuqorida) ni sinardi,
+    tenglikni hech qachon: `>=` → `>` mutatsiyasi ko'rinmasdi. `H = 1100`
+    uchun hujjat jadvali `clamp(5, ceil(0.35 × sqrt(1100)), 15) = 12`
+    beradi, ya'ni 12.0 — chegaraning aynan o'zi.
+    """
+    mahalla = facts(households=1100, populated_cells=20)
+    assert mahalla_threshold(1100, params=SCALE_PARAMS) == 12
+
+    assert run(w=12.0, cells=4, mahalla=mahalla).scale is Scale.MAHALLA
+    assert run(w=11.0, cells=4, mahalla=mahalla).scale is Scale.LOCAL
+
+
+def test_the_cell_coverage_ratio_threshold_itself_reaches_mahalla_scale():
+    """`ratio >= cell_ratio_mahalla` — chegaraning **o'zi** shart ichida (`06` §5.3).
+
+    3 / 20 = 0.15 — `cell_ratio_mahalla` ning aynan o'zi. Mavjud testlar
+    0.20 (4/20) va 0.04 (4/100) ni sinardi, tenglikni hech qachon.
+    Katakcha soni ikkala holatda ham `MIN_CELLS_FOR_MAHALLA` dan past
+    emas, ya'ni farqni faqat nisbat hal qiladi.
+    """
+    at_threshold = facts(households=460, populated_cells=20)
+    assert at_threshold.coverage_ratio(3) == SCALE_PARAMS.cell_ratio_mahalla
+    assert run(w=12.0, cells=3, mahalla=at_threshold).scale is Scale.MAHALLA
+
+    just_below = facts(households=460, populated_cells=21)
+    assert just_below.coverage_ratio(3) < SCALE_PARAMS.cell_ratio_mahalla
+    assert run(w=12.0, cells=3, mahalla=just_below).scale is Scale.LOCAL

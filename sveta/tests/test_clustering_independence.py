@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import uuid
 
+from app.clustering.geometry import haversine_m
 from app.clustering.independence import (
     ReporterPoint,
     count_independent,
@@ -72,6 +73,36 @@ def test_result_is_deterministic_for_same_order():
     first = [p.user_id for p in select_independent(points, min_distance_m=MIN_DISTANCE)]
     second = [p.user_id for p in select_independent(points, min_distance_m=MIN_DISTANCE)]
     assert first == second
+
+
+def test_the_threshold_distance_itself_counts_as_independent():
+    """`05` §4.3 «masofa >= 50 m» — chegaraning **o'zi** shart ichida.
+
+    Chegara `haversine_m` ning o'zidan olinadi: geodezik masofani
+    koordinatadan aniq 50.0 chiqadigan qilib qurib bo'lmaydi, shuning
+    uchun sinaladigan nuqta juftligining haqiqiy masofasi to'siq qilib
+    beriladi. Shart qat'iy (`>`) bo'lib qolsa aynan chegarada turgan
+    juftlik bitta manbaga aylanardi — 49.9 va 50.1 testlari esa buni
+    ko'rmasdi.
+    """
+    a, b = _at(0, 0), _at(0, 50)
+    exact = haversine_m(a.point, b.point)
+    assert count_independent([a, b], min_distance_m=exact) == 2
+
+
+def test_the_greedy_walk_starts_from_the_earliest_report():
+    """Tartib determinizmni belgilaydi (modul docstring i).
+
+    Chaqiruvchi ro'yxatni (xabar vaqti, `user_id`) bo'yicha uzatadi,
+    ya'ni birinchi qabul qilinadigan nuqta — **eng erta** xabar. Yurish
+    teskari tomonga ketsa 0-30-70 zanjirida sanoq baribir 2 bo'lardi
+    (0 va 70 o'rniga 70 va 0), ya'ni xato sanoqda emas, faqat
+    **kimlar** tanlanganida ko'rinadi — `outages` ga esa aynan shu
+    qatorlar bog'lanadi.
+    """
+    points = [_at(0, 0), _at(0, 30), _at(0, 70)]
+    chosen = select_independent(points, min_distance_m=MIN_DISTANCE)
+    assert [p.user_id for p in chosen] == [points[0].user_id, points[2].user_id]
 
 
 def test_greedy_errs_toward_fewer_sources():

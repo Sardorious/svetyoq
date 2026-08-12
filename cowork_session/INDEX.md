@@ -12,6 +12,298 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **123-run: `stats/aggregate.py` — 14/14, `stats/heatmap.py` — 15/15.**
+> 122 qoldirgan qadam bajarildi: mutatsiyasiz qolgan **oxirgi ikki**
+> mahsulot moduli yopildi — **endi mahsulot yadrosida mutatsiya qarzi
+> yo'q.** Ikkalasi ham toza modul (`SELECT` ham, HTTP ham yo'q), ya'ni
+> bugungi disk holatida ham bazasiz o'lchandi.
+> **`aggregate.py`: 14 mutatsiya, birinchi o'tishda 8 KILLED, oltala
+> survivor qulflandi (+6 test).**
+> **M8** `unassigned_ratio > MAX_UNASSIGNED_RATIO` → `>=` — eng
+> qimmatlisi: `03` §R1.2 mezoni «≤5%», ya'ni aynan 5% hali **normal**,
+> lekin chegaraning o'zi hech qachon sinalmagan edi (testlarda 25% va
+> 0%) va mutant bilan mezonni **bajaradigan** hudud vitrinada
+> ogohlantirish olardi;
+> **M9** (`-b.outages_total` → `b.outages_total`) va **M10**
+> (`b.district_id is None` kalitining tushishi) — tartib **umuman**
+> testlanmagan: sahifa eng tinch tumandan boshlanardi, `unassigned`
+> qoldig'i esa (yosh mintaqada u eng katta chelak) ro'yxat **boshiga**
+> chiqardi; mavjud test uni faqat **teng** hajmda tekshirardi va u yerda
+> tartib tasodifan identifikator bo'yicha to'g'ri chiqardi;
+> **M2** `int(delta // 60)` → `round(delta / 60)` — barcha testlar
+> davomiylikni butun daqiqada berardi, mutant esa har hodisani 30
+> soniyagacha **uzaytirardi** va mediana/P90 kesimi tizimli yuqoriga
+> siljirdi (50 soniyalik uzilish «1 daqiqa» bo'lardi);
+> **M12** o'rtachada `round` → `int`;
+> **M13** `reconciles` dan **umumiy** chelakning davomiylik sharti —
+> chelaklar bo'yicha `all(...)` uni qamramaydi va `build` ikkala tomonni
+> bir vaqtda to'ldirgani uchun ular tabiiy ravishda hech qachon
+> ajralmaydi; shart `Aggregation` ni **to'g'ridan-to'g'ri** yig'adigan
+> test bilan qulflandi.
+> **`heatmap.py`: 15 mutatsiya, birinchi o'tishda 10 KILLED, 4 qulf, 1
+> ekvivalent.**
+> **M3** `top = max(… for r in visible)` → `for r in rows` — bu
+> **maxfiylik** sharti, ko'rinish sharti emas: mutant bilan javobning
+> `max_reports` maydoni **yashirilgan** katakchaning sanog'ini ochib
+> berardi (`05` §7.3 ning to'g'ridan-to'g'ri buzilishi), qolgan xarita
+> esa ko'rinmaydigan cho'qqiga nisbatan o'lchanardi; mavjud testlarda
+> eng zich katakcha **har doim** ko'rinadigan katakcha edi;
+> **M9** `ceil` → `floor` — pog'ona `((k-1)/levels, k/levels]` oralig'i,
+> mutant butun xaritani bir pog'ona **sovuqroq** ko'rsatardi, eski
+> testlar esa faqat eng issiq katakchani (`1.0 × 5 = 5`, ikkala amalda
+> ham bir xil) va `1 ≤ level ≤ levels` oralig'ini tekshirardi;
+> **M7**/**M8** — `_level` ning ikkala qisqichi (`max(1, …)`,
+> `min(levels, …)`): ikkalasi ham modul izohida yozilgan, lekin `build`
+> dan chiqadigan qiymatlar ularga yetib bormaydi — to'g'ridan-to'g'ri
+> `_level` testi bilan qulflandi.
+> **Ekvivalent mutant — M4** `scale = log1p(top) if top > 0 else 0.0`
+> → `if top >= 0`: `reports` SQL `COUNT` dan, ya'ni `top ≥ 0` har doim,
+> `top == 0` da esa `math.log1p(0)` bit-aynan `0.0` (va `if scale` da
+> falsy) — `0..20000` va 200 ming tasodifiy sanoqda bitta farq yo'q
+> (122 ning `attached <= 0` sinfi).
+> **Nazorat ikkala modulda ham ikki tomonga sezgir** va mutantlar bilan
+> bitta buyruq qatoridan o'tadi: C1 → `SURVIVED`, C2 → `KILLED`.
+> ⚠️ **Yangi infra sabog'i:** `mcp__workspace__bash` ning haqiqiy limiti
+> **~180 s** (so'ralgan `timeout_ms` dan qat'i nazar). Birinchi partiya
+> uzilib qoldi va **mutant fayl repoda qolib ketdi** — `diff … .orig`
+> bilan topilib tiklandi; shundan keyin partiya 4 mutantdan oshmadi va
+> har partiyadan keyin tozalik tekshirildi.
+> ⛔ **Disk — ketma-ket ikkinchi run:** `/` da 52 MB, `/sessions` da 0;
+> `requires_db` ning 232 testi yana jimgina `skip` bo'ldi (oxirgi
+> haqiqiy o'lchov — 121-run, 231 passed). 👤 `cleanup-sessions.ps1`
+> **bloklovchi**.
+> ✅ **Yashil:** olti partiyada **3210 passed, 232 skipped**; yig'ilgan
+> **3442** = 122 ning 3432 si + aynan 10 qulf testi; `ruff` (0.16.2)
+> toza; mahsulot kodi hech qayerda tegilmadi (`diff` bilan tasdiqlandi).
+> **Keyingi qadam — 124-run:** (1) 👤 `cleanup-sessions.ps1`, keyin
+> `-m requires_db` ni qayta o'lchash; (2) 👤 `test_recluster_db.py`
+> izolyatsiyasi; (3) 👤 `ruff format` savoli; (4) 👤 serverda: eski
+> `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook;
+> (5) 👤 prod tekshiruvi (`/api/v1/regions`, `/geo/districts`,
+> `/stats`, veb-xarita 360 px va til almashtirish); (6) mutatsiya
+> seriyasi mahsulot yadrosida tugagani uchun keyingi yo'nalish —
+> servis/API qatlami (bazaga tegadi, ya'ni 1-qadamdan keyin).
+
+> ✅ **122-run: `geometry.py` — 13/13 (5 qulf, 2 ekvivalent).**
+> 121 qoldirgan qadam bo'yicha mutatsiyasiz qolgan uchta mahsulot
+> modulidan birinchisi olindi: `05` §4.2 ning inkremental markazi va
+> radiusi. Nishon — uni chaqiradigan sakkiz fayl (244 test), mutant
+> ~12 s; nazorat C1/C2 ikkala tomonga sezgir chiqdi.
+> **Birinchi o'tishda 6 KILLED** (`2 × R`, `cos(lat2)`, yarim burchak,
+> `/(n+1)`, longituda muzlashi, `max(value, 0)`) — `haversine_m` ning
+> hisob qismi kuchli qorovul ostida, ya'ni `status.py` sinfi.
+> Tirik qolganlarning esa deyarli hammasi chegara/yaxlitlash —
+> `coverage`/`scale` sinfi.
+> **Beshtasi qulflandi (+6 test, mahsulot kodi tegilmadi):**
+> **M9** `max(covers_old, covers_new)` → `covers_new` — eng qimmatlisi:
+> mavjud testlarda yangi nuqta **har doim** yutardi, ya'ni eski doirani
+> saqlaydigan tarmoq hech qachon tanlanmagan; tanlanmasa doira
+> **kichrayadi** va allaqachon biriktirilgan xabar `ST_DWithin` bo'yicha
+> nomzod qidiruvidan tushib qoladi (`05` §4.2 ning 1-sharti);
+> **M10** markaz siljishi qo'shilmasa 500 m siljigan doiraning yarmi
+> tashqarida qolardi; **M11** `value > max_radius` → `>=` — chegaraning
+> **o'zi** hech qachon sinalmagan (1234 pastda, 4200 yuqorida), mutant
+> bilan chegaradagi har hodisa moderator navbatiga tushardi;
+> **M13** `round` → kesish — radiusni **har doim** 1 m gacha
+> kichraytiradi, `grow_radius` ning konservativ o'sishiga zid;
+> **M5** `EARTH_RADIUS_M` IUGG o'rtachasi → ekvatorial — 0.11% ni
+> `rel=0.01` li mahalliy testlar ko'rmasdi, chorak meridian
+> (`pi/2 × R`, 11 km farq) bilan qulflandi.
+> **Ikkitasi — ekvivalent mutant, ikkalasi ham empirik isbot bilan:**
+> `min(1.0, h)` → `h` — `h` antipodga yaqin juftlikda haqiqatan bitta
+> ulp oshadi (`1.0000000000000002`), lekin `math.sqrt` uni yaxlitlab
+> yana aynan `1.0` qaytaradi; qorovul otilishi uchun **ikki** ulp
+> kerak, 1.5 mln juftlikda topilmadi (121 ning qutb qorovuli sinfi,
+> faqat chegarani suzuvchi nuqta arifmetikasi qo'yadi);
+> `attached <= 0` → `< 0` — nolda mutant `(c × 0.0 + p) / 1.0` ni
+> hisoblaydi, bu `point` ning **bit-aynan o'zi**; tarmoqlar faqat
+> manfiy `attached` da ajraladi, u esa `count_attached(...)` — SQL
+> `COUNT`.
+> ⛔ **Disk endi bloklaydi:** `/` da 62 MB, `/sessions` da 0 bo'sh joy —
+> yangi `initdb` ga o'rin yo'q, `conftest.py` portni topolmay
+> **`requires_db` ning 231 testini jimgina `skip` qildi**. Ya'ni bu
+> runda DB qatlami umuman yurmadi (119 ning saboqi: yashil hisobot
+> ish bajarilganini bildirmaydi). 👤 `cleanup-sessions.ps1` —
+> EpicProgress §4 da endi bloklovchi qator.
+> ✅ **Yashil:** butun to'plam besh partiyada **3176 passed, 232
+> skipped** (DB siz); yig'ilgan jami **3408** = 121 ning 3402 si +
+> aynan 6 qulf testi; `ruff check` (0.16.2) toza; muhit
+> (`/tmp/mamba/envs/py311`) tirik, qayta qurilmadi.
+> ---
+> 🌐 **O'sha sessiyaning ikkinchi qismi — domen qatlami (👤 so'rovi).**
+> `bormitok.uz` serverga yo'naltirildi; 👤 tasdig'i: **Telegram tokeni
+> bor, bot polling rejimida ishlayapti** (E3 ning «token yo'q» bloki
+> yopildi). Serverdagi `docker ps` va kod solishtirilganda **uchta jim
+> defekt** ochildi: (1) ilovada ildiz sathida `/health` **yo'q** — nginx
+> ning `location = /health` i ham, `deploy.sh` ning «API OK» qadami ham
+> 404 olardi, ya'ni sog'liq tekshiruvi hech qachon o'tmagan;
+> (2) `/telegram/webhook` API prefiksidan **tashqarida** turadi va
+> nginx uni umuman uzatmasdi — webhook rejimiga o'tilganda bot jimgina
+> ishlamay turardi; (3) `docker-compose.yml` bazani **`0.0.0.0:5432`**
+> ga ochardi (standart parol bilan). Qurilgani: `deploy/
+> nginx.locations.conf` — proksi qoidalarining **yagona manbai**
+> (lokal va prod qobiqlari uni `include` qiladi, qobiqlarda
+> `proxy_pass` bo'lishi test bilan taqiqlangan); `deploy/
+> nginx.prod.conf` (80 → 443, ACME joyi redirectdan **oldin**, TLS
+> 1.2/1.3, HSTS 30 kun); `deploy/docker-compose.prod.yml` (80/443,
+> certbot volume lari, har 6 soatda `nginx -s reload`, yangilash
+> sikli); `scripts/init_tls.sh` (vaqtinchalik o'z-o'zini imzolagan
+> sertifikat → nginx → HTTP-01 → reload); `POSTGRES_BIND` (standart
+> `127.0.0.1`); `jobs`/`bot` ga `healthcheck: disable: true` — ular
+> HTTP server emas va rasm ularni **doim** `unhealthy` deb
+> ko'rsatardi. Yangi kontrakt `tests/test_deploy_web_contract.py` —
+> **24 test** (`/health` nishoni **haqiqiy so'rov** bilan, webhook
+> yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect
+> tartibi, prod ustqurmasining nishoni, certbot webroot i, baza
+> portining bog'lanishi). Yakuniy yashil: **3200 passed, 232
+> skipped**, yig'ilgan **3432**, **148** test fayli, `ruff` toza.
+> ⚠️ **Serverda hali bajarilmagan (👤):** eski `deploy` stekini
+> o'chirish (ikkita `jobs` runner bitta bazada!), `init_tls.sh`,
+> polling → webhook, `.env` dagi domen kalitlari va `POSTGRES_PASSWORD`.
+> **Keyingi qadam — 123-run:** (1) `stats/aggregate.py` va
+> `stats/heatmap.py` — mutatsiyasiz qolgan oxirgi ikki mahsulot
+> moduli; (2) 👤 `cleanup-sessions.ps1`; (3) 👤 `test_recluster_db.py`
+> izolyatsiyasi; (4) 👤 `ruff format` savoli; (5) 👤 prod tekshiruvi:
+> `/api/v1/regions`, `/api/v1/geo/districts`, `/api/v1/stats`,
+> veb-xarita 360 px va til almashtirish.
+
+> ✅ **121-run: `scale.py` ning qarzi yopildi — 12/12.**
+> 120 oltita survivorni o'lchagan, lekin qulflamagan edi. Shu runda o'lchov
+> **mustaqil takrorlandi** va aynan bir xil chiqdi (6 KILLED: M1, M2, M3,
+> M7, M9, M10; 6 SURVIVED: M4, M5, M6, M8, M11, M12) — tuzatilgan harness
+> boshqa sandboxda, boshqa prefiksda ham **takrorlanadigan**.
+> Nazorat tajribasi 120 ning saboqiga ko'ra endi mutantlar bilan **bitta
+> `main()` yo'lidan** o'tadi: C1 (semantik teng almashtirish) → `SURVIVED`,
+> C2 (ochiq buzuq) → `KILLED`, ya'ni harness ikkala tomonga sezgir.
+> **To'rttasi qulflandi (+4 test, mahsulot kodi tegilmadi):**
+> **M4** `households > 0` → `>= 0` — eng qimmatlisi: `H = 0` da
+> `T_mahalla` **polning o'zini** (5) qaytaradi, ya'ni narvonning eng past
+> to'sig'ini, va hali to'ldirilmagan hudud **beshta** xabardan «mahalla
+> miqyosidagi uzilish» bo'lardi (`06` §5.4 ning «kam ma'lumotdan katta
+> xulosa» xatosi aynan ma'lumoti eng kam hududda otiladi);
+> **M5** `populated_cells <= 0` → `< 0` — nolga bo'linish, bitta bo'sh
+> `territory_stats` qatori butun javobni yiqitardi (`coverage` M7 sinfi);
+> **M6** mahalla `w >= T` → `>` va **M8** `ratio >= 0.15` → `>` —
+> chegaralarning **o'zi** hech qachon sinalmagan edi (7.0 pastda,
+> 9.0/12.0 yuqorida; 0.20 va 0.04, lekin 0.15 emas).
+> **Ikkitasi — ekvivalent mutant**, va bu safar dalil kod o'qishdan
+> tashqari **empirik** ham: **M11** `== estimated` → `!= measured`
+> (`decide` dagi tarmoq `raw is not LOCAL` bilan qo'riqlangan, `raw` esa
+> `is_usable` orqaligina chiqadi va u sifatni `{measured, estimated}` ga
+> cheklaydi — 577×577 to'rda 0 farq); **M12** `rank <` → `<=`
+> (`rank` in'ektiv, teng rang o'sha enum a'zosi — to'liq sanoqda 0 farq).
+> ⚠️ **120 ning ogohlantirishi otildi:** to'rt mutantli partiya standart
+> `timeout_ms` (120 s) dan oshdi, chaqiruv `SIGKILL` bilan uzildi va
+> harnessning `finally` bloki ishlamadi — `scale.py` **mutant holatida**
+> repoda qoldi; `cmp` bilan topilib tiklandi. Partiya **3 mutantdan
+> oshmasin**, `timeout_ms = 175000`, har partiyadan keyin `cmp`.
+> ⚠️ **Disk:** `/` ham, `/sessions` ham **100% to'la**; `/tmp/home` va
+> `/tmp/cache` `nobody` niki va yozib bo'lmaydi — `HOME` va
+> `XDG_CACHE_HOME` `/tmp/sv121/…` ga ko'chirildi. 👤 `cleanup-sessions.ps1`.
+> ✅ **Yashil:** butun to'plam **3401 passed, 1 skipped** (120: 3397 —
+> aynan +4), `requires_db` **231**, `alembic 0001 → 0011` toza bazada,
+> `ruff check` toza.
+> **Keyingi qadam — 122-run:** (1) mutatsiyasiz qolgan mahsulot modullari —
+> `clustering/geometry.py`, `stats/aggregate.py`, `stats/heatmap.py`;
+> (2) 👤 `test_recluster_db.py` izolyatsiyasi; (3) 👤 `ruff format` savoli;
+> (4) 👤 prod tekshiruvi: `/api/v1/regions`, `/api/v1/geo/districts`,
+> `/api/v1/stats`, veb-xarita 360 px va til almashtirish;
+> (5) 👤 `cleanup-sessions.ps1`.
+
+> 🔴 **120-run: mutatsiya harnessi yolg'on gapirardi — 119 ning natijasi
+> BEKOR, qayta o'lchandi.**
+> 119 dan ko'chirilgan harness `pytest` ni `--timeout=120` bilan chaqirardi,
+> bu sandboxda esa `pytest-timeout` **yo'q**: `pytest` `rc=4` (usage error)
+> bilan chiqardi va harness verdictni `returncode != 0` bilan hisoblagani
+> uchun **bitta ham test yurmagan holda har mutant `KILLED`** deb yozilardi.
+> 119 ning nazorat tajribasi buni ko'rmadi, chunki nazorat skripti mutant
+> skriptidan **boshqa buyruq qatorini** yurgizardi (`--timeout` siz) — ya'ni
+> u aynan buzilgan qismni sinamagan. Saboq: nazorat tajribasi bir xil
+> chaqiruv yo'lidan o'tishi shart. Harness tuzatildi: `rc not in (0, 1)` →
+> «HARNESS XATOSI», `KILLED` faqat `rc == 1` da.
+> **Qayta o'lchangan natija — 73 mutatsiya, 56 KILLED, 17 SURVIVED:**
+> `scale.py` **6 survivor** (119 «12/12, 0 survivor» degan edi — noto'g'ri),
+> `status.py` 13/13 (tasodifan to'g'ri chiqqan), `coverage.py` 5,
+> `velocity.py` 1, `jitter.py` 3, `independence.py` 2.
+> ✅ **Shu running to'rtta modulida 11 survivordan 9 tasi qulflandi**
+> (+8 test; mahsulot kodi tegilmadi): `coverage` — manfiy komponent
+> chegaralanishi (indeks `-100` bo'lardi, pog'ona esa to'g'ri `NONE` —
+> jim xato), `min_active = 0` qorovuli (`/stats` butunlay `500` bo'lardi),
+> manfiy `households` (bitta buzuq qator butun tumanni «qamralmagan»
+> qilardi), `round` ↔ kesish; `velocity` — **refleksiv** test tuzatildi
+> (`== velocity.TRUST_SCORE_MAX` → `== 100`, 113 M8 sinfi); `jitter` —
+> `cell=` argumenti va metr↔gradus koeffitsienti (kutilgan qiymat WGS84
+> aylanasidan, moduldan emas); `independence` — `>=` chegarasining o'zi va
+> ochko'z yurishning tartibi (sanoq bir xil, **kimlar** tanlangani boshqa).
+> Ikkitasi sababi bilan qoldirildi: `coverage` M6 — **ekvivalent mutant**
+> (`cap()` da `<=`↔`<` faqat `band is ceiling` da ajraladi), `jitter` M12 —
+> qutb qorovuli (O'zbekistonda hech qachon otilmaydi).
+> 🟡 **Ikkinchi jim nosozlik:** `tests/test_recluster_db.py` **toza bazani
+> talab qiladi** — undan oldin boshqa `requires_db` testi yurgan bo'lsa
+> beshta test yiqiladi (butun to'plamda tartib mos tushgani uchun yashil).
+> Iflos baza mutantni «ushlangan» qilib ko'rsatadi, shuning uchun o'lchov
+> davomida baza uch marta qayta qurildi. Test izolyatsiyasi defekti —
+> «Ochiq savollar» da.
+> ✅ **Yashil:** butun to'plam **3397 passed, 1 skipped** (119: 3389 —
+> aynan +8), `requires_db` **231**, `alembic` `0001 → 0011` toza,
+> `ruff check` toza.
+> **Keyingi qadam — 121-run:** (1) `scale.py` ning **oltita survivorini**
+> qulflash — 119 ning qarzi, nishoni 20 fayl / 469 test; (2) o'lchanmagan
+> mahsulot modullari (`clustering/geometry.py`, `stats/aggregate.py`,
+> `stats/heatmap.py`); (3) 👤 `ruff format` savoli; (4) 👤 prod tekshiruvi:
+> `/api/v1/regions`, `/api/v1/geo/districts`, `/api/v1/stats`, veb-xarita
+> 360 px va til almashtirish; (5) 👤 `cleanup-sessions.ps1`.
+
+> ⛔ **119-run (BEKOR QILINDI, quyidagi mutatsiya raqamlari yolg'on):**
+> `0011` PostGIS da tekshirildi, butun to'plam tiklandi (3389 passed) —
+> **bu qismi haqiqiy**; «yadro mutatsiyasi ikkita modulda 0 survivor»
+> qismi esa 120-run da bekor qilindi.
+> 118 dan keyingi E2 prod seriyasi (chegara importi, `0011`, Overpass
+> retry) ikkita jurnal qatorida so'zma-so'z qarz qoldirgan edi:
+> «keyingi runda `0011` ni PostGIS bilan tekshirish va butun to'plamni
+> qayta yurgizish» — sandbox almashib PostGIS yo'qolgani uchun `0011`
+> faqat **offline SQL** sifatida ko'rilgan edi. Qarz yopildi:
+> `0001 → 0011` toza bazada uzluksiz o'tdi, `requires_db` **231**,
+> butun to'plam **3389 passed, 1 skipped** (118: 3365 — E2 seriyasi
+> qo'shgan +24), `ruff check` toza.
+> 🔴 **Yangi bilim — `pg_ctl status` YOLG'ON gapiradi.** Server chaqiruv
+> oxirida o'lganda ham `postmaster.pid` qoladi, `status` `0` qaytaradi va
+> odatiy `status || start` retsepti `start` ni **o'tkazib yuboradi**.
+> Bu jimgina yiqilish emas, jimgina **o'tkazib yuborish**: `conftest.py`
+> portga ulanolmay `requires_db` ni `skip` qiladi va hisobot yashil
+> ko'rinadi (ikkinchi partiya aynan shu sabab `705 passed, 21 skipped`
+> berdi). To'g'ri shakl — **har chaqiruvda shartsiz `pg_ctl … start`**.
+> ⚠️ **`timeout_ms` haqidagi 118 yozuvi eskirgan:** amaldagi chegara
+> ~180 s (75 faylli partiya uzildi), ishlaydigan bo'linish — 25–42
+> fayllik oltita partiya.
+> ✅ **Mutatsiya: `clustering/scale.py` 12/12 va `clustering/status.py`
+> 13/13 — ikkalasida ham 0 survivor.** 118 «mahsulot qatlamida survivor
+> ko'proq chiqadi» deb taxmin qilgan edi — **tasdiqlanmadi**. Nolinchi
+> natija harnessdan shubhalanishga asos bergani uchun **nazorat
+> tajribasi** yurgizildi: ataylab teng mutatsiya (`populated_cells <= 0`
+> → `< 1`, butun son uchun bir xil) — u **SURVIVED**, ya'ni harness
+> farqni haqiqatan ko'radi. Xulosa: `confirmation.py` (118, 5 survivor)
+> qoida emas, **istisno** — `scale`/`status` `05` §4.4 va `06` §5 ning
+> **kategorik** jadvallarini bajaradi va kontrakt testlari bilan
+> qatorma-qator bog'langan, `confirmation` esa **hisob-kitob** qiladi va
+> uning oraliq xossalari natijada ko'rinmasdi. Mahsulot kodi tegilmadi,
+> yangi test yozilmadi — qulflash kerak bo'lgan bo'shliq topilmadi.
+> 🟡 **Yo'l-yo'lakay topildi:** `Makefile` ning `lint` nishonidagi
+> `ruff format --check` qadami **qizil** — 124 fayl (`ruff 0.16.2`),
+> tekshiruv uchun o'rnatilgan `0.8.6` da esa 130 fayl, ya'ni repo hech
+> qachon `ruff format` bilan formatlanmagan. CI faqat `ruff check` ni
+> yurgizadi, shuning uchun darvoza otilmagan va reliz bloklanmaydi.
+> Kod o'zgartirilmadi (124 faylli kosmetik commit haqiqiy ishni ko'mib
+> yuborardi) — 👤 savol sifatida yozildi. 118 ning «`ruff format --check`
+> toza» yozuvi noto'g'ri edi.
+> **Keyingi qadam — 120-run:** (1) mutatsiyani `stats/coverage.py` da
+> davom ettirish — u ham `confirmation` kabi **hisob-kitob** moduli
+> (`06` §5.3–§5.4 chegaralari, «eng kuchsiz komponent»), ya'ni survivor
+> ehtimoli yuqoriroq; keyin `reports/velocity.py`; (2) 👤 `ruff format`
+> savoli; (3) 👤 prod tekshiruvi: `/api/v1/regions`,
+> `/api/v1/geo/districts`, `/api/v1/stats`, veb-xarita 360 px va til
+> almashtirish; (4) 👤 `cleanup-sessions.ps1`.
+
 > ✅ **118-run: mutatsiya seriyasi MAHSULOT yadrosiga ko'chdi —
 > `app/clustering/confirmation.py` 12/12.** 117 ning to'rtala keyingi
 > qadami 👤 qaroriga bog'liq bo'lib chiqdi («Ochiq savollar» va
@@ -2413,6 +2705,11 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 123 | [stats_mutatsiyasi](123_stats_mutatsiyasi_62a3f816.md) | `local_62a3f816` | ✅ **`app/stats/aggregate.py` — 14/14 va `app/stats/heatmap.py` — 15/15; mutatsiyasiz qolgan OXIRGI ikki mahsulot moduli** | ✅ **Yashil, mahsulot kodi tegilmadi.** 122 qoldirgan qadam. Ikkala modul ham toza (`SELECT` ham, HTTP ham yo'q) — disk to'la bo'lsa ham bazasiz o'lchanadi. **`aggregate` (12 fayl, 325 test): 8 KILLED birinchi o'tishda, 6 qulf.** **M8** `> MAX_UNASSIGNED_RATIO` → `>=`: `03` §R1.2 «≤5%» deydi, ya'ni aynan 5% **normal**, chegaraning o'zi esa sinalmagan (25% va 0%) — mutant mezonni **bajaradigan** hududga ogohlantirish qo'yardi; **M9**/**M10** tartib va `unassigned` qoldig'ining oxirda turishi — tartib **umuman** testlanmagan, mavjud test uni faqat **teng** hajmda ko'rardi va u yerda natija tasodifan to'g'ri chiqardi; **M2** `//60` → `round(/60)` — mediana va P90 har hodisada 30 soniyagacha yuqoriga siljirdi; **M12** o'rtachada `round` → `int`; **M13** `reconciles` dan **umumiy** chelak sharti — chelaklar bo'yicha `all(...)` uni qamramaydi va `build` ikkala tomonni birga to'ldiradi, shuning uchun `Aggregation` to'g'ridan-to'g'ri yig'ilib qulflandi. **`heatmap` (7 fayl, 122 test): 10 KILLED birinchi o'tishda, 4 qulf + 1 ekvivalent.** **M3** shkala `visible` o'rniga `rows` dan — **maxfiylik** sharti: javobning `max_reports` maydoni **yashirilgan** katakchaning sanog'ini ochib berardi (`05` §7.3), mavjud testlarda eng zich katakcha har doim ko'rinadigan katakcha edi; **M9** `ceil` → `floor` — butun xarita bir pog'ona sovuqroq; **M7**/**M8** — `_level` ning ikkala qisqichi (izohda yozilgan, lekin `build` ularga yetib bormaydi). **Ekvivalent M4** `top > 0` → `top >= 0`: `COUNT` manfiy emas va `log1p(0)` bit-aynan `0.0` — 0..20000 va 200k tasodifiy sanoqda farq yo'q. Nazorat C1/C2 ikkala modulda ham ikki tomonga sezgir. ⚠️ **Infra:** `bash` ning haqiqiy limiti ~180 s — birinchi partiya uzilib, mutant fayl repoda qolib ketdi (`diff` bilan tiklandi), keyin partiya 4 tadan. ⛔ Disk ketma-ket **ikkinchi** run `requires_db` ni bloklади (232 skip). **3210 passed, 232 skipped**, yig'ilgan 3442 (= 3432 + 10), `ruff` toza |
+| 122 | [geometry_mutatsiyasi](122_geometry_mutatsiyasi_15d2f88c.md) | `local_15d2f88c` | ✅ **`app/clustering/geometry.py` — 13/13 (5 qulf + 2 ekvivalent mutant)** | ✅ **Yashil, mahsulot kodi tegilmadi.** 121 qoldirgan qadam: mutatsiyasiz qolgan mahsulot modullaridan birinchisi — `05` §4.2 ning inkremental markazi va radiusi (86 qator, 4 funksiya, bazasiz). Nishon — sakkiz fayl, 244 test, mutant ~12 s. Nazorat: C1 (`d_lat` ning teng shakli) → `SURVIVED`, C2 (`grow_radius` `return 0.0`) → `KILLED`. **Birinchi o'tish: 6 KILLED** (`2 × R`, `cos(lat2)`, yarim burchak, `/(n+1)`, longituda muzlashi, `max(value, 0)`) — `haversine_m` ning hisob qismi kuchli qorovul ostida (`status.py` sinfi). **5 qulf:** **M9** `max(covers_old, covers_new)` → `covers_new` — mavjud testlarda yangi nuqta **har doim** yutardi, ya'ni eski doirani saqlaydigan tarmoq hech qachon tanlanmagan; doira kichrayib biriktirilgan xabar `ST_DWithin` qidiruvidan tushardi (`05` §4.2 ning 1-sharti); **M10** markaz siljishi qo'shilmasa 500 m siljigan doiraning yarmi tashqarida qolardi; **M11** `value > max_radius` → `>=` — **chegaraning o'zi** sinalmagan (1234 pastda, 4200 yuqorida), moderator navbatiga qurilish bo'yicha ortiqcha ish tushardi; **M13** `round` → kesish — radiusni **har doim** 1 m gacha kichraytiradi, konservativ o'sishga zid; **M5** `EARTH_RADIUS_M` IUGG o'rtachasi → ekvatorial — 0.11% farqni `rel=0.01` li testlar ko'rmasdi, chorak meridian (`pi/2 × R`, 11 km farq) bilan qulflandi. **2 ekvivalent, ikkalasi ham empirik:** `min(1.0, h)` — `h` antipodda bitta ulp oshadi, lekin `math.sqrt` uni yaxlitlab yana `1.0` qiladi, qorovul otilishi uchun **ikki** ulp kerak (1.5 mln juftlikda topilmadi); `attached <= 0` → `< 0` — nolda natija **bit-aynan** bir xil (`/1.0`), manfiy `attached` esa SQL `COUNT` dan chiqmaydi. Fayl 11 → **17 test**. ⛔ **Disk 100% to'la** (`/` 62 MB, `/sessions` 0): yangi `initdb` ga joy yo'q, `requires_db` ning 231 testi jimgina `skip` bo'ldi — 👤 `cleanup-sessions.ps1` endi **bloklovchi**. **3176 passed, 232 skipped** (DB siz; yig'ilgan 3408 = 121 dan aynan +6), `ruff` (0.16.2) toza. **(b) O'sha sessiyada, 👤 so'rovi bo'yicha — domen qatlami (E9/E3):** `bormitok.uz` DNS bilan yo'naltirildi, 👤 tasdiqladi — **token bor, bot polling da ishlayapti**. Serverdagi `docker ps` va kodni solishtirish uchta jim defektni ochdi: (1) ildizda `/health` **yo'q** — nginx ham, `deploy.sh` ham 404 olardi; (2) `/telegram/webhook` API prefiksidan tashqarida bo'lgani uchun umuman proksi qilinmagan — webhook rejimida bot jimgina ishlamay turardi; (3) baza `0.0.0.0:5432` da, ya'ni internetdan ko'rinardi. Qurilgani: `deploy/nginx.locations.conf` (proksi qoidalarining **yagona manbai**, ikkala qobiq `include` qiladi), `deploy/nginx.prod.conf` (80 → 443, ACME redirectdan oldin, HSTS), `deploy/docker-compose.prod.yml` (80/443, certbot + 6 soatlik reload), `scripts/init_tls.sh` (vaqtinchalik sertifikat → nginx → HTTP-01 → reload), `POSTGRES_BIND=127.0.0.1`, `jobs`/`bot` ning yolg'on `unhealthy` holati o'chirildi. Yangi `tests/test_deploy_web_contract.py` — **24 test**, qatlam ilgari testsiz edi. Yakuniy: **3200 passed, 232 skipped**, 148 test fayli |
+| 121 | [scale_mutatsiyasi](121_scale_mutatsiyasi_1b44db7f.md) | `local_1b44db7f` | ✅ **`app/clustering/scale.py` — 119 ning qarzi yopildi: 12/12 (4 qulf + 2 ekvivalent mutant)** | ✅ **Yashil, mahsulot kodi tegilmadi.** 120 oltita survivorni o'lchagan, lekin qulflamagan edi. O'lchov **mustaqil takrorlandi** va aynan bir xil chiqdi — 6 KILLED (M1, M2, M3, M7, M9, M10), 6 SURVIVED (M4, M5, M6, M8, M11, M12): tuzatilgan harness boshqa sandboxda, boshqa prefiksda ham takrorlanadigan. Nazorat tajribasi 120 ning saboqiga ko'ra endi mutantlar bilan **bitta `main()` yo'lidan** o'tadi — C1 (semantik teng almashtirish) → `SURVIVED`, C2 (ochiq buzuq) → `KILLED`, ya'ni harness ikkala tomonga sezgir. **Qulflar:** **M4** `households > 0` → `>= 0` — `H = 0` da `T_mahalla` **polning o'zini** (5) qaytaradi, ya'ni narvonning eng past to'sig'ini: hali to'ldirilmagan hudud **beshta** xabardan «mahalla miqyosidagi uzilish» bo'lardi, ya'ni `06` §5.4 ning «kam ma'lumotdan katta xulosa» xatosi aynan ma'lumoti eng kam hududda otilardi; **M5** `populated_cells <= 0` → `< 0` — nolga bo'linish, bitta bo'sh `territory_stats` qatori butun javobni yiqitardi (`coverage` M7 sinfi); **M6** mahalla `w >= T` → `>` va **M8** `ratio >= 0.15` → `>` — chegaralarning **o'zi** hech qachon sinalmagan edi (7.0 pastda, 9.0/12.0 yuqorida; 0.20 va 0.04, lekin 0.15 emas). **Ikki ekvivalent mutant**, dalil kod o'qishdan tashqari **empirik** ham: **M11** `== estimated` → `!= measured` (`decide` dagi tarmoq `raw is not LOCAL` bilan qo'riqlangan, `raw` esa `is_usable` orqaligina chiqadi va u sifatni `{measured, estimated}` ga cheklaydi — 577×577 to'rda 0 farq); **M12** `rank <` → `<=` (`rank` in'ektiv, teng rang o'sha enum a'zosi — to'liq sanoqda 0 farq). ⚠️ 120 ning ogohlantirishi **otildi**: to'rt mutantli partiya standart `timeout_ms` (120 s) dan oshdi, chaqiruv `SIGKILL` bilan uzildi va `finally` ishlamadi — `scale.py` mutant holatida repoda qoldi, `cmp` bilan tiklandi; partiya **3 mutantdan oshmasin**, `timeout_ms=175000`. ⚠️ Disk: `/` ham, `/sessions` ham **100% to'la**; `/tmp/home` va `/tmp/cache` `nobody` niki va yozib bo'lmaydi — `HOME`/`XDG_CACHE_HOME` `/tmp/sv121/…` ga ko'chirildi; `initdb /tmp/pgdata121`, port **55621**. **3401 passed, 1 skipped** (120: 3397 — aynan +4), `requires_db` 231, `alembic 0001→0011` toza, `ruff` toza |
+| 120 | [mutatsiya_harnessi_yolgon_gapirardi](120_mutatsiya_harnessi_yolgon_gapirardi_9c75608b.md) | `local_9c75608b` | 🔴 **Harness `rc=4` (usage error) ni `KILLED` deb o'qirdi — 119 ning natijasi bekor, 73 mutatsiya qayta o'lchandi** | ✅ **Yashil, mahsulot kodi tegilmadi.** 119 dan ko'chirilgan harness `pytest --timeout=120` ni chaqirardi, bu sandboxda `pytest-timeout` **yo'q** → `rc=4`, ya'ni bitta ham test yurmagan holda har mutant `KILLED` bo'lardi. 119 ning nazorat tajribasi buni ko'rmadi, chunki nazorat skripti **boshqa buyruq qatorini** yurgizardi (`--timeout` siz) — u aynan buzilgan qismni sinamagan. Tuzatish: `rc not in (0,1)` → «HARNESS XATOSI», `KILLED` faqat `rc == 1`. **Qayta o'lchov — 73 mutatsiya, 56 KILLED, 17 SURVIVED:** `scale.py` **6** (119 «0» degan edi), `status.py` **0** (tasodifan to'g'ri chiqqan), `coverage.py` 5, `velocity.py` 1, `jitter.py` 3, `independence.py` 2. Shu running to'rtta modulida 11 survivordan **9 tasi qulflandi** (+8 test): `coverage` — manfiy komponent chegarasi (indeks `-100`, pog'ona esa to'g'ri `NONE` — jim xato), `min_active = 0` qorovuli (`/stats` butunlay `500`), manfiy `households` (bitta buzuq qator butun tumanni «qamralmagan» qilardi), `round`↔kesish; `velocity` — **refleksiv** test tuzatildi (`== velocity.TRUST_SCORE_MAX` → `== 100`, 113 M8 sinfi); `jitter` — `cell=` argumenti va metr↔gradus koeffitsienti (kutilgani WGS84 aylanasidan, moduldan emas); `independence` — `>=` chegarasining o'zi va ochko'z yurish tartibi (sanoq bir xil, **kimlar** tanlangani boshqa). Qoldirilganlar sababi bilan: `coverage` M6 — **ekvivalent mutant** (`cap()` da `<=`↔`<` faqat `band is ceiling` da ajraladi), `jitter` M12 — qutb qorovuli. 119 ning «`confirmation` istisno, kategorik jadval qarzsiz» xulosasi bekor: `scale.py` ham kategorik, lekin oltita survivor bor. 🟡 Ikkinchi jim nosozlik: `test_recluster_db.py` **toza bazani talab qiladi** (undan oldin boshqa `requires_db` yursa beshta test yiqiladi; butun to'plamda tartib mos tushgani uchun yashil) — iflos baza mutantni «ushlangan» qilib ko'rsatadi, baza uch marta qayta qurildi. **3397 passed, 1 skipped** (119: 3389 — aynan +8), `requires_db` 231, `alembic 0001→0011` toza, `ruff` toza. ⚠️ Muhit: `py311` va `/tmp/sv119/pg` tirik, `initdb /tmp/pgdata120`, port **55620**, `timeout_ms` amaldagi chegarasi ~180 s (600 s so'ralsa ham) |
+| 119 | [0011_tekshiruvi_va_yadro_mutatsiyasi](119_0011_tekshiruvi_va_yadro_mutatsiyasi_69a740b9.md) | `local_69a740b9` | ⛔ **E2 ning tekshiruv qarzi yopildi** (haqiqiy) **+ «mutatsiya `scale.py` 12/12, `status.py` 13/13, 0 survivor» — 120-run da BEKOR QILINDI** | ✅ `0001 → 0011` toza bazada uzluksiz o'tdi (ilgari faqat offline SQL ko'rilgan edi), `requires_db` **231**, butun to'plam **3389 passed, 1 skipped** (118: 3365 — E2 prod seriyasi qo'shgan +24), `ruff check` toza. 🔴 **`pg_ctl status` yolg'on gapiradi** — o'lgan serverdan keyin ham `postmaster.pid` qoladi va `status \|\| start` retsepti `start` ni o'tkazib yuboradi; `conftest.py` esa portga ulanolmay `requires_db` ni jimgina `skip` qiladi (partiya `705 passed, 21 skipped` berdi). To'g'ri shakl — har chaqiruvda shartsiz `start`. ⚠️ `timeout_ms` amaldagi chegarasi ~180 s, 118 ning «600 s» yozuvi eskirgan; oltita partiya 25–42 fayldan. Mutatsiya: 118 ning «mahsulotda survivor ko'proq» taxmini **tasdiqlanmadi**; nazorat tajribasi (ataylab teng mutatsiya `populated_cells <= 0` → `< 1`) **SURVIVED**, ya'ni harness ishonchli. `confirmation.py` istisno bo'lib chiqdi — `scale`/`status` **kategorik** jadvallarni bajaradi va kontrakt testlariga qatorma-qator bog'langan. Mahsulot kodi tegilmadi, yangi test yozilmadi. 🟡 `Makefile lint` ning `ruff format --check` qadami qizil (124 fayl `0.16.2` da, 130 fayl `0.8.6` da) — repo hech qachon `ruff format` bilan formatlanmagan; CI faqat `ruff check` ni yurgizadi, reliz bloklanmaydi; 👤 savol |
 | 118 | [yadro_mutatsiyasi](118_yadro_mutatsiyasi_71d87dab.md) | `local_71d87dab` | **Mutatsiya seriyasi kontrakt reyestrlaridan MAHSULOT yadrosiga ko'chdi — `app/clustering/confirmation.py` 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 117 qoldirgan to'rtala yo'nalish 👤 qaroriga bog'liq bo'lgani uchun 107–116 seriyasi hujjat-reyestrlaridan `06` §2.1/§4/§6 ni bajaradigan **kodga** burildi (tasdiqlash qarorining o'zi). Nishon — modulni chaqiradigan 15 fayl, 499 test. **7 ushlandi** (`TIME_FACTOR_FLOOR`, `_step_factor` chegarasi, `N_req` poli, `coverage_factor` poli, `min(1.0, W/N_req)` shifti, `confidence_key` chegarasi, `reason` tartibi) — `06` §7 misollari va §12 ssenariylari kuchli qorovul. **5 survivor, beshalasi ham `06` da yozilgan, lekin testda yo'q xossalar:** M3 — `dedupe_evidence` eng ertani emas, eng **kechni** qoldirsa 499 test sezmasdi (mavjud test nomida «first» deydi, tekshirgani esa **sanoq**) → §11 ning «takroriy xabar `W` ni ko'tara olmaydi» himoyasi qulfsiz edi, og'irroq manbadan qayta yozish `W` ni 0.4→3.0 qilardi; M4 — `round(total, 1)`→`2` (§10 `numeric(6,1)`, toza modul ↔ ustun jimgina ajralardi); M6 — diametr `max`→`min` (§4.3 «maksimal masofa»; testlardagi `spread_line` nuqtalarni teng qadamda chiziqqa qo'yadi — eng yaqin juftlik va diametr **hech qachon ajralmasdi**); M7 — `spread_ok` `>=`→`>` (chegaraning o'zi sinalmagan; qulfda to'siq nuqtalarning **o'z** masofasidan hisoblanadi, aks holda haversine 50.0 ga tushmaydi); M9 — `n_req <= 0` qorovuli `< 0` (111 M8 sinfi). Olti qulf testi, beshala mutant qayta **KILLED**, fayl 56→**61 test**. To'plam **3365 passed, 1 skipped** (117: 3359 — aynan +6), `requires_db` 231, alembic 0001→0010 toza, ruff toza. ⚠️ Muhit: 117 sandboxi **tirik**, `initdb /tmp/pgdata118`, port **55618**; `mcp__workspace__bash` ning `timeout_ms` (600 s gacha) bilan to'plam olti partiyada — 120 s standart chegara endi to'siq emas |
 | 117 | [web_aria_i18n](117_web_aria_i18n_6557d19c.md) | `local_6557d19c` | **`web/` dagi oxirgi qattiq kodlangan matn olib tashlandi (`04` §6) — 98-run ning 2-savoli yopildi** | ✅ **Tuzatildi, hammasi yashil.** 98-run topgan `aria-label="uz / ru"` — sahifadagi yagona qattiq kodlangan foydalanuvchi matni; bu «qilinsinmi?» savoli emas edi, `CLAUDE.md` §2 / `04` §6 uni **bloklovchi defekt** deb ataydi, ya'ni javob qoidada. Yangi kalit `map.language` (UZ «Interfeys tili», RU «Язык интерфейса»), markupdan atribut olib tashlandi, `applyStrings` uni katalogdan qo'yadi. 🔴 **Yo'l-yo'lakay ikkinchi defekt:** `#region` ning `aria-label` i katalogdan kelardi, lekin `fillRegions` da qo'yilardi — u bir marta ishlaydi, ya'ni til almashganda nom **eski tilda qolardi** (95-run ning `tiles` uyasi bilan aynan bitta sinf). U ham `applyStrings` ga ko'chirildi. 🟡 **Sinfning uchinchi yarmi — o'lchandi, tuzatilmadi:** mintaqa **nomlari** serverda tarjima qilinadi (`_summary(r, lang)`), `/map/config` esa faqat `boot()` da so'raladi → `<option>` matnlari til almashganda eskiradi; yechim ikkitadan biri va ikkalasi ham qaror talab qiladi (config qayta so'ralsinmi yoki nomlar tilga bog'liq bo'lmasinmi) — 👤 savol. Bugun ko'rinmaydi ham: mintaqa bitta, tanlagich `rows.length < 2` da yashirin. **Testlar:** defektning mavjudligini qulflagan `test_the_language_selector_carries_hardcoded_text` **olib tashlandi**, o'rniga uchta yangi (markupda bitta ham `aria-label` yo'q; ikkala nom katalogdan **va** `fillRegions` da yo'q; nom eskirishi + `_summary(r, lang)` dalili). ⚠️ **Yo'l-yo'lakay tuzatilgan test kuchsizlanishi:** mavjud `test_the_language_change_refreshes_every_notice` ishlovchini `getElementById("lang")` ning **birinchi** uchrashi bilan kesardi — 117-rundan beri u `applyStrings` ga tushadi va kesim butun `boot()` ni qamrardi; ankraj `_LANG_HANDLER` konstantasiga chiqarildi (yangi test buni darhol ko'rsatdi — birinchi yurgizishda `/map/config` ni `boot()` dan topib yiqildi). Reyestr `UI-6` yangilandi (`Surface.PARTIAL` o'zgarmadi — `[ГИПОТЕЗА]` yarmi hamon o'lchanmaydi). **Yashil:** butun to'plam **3359 passed, 1 skipped** (116: 3357 — aynan +2, −1 +3), `-m requires_db` **231 passed**, `alembic` 0001→0010 toza, `ruff` toza. Migratsiya yo'q, vaqtinchalik fayl yo'q, git chaqirilmadi. ⚠️ **Muhit noldan qurildi** (113–116 sandboxi o'lgan) — retsept `117_*.md` §7: `CONDA_PKGS_DIRS`/`HOME`/`XDG_CACHE_HOME` `/tmp` ga (aks holda `/sessions` to'laligidan `micromamba` yiqiladi), tizim `python3` **3.10** — `StrEnum` uchun `py311` shart, fon jarayoni (`nohup` ham) chaqiruvlar orasida o'ladi → to'plam **uch partiyada** |
 | 116 | [nfr_mutatsiya](116_nfr_mutatsiya_0bc44388.md) | `local_0bc44388` | **`nfr_appendix` mutatsiyasi 12/12 — eski kontraktlarning mutatsiya qarzi to'liq yopildi** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 8 ushlandi, 4 survivor (M1 `SPEC` ankraji refleksiv — 113 M8 sinfi; M4 `BASELINE_DOC`→`05_API.md` ikkala darvozadan o'tardi; M7 bind nuqta-qorovuli hech qachon otilmagan — 111 M8 sinfi; M12 `accurate` `and`→`or` — uchala kon'yunkt bugun `False`) — to'rt qulf testi bilan yopildi, fayl 53 test. To'plam 3357 passed, 1 skipped |

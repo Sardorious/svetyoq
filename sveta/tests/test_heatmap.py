@@ -146,6 +146,72 @@ def test_level_never_exceeds_the_scale() -> None:
     assert all(1 <= c.level <= result.levels for c in result.cells)
 
 
+# --- Mutatsiya qulflari (123-run) -------------------------------------
+#
+# To'rtta test o'lchov bilan topilgan bo'shliqlarni yopadi. Mahsulot kodi
+# tegilmagan.
+
+
+def test_the_scale_is_built_from_visible_cells_only() -> None:
+    """Yashirilgan katakcha shkalaga **umuman** ta'sir qilmaydi.
+
+    Bu maxfiylik sharti, ko'rinish sharti emas. Shkalani butun `rows`
+    dan quradigan mutant tirik qolgan edi, chunki mavjud testlarda eng
+    zich katakcha har doim ko'rinadigan katakcha edi. Aksi bo'lganda
+    `max_reports` javobda **yashirilgan** katakchaning sanog'ini ochib
+    berardi (`05` §7.3 ni to'g'ridan-to'g'ri buzadi), qolgan xarita esa
+    ko'rinmaydigan cho'qqiga nisbatan o'lchanib, eng issiq ko'rinadigan
+    katakcha to'liq intensivlikka yetmasdi.
+    """
+    result = build(cells(("secret", 400, 1), ("hot", 40, 5), ("cold", 4, 3)))
+
+    assert [c.h3 for c in result.cells] == ["hot", "cold"]
+    assert result.max_reports == 40
+    assert result.cells[0].intensity == 1.0
+    assert result.cells[0].level == result.levels
+    assert result.suppressed_reports == 400
+
+
+def test_the_lowest_band_starts_at_one_not_at_zero() -> None:
+    """`level` — legenda pog'onasi, ya'ni `1..levels`.
+
+    `max(1, …)` qorovulini olib tashlagan mutant tirik qolardi: `build`
+    dan chiqadigan intensivliklar hech qachon aynan nol bo'lmaydi.
+    Qorovul baribir shartnomaning bir qismi — mijoz rangni **shu
+    sondan** tanlaydi va `0` pog'onasi legendada umuman yo'q.
+    """
+    assert heatmap._level(0.0, heatmap.DEFAULT_LEVELS) == 1
+    assert heatmap._level(0.0001, heatmap.DEFAULT_LEVELS) == 1
+
+
+def test_float_error_cannot_push_a_cell_past_the_top_band() -> None:
+    """Yuqori qisqich — modul izohida yozilgan suzuvchi nuqta himoyasi.
+
+    `min(levels, …)` siz `5.0000001` oltinchi pog'onani berardi va
+    legendada bunday rang yo'q.
+    """
+    assert heatmap._level(1.0, 5) == 5
+    assert heatmap._level(1.0000001, 5) == 5
+
+
+def test_a_band_owns_its_upper_bound_not_its_lower_one() -> None:
+    """Pog'ona — `((k-1)/levels, k/levels]` oralig'i, ya'ni `ceil`.
+
+    `floor` ga almashtirgan mutant tirik qolgan edi: mavjud testlar
+    faqat eng issiq katakchani (`1.0 × 5 = 5`, ikkala amalda ham bir xil)
+    va `1 ≤ level ≤ levels` oralig'ini tekshirardi, oraliq qiymatni esa
+    yo'q. `floor` bilan har bir katakcha bir pog'ona **sovuqroq**
+    ko'rinardi va xarita zichlikni tizimli ravishda kamaytirib
+    ko'rsatardi.
+    """
+    result = build(cells(("hot", 100, 9), ("mid", 10, 4)))
+    mid = next(c for c in result.cells if c.h3 == "mid")
+
+    assert mid.intensity == round(math.log1p(10) / math.log1p(100), 4)
+    assert 0.4 < mid.intensity <= 0.6  # ya'ni uchinchi pog'ona
+    assert mid.level == 3
+
+
 def test_cell_ring_is_closed_and_in_geojson_order() -> None:
     """`RFC 7946`: `[lon, lat]` va yopiq halqa."""
     cell = h3_cells.cell_of(39.6547, 66.9597)

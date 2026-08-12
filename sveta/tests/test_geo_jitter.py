@@ -69,6 +69,43 @@ def test_public_point_is_not_the_exact_point() -> None:
     assert public_point(USER, LAT, LON) != (LAT, LON)
 
 
+def test_an_explicit_cell_is_used_instead_of_recomputing_it() -> None:
+    """`cell=` argumenti hisoblab chiqarilganini **almashtiradi**.
+
+    Chaqiruvchi katakchani allaqachon bilganda uni uzatadi
+    (`app.geo.pipeline`). Argument jimgina e'tiborsiz qoldirilsa
+    natija baribir «ishlagandek» ko'rinardi — nuqta o'rniga tushardi,
+    faqat **boshqa** katakchaniki. Determinizm da'vosi
+    (`(user_id, h3_cell)`) shunda buziladi: bir xil kirish ikkita
+    boshqa javob berardi.
+    """
+    neighbour = cell_of(LAT + 0.02, LON + 0.02)
+    assert neighbour != cell_of(LAT, LON)
+    forced = public_point(USER, LAT, LON, cell=neighbour)
+    assert forced == public_point(USER, LAT + 0.02, LON + 0.02, cell=neighbour)
+    assert forced != public_point(USER, LAT, LON)
+
+
+def test_the_offset_keeps_its_metric_scale_on_the_ground() -> None:
+    """Metrdagi vektor gradusga to'g'ri koeffitsient bilan aylantiriladi.
+
+    `offset_for` metr qaytaradi, `public_point` esa uni gradusga
+    o'tkazadi. Koeffitsient surilsa nuqta baribir katakcha ichida
+    qolardi va radius testi ham o'tardi — xato faqat masofaning
+    **o'lchovida** ko'rinadi.
+
+    Kutilgan qiymat modulning o'z konstantasidan emas, WGS84 ekvatorial
+    aylanasidan (40 075 017 m) olinadi: konstantaga solishtirish
+    refleksiv bo'lardi.
+    """
+    meters_per_degree = 40_075_017 / 360
+    cell = cell_of(LAT, LON)
+    north, _east = offset_for(USER, cell)
+    c_lat, _c_lon = cell_center(cell)
+    lat, _lon = public_point(USER, LAT, LON)
+    assert lat - c_lat == pytest.approx(north / meters_per_degree, rel=1e-4)
+
+
 def test_offset_matches_blake2b_digest() -> None:
     """Algoritm aynan `blake2b(user|cell)` ekanini qulflaydi.
 

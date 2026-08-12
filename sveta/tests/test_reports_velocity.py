@@ -140,8 +140,16 @@ def test_penalty_never_goes_below_zero() -> None:
 
 
 def test_penalty_stays_inside_the_column_range() -> None:
-    """`05` §2.2 — `trust_score smallint`, 0..100."""
-    assert velocity.penalize(200, penalty=0) == velocity.TRUST_SCORE_MAX
+    """`05` §2.2 — `trust_score smallint`, 0..100.
+
+    Yuqori chegara **soni bilan** yoziladi, `velocity.TRUST_SCORE_MAX`
+    bilan emas: modulning o'z konstantasiga solishtirish refleksiv
+    bo'lardi va konstanta o'zgarsa test u bilan birga «o'zgarardi».
+    100 — ustunning diapazoni, moduldan tashqaridagi fakt.
+    """
+    assert velocity.TRUST_SCORE_MAX == 100
+    assert velocity.TRUST_SCORE_MIN == 0
+    assert velocity.penalize(200, penalty=0) == 100
 
 
 def test_one_jump_does_not_remove_a_reporter_but_repetition_does() -> None:

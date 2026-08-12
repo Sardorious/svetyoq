@@ -1,0 +1,41 @@
+# Sveta.Net — prod ustqurmasi (bormitok.uz, HTTPS).
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+#          --profile jobs up -d
+#
+# Asosiy `docker-compose.yml` o'zgarishsiz qoladi (lokal ish uchun HTTP,
+# port 8080). Bu fayl faqat `web` xizmatini qayta yozadi va certbot ni
+# qo'shadi. `volumes` ro'yxati **nishon yo'li** bo'yicha birlashtiriladi:
+# `/etc/nginx/conf.d/default.conf` bir xil bo'lgani uchun prod konfiguratsiya
+# lokalning o'rniga tushadi.
+
+services:
+  web:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot-etc:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    # Sertifikat 90 kunda yangilanadi, nginx esa uni faqat qayta yuklashda
+    # o'qiydi — shuning uchun har 6 soatda `nginx -s reload`. Rasmning
+    # ENTRYPOINT i saqlanadi (`/docker-entrypoint.sh`), ya'ni konfiguratsiya
+    # tekshiruvlari o'z joyida qoladi.
+    command: >
+      /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Birinchi sertifikat `scripts/init_tls.sh` bilan olinadi; bu konteyner
+    # faqat YANGILAB turadi. `--quiet` — muddat yaqinlashmaganda jim chiqadi.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    restart: unless-stopped
+
+volumes:
+  certbot-etc:
+  certbot-www:

@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-12.
+**Oxirgi yangilanish:** 2026-08-12 (123-run).
 
 ---
 
@@ -54,10 +54,20 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
-* **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3365
-  passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
-  start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
-  o'ladi); `alembic` 0001→**0011** (`0011` sandboxda yurgizilmadi, lekin **prodda tasdiqlandi** — 2026-08-12 chegara importi); `ruff` toza; mutatsiya qamrovi
+* **Yashil holat:** **148** test fayli; butun to'plam **3442 yig'ildi**
+  (123-run: DB siz **3210 passed, 232 skipped** — 122 ning 3432 si +
+  aynan 10 mutatsiya qulfi testi; DB bilan oxirgi o'lchov — 121-run,
+  **3401 passed, 1 skipped**). ⛔ 122 va 123 da `requires_db`
+  **yurgizilmadi** (ketma-ket ikki run): `/` ham, `/sessions` ham 100%
+  to'la, yangi `initdb` ga joy yo'q — 👤 `cleanup-sessions.ps1` endi
+  **bloklovchi**. `-m requires_db` **231 passed** (121-run) (⚠️ `pg_ctl`
+  **shartsiz `start`** bilan bitta bash chaqiruvida — server chaqiruv
+  oxirida o'ladi va `pg_ctl status` buni **ko'rsatmaydi**: `postmaster.pid`
+  qoladi, `status || start` retsepti `start` ni o'tkazib yuboradi va
+  `requires_db` jimgina `skip` bo'ladi); `alembic` 0001→**0011** —
+  `0011` **ham prodda** (2026-08-12 chegara importi), **ham sandboxda**
+  (119-run) tasdiqlandi; `ruff check` toza (⚠️ `ruff format --check`
+  emas — §4 dagi 👤 savol); mutatsiya qamrovi
   `business_requirements`, `business_reporting`,
   `business_acceptance`, `business_architecture`,
   `business_glossary`, `business_environment`,
@@ -66,16 +76,95 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `phase0_plan`, `ux_requirements`, `user_stories` va `nfr_appendix`
   ham 12/12 — **eski kontraktlarning mutatsiya qarzi to'liq yopildi**
   (107–116-runlar seriyasi).
-* **Mutatsiya endi mahsulot kodida ham:**
-  `app/clustering/confirmation.py` — 12/12 (118-run, birinchi
-  **mahsulot** moduli). Besh survivor `06` da yozilgan, lekin
+* **Mutatsiya mahsulot kodida — o'lchov 120-runda QAYTA qilindi.**
+  🔴 119-run ning harnessi `pytest` ni `--timeout=120` bilan chaqirardi,
+  bu sandboxda `pytest-timeout` esa **yo'q**: `pytest` `rc=4` (usage
+  error) bilan chiqardi va harness verdictni `returncode != 0` bilan
+  hisoblagani uchun **bitta ham test yurmagan holda har mutant
+  `KILLED`** bo'lardi. 119 ning nazorat tajribasi buni ko'rmadi —
+  nazorat skripti mutant skriptidan **boshqa buyruq qatorini**
+  yurgizardi (`--timeout` siz), ya'ni aynan buzilgan qismni sinamadi.
+  Harness tuzatildi (`rc not in (0,1)` → xato, `KILLED` faqat `rc == 1`).
+  **Qayta o'lchangan holat — 73 mutatsiya, 56 KILLED, 17 SURVIVED:**
+  `app/clustering/confirmation.py` **12/12** (118, haqiqiy — 5 survivor
+  qulflangan), `app/clustering/status.py` **13/13** (0 survivor),
+  `app/reports/velocity.py` **12/12** (1 survivor qulflandi),
+  `app/geo/jitter.py` **12/12** (3 survivor: 2 qulflandi, 1 —
+  O'zbekistonda otilmaydigan qutb qorovuli), `app/clustering/
+  independence.py` **12/12** (2 survivor qulflandi),
+  `app/stats/coverage.py` **11/12** (5 survivor: 4 qulflandi, 1 —
+  **ekvivalent mutant**, `cap()` da `<=`↔`<` faqat `band is ceiling`
+  da ajraladi); ✅ `app/clustering/scale.py` — **12/12** (121-run:
+  119 ning qarzi yopildi); ✅ `app/clustering/geometry.py` —
+  **13/13** (122-run: 13 mutatsiyadan 6 tasi birinchi o'tishda
+  KILLED, 5 survivor qulflandi, 2 tasi ekvivalent deb isbotlandi);
+  ✅ `app/stats/aggregate.py` — **14/14** va ✅ `app/stats/heatmap.py` —
+  **15/15** (123-run: 29 mutatsiyadan 18 tasi birinchi o'tishda
+  KILLED, 10 survivor qulflandi, 1 tasi ekvivalent).
+  **Mahsulot yadrosida mutatsiyasiz modul qolmadi.** 123 ning eng
+  qimmat qulflari: `aggregate` da `≤5%` mezonining **chegarasi**
+  (`>` ↔ `>=` — aynan mezonni bajaradigan hudud vitrinada
+  ogohlantirish olardi) hamda chelaklar tartibining yo'nalishi va
+  `unassigned` qoldig'ining oxirda turishi (tartib **umuman**
+  testlanmagan edi); `heatmap` da shkalaning **faqat ko'rinadigan**
+  katakchalardan qurilishi — mutant javobning `max_reports` maydoni
+  orqali **yashirilgan** katakchaning sanog'ini ochib berardi
+  (`05` §7.3 ning to'g'ridan-to'g'ri buzilishi) — va `ceil` ↔ `floor`
+  pog'onasi (butun xarita bir pog'ona sovuqroq ko'rinardi).
+  Ekvivalent: `scale = log1p(top) if top > 0` → `if top >= 0`
+  (`log1p(0)` bit-aynan `0.0`, `COUNT` esa manfiy bo'lmaydi).
+  118 ning «mahsulot qatlamida survivor ko'proq» taxmini
+  **tasdiqlandi**; 119 ning «`scale`/`status` kategorik jadval bo'lgani
+  uchun qarzsiz» xulosasi esa **bekor** — `scale.py` ham kategorik,
+  lekin oltita survivori bor. O'lchovga tayangan qoida: survivor
+  xossaning **natijada ko'rinadigan-ko'rinmasligiga** bog'liq —
+  `status.py` ning har tarmog'i qaytariladigan statusga chiqadi (0
+  survivor), `coverage`/`scale` da esa oraliq qorovullar, chegara
+  qiymatlari va yaxlitlash yakuniy pog'onada yo'qoladi.
+  `confirmation.py` ning tafsiloti: Besh survivor `06` da yozilgan, lekin
   testda yo'q xossalar edi: `dedupe_evidence` ning «eng erta»
   qoidasi (§11 himoyasi), `W` ning `numeric(6,1)` miqyosi (§10),
   tarqoqlikning **diametr** ekani va chegarasining `≥` ekani
   (§4.3), `n_req > 0` qorovuli — beshalasi ham qulflandi.
-  Mahsulot kodi tegilmadi. Mutatsiyasiz mahsulot modullari
-  qoldi: `clustering/{scale,status,geometry,independence}.py`,
-  `reports/velocity.py`, `stats/coverage.py`, `geo/jitter`.
+  120-run ning qulflari: `coverage` — manfiy komponent chegarasi,
+  `min_active = 0` qorovuli, manfiy `households`, `round`↔kesish;
+  `velocity` — **refleksiv** testning tuzatilishi
+  (`== TRUST_SCORE_MAX` → `== 100`); `jitter` — `cell=` argumenti va
+  metr↔gradus koeffitsienti; `independence` — `>=` chegarasining o'zi
+  va ochko'z yurish tartibi. Mahsulot kodi hech qayerda tegilmadi —
+  hammasi test bo'shlig'i.
+  121-run ning qulflari (`scale.py`): `households > 0` qorovuli —
+  `H = 0` da chegara **polning o'zi** (5) chiqadi, ya'ni bo'sh yoki
+  hali to'ldirilmagan hudud **eng oson** ko'tarilardi;
+  `populated_cells <= 0` qorovuli — nolga bo'linish; mahalla
+  `w >= T_mahalla` va `ratio >= 0.15` **chegaralarining o'zi**
+  (mavjud testlar faqat pastda va yuqorida turardi). Ikkitasi —
+  **ekvivalent mutant**, va bu safar xulosa kod o'qishdan tashqari
+  **empirik** ham tasdiqlandi: `== estimated` ↔ `!= measured`
+  (`decide` dagi tarmoq `is_usable` orqali sifatni allaqachon
+  `{measured, estimated}` ga cheklaydi) va deeskalatsiyada `rank <`
+  ↔ `rank <=` (`rank` in'ektiv — teng rang o'sha enum a'zosi).
+  121 ning ikkinchi natijasi — **o'lchovning takrorlanuvchanligi**:
+  `scale.py` mustaqil qayta o'lchanganda aynan o'sha 6 KILLED / 6
+  SURVIVED chiqdi, va nazorat tajribasi endi mutant bilan **bir xil
+  chaqiruv yo'lidan** o'tadi (120 ning saboqi).
+  122 ning qulflari (`geometry.py`): `grow_radius` ning `max` i —
+  mavjud testlarda **yangi nuqta har doim yutardi**, ya'ni eski
+  doirani saqlaydigan tarmoq hech qachon tanlanmagan (doira
+  kichrayib, biriktirilgan xabar `ST_DWithin` qidiruvidan tushardi);
+  markaz siljishining eski radiusga **qo'shilishi**; `clamp_radius`
+  chegarasining o'zi (`>` ↔ `>=` — moderator navbatiga ortiqcha
+  ish); yaxlitlash ↔ kesish (kesish radiusni **har doim**
+  kichraytiradi); `EARTH_RADIUS_M` ning IUGG o'rtachasi (chorak
+  meridian `pi/2 × R` bilan qulflandi — mahalliy `rel=0.01` testlar
+  0.11% farqni ko'rmasdi). Ikkita ekvivalent, ikkalasi ham
+  **empirik**: `min(1.0, h)` — `h` antipodda bitta ulp oshadi, lekin
+  `math.sqrt` uni yaxlitlab yana `1.0` qiladi, qorovul otilishi
+  uchun ikki ulp kerak (1.5 mln juftlikda topilmadi); `attached <= 0`
+  — nolda natija **bit-aynan** bir xil, manfiy `attached` esa SQL
+  `COUNT` dan chiqmaydi.
+  Mutatsiyasiz mahsulot modullari qoldi:
+  `stats/aggregate.py`, `stats/heatmap.py`.
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
   (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
@@ -99,14 +188,14 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 |---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | — |
 | E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010`, `0011` | — (✅ 2026-08-12 prodda tasdiqlandi: `0011` + `--reference-ref` bilan Samarqand importi sifat darvozasidan **o'tdi** — 6/6 geometriya, ustma-ustlik 0.17%, qoplash 100%, nomlar to'liq) |
-| E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | **Haqiqiy Telegram runi** (E3-a) |
+| E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | ~~Token~~ 👤 **bor** (2026-08-12: bot serverda **polling** rejimida ishlayapti). Qoldi: `bormitok.uz` da HTTPS ko'tarilgach **webhook ga o'tish** (`TELEGRAM_MODE=webhook`, polling konteynerini to'xtatish) va haqiqiy oqimni tekshirish |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | — |
-| E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | — |
-| E5b | Tasdiqlash va masshtab (`06`) | ✅ | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | — |
+| E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | — (119-run: `status.py` mutatsiyasi 13/13, 0 survivor; 122-run: `geometry.py` 13/13 — 5 qulf, 2 ekvivalent) |
+| E5b | Tasdiqlash va masshtab (`06`) | ✅ | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | — (121-run: `scale.py` mutatsiyasi 12/12 — 4 qulf, 2 ekvivalent mutant) |
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | — |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | — |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/nginx.conf`, `scripts/deploy.sh`, `0004` | ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/{nginx.locations,nginx,nginx.prod}.conf`, `deploy/docker-compose.prod.yml`, `scripts/{deploy,init_tls}.sh`, `0004` | 👤 **domen `bormitok.uz`** DNS bilan yo'naltirilgan (2026-08-12); kod tayyor (122-run: HTTPS qobig'i, ACME, webhook proksi, `limit_req`), serverda `scripts/init_tls.sh --email …` yurgizilishi kerak. ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | E10, E11 |
@@ -151,13 +240,17 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **147 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam (DB bilan) **3365 passed, 1 skipped**; `-m requires_db`
-**231 passed** — ⚠️ `pg_ctl start`, `alembic upgrade head` va
+Jami **148 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
+to'plam **3432 yig'iladi** — 122-run da DB siz **3200 passed, 232
+skipped**, DB bilan oxirgi o'lchov 121-run da **3401 passed, 1
+skipped** edi (+6 qulf testi). `-m requires_db`
+**231 passed** (121-run; 122 da disk to'lgani uchun yurgizilmadi) — ⚠️ `pg_ctl start`, `alembic upgrade head` va
 `pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
-chaqiruv oxirida o'ladi va o'nlab yolg'on yiqilish chiqadi;
-`alembic upgrade head` 0001→**0011**; `ruff check` toza. Sandboxda
-PostGIS — §6 retsepti.
+chaqiruv oxirida o'ladi; ⚠️ **`pg_ctl status` ga ishonmang** — o'lgan
+serverdan keyin ham `postmaster.pid` qoladi va `status || start`
+`start` ni o'tkazib yuboradi, natijada `requires_db` **jimgina
+`skip`** bo'ladi (hisobot yashil ko'rinadi); `alembic upgrade head`
+0001→**0011**; `ruff check` toza. Sandboxda PostGIS — §6 retsepti.
 
 | Epic | Test fayllari |
 |---|---|
@@ -165,12 +258,12 @@ PostGIS — §6 retsepti.
 | E2 | `test_geo_osm`, `test_geo_quality`, `test_geo_h3`, `test_geo_jitter`, `test_geo_bbox`, `test_geo_mahallas`, `test_geo_pipeline_db`, `test_purge_exact_geom`, `test_privacy_jitter_contract`, `test_schema_spatial_nullability` |
 | E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
-| E5 | `test_clustering_geometry`, `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
-| E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). Qolganlari: `test_scale`, `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
+| E5 | `test_clustering_geometry` — **17 test**: `05` §4.2 ning inkremental markazi va radiusi; mutatsiya 13/13 (122-run — besh qulf: `grow_radius` ning hech qachon tanlanmagan `max` tarmog'i va markaz siljishi, `clamp_radius` chegarasining o'zi va yaxlitlash, `EARTH_RADIUS_M` ning chorak meridian bilan qulflanishi; ikki ekvivalent — `min(1.0, h)` va `attached <= 0`, ikkalasi ham empirik isbot bilan). Qolganlari: `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
+| E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). `test_scale` — **32 test**: `scale.py` mutatsiyasi 12/12 (121-run — to'rt qulf: `households > 0` va `populated_cells <= 0` qorovullari, mahalla `w >= T` va `ratio >= 0.15` chegaralarining o'zi; ikki ekvivalent mutant sababi bilan qoldirildi). Qolganlari: `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
 | E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
-| E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil` |
+| E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **24 test** (122-run): nginx ↔ ilova ↔ compose; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi |
 | E13 | `test_notifications_outbox`, `test_notifications_render`, `test_notifications_db`, `test_notify_params`, `test_notification_domain_contract`, `test_notification_channels_contract` |
 | E14 | `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_boundaries`, `test_stats_maturity`, `test_stats_mahalla_coverage`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
 | E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
@@ -262,9 +355,13 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 
 | Nima | Kimni bloklaydi |
 |---|---|
+| 🟡 `make lint` ning `ruff format --check` qadami repo bilan mos emas (124 fayl `0.16.2` da, 130 fayl `0.8.6` da — repo hech qachon `ruff format` bilan formatlanmagan). CI faqat `ruff check` ni yurgizadi, reliz bloklanmaydi. Uch yo'l: bir marta formatlash + versiyani qulflash / qadamni olib tashlash / farqni qayd etib qoldirish | REL (`03` §6), butun repo |
+| ⛔ **`cleanup-sessions.ps1` — endi bloklovchi, ketma-ket IKKINCHI run.** 122 da `/` da 62 MB, 123 da 52 MB bo'sh qoldi; `/sessions` ikkalasida ham **0**. Yangi `initdb` ga joy yo'q, `requires_db` ning 232 testi ikkala runda ham jimgina `skip` bo'ldi (oxirgi haqiqiy o'lchov — 121-run, 231 passed). Sandbox PostGIS retsepti (§6) disk bo'shamaguncha ishlamaydi | butun `requires_db` qatlami: E2, E3, E5, E8, E9, E13, E14, E15, E19 |
 | ⛔ **`.git/index.lock`** — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
-| Telegram bot tokeni va haqiqiy run | E3, E13 |
+| ⛔ **Serverda ikkita parallel stek** bitta bazada ishlayapti (`docker ps`, 2026-08-12): `deploy-*` (`~/deploy/docker-compose.yml`) va repodagi `sveta-*`. Ikkala `jobs` runner bir vaqtda yuradi — outbox, snapshot va coverage vazifalari **ikki marta** bajariladi (bildirishnoma dublikati xavfi). Bittasi o'chirilsin | E13, E9, E14, JOBS |
+| `bormitok.uz`: `scripts/init_tls.sh --email …` yurgizish, keyin polling → webhook (`TELEGRAM_MODE`, `TELEGRAM_WEBHOOK_URL`, `MAP_PUBLIC_URL`) va polling konteynerini to'xtatish | E9, E3, E13 |
+| ~~Telegram bot tokeni~~ ✅ 👤 bor (2026-08-12). Qoldi: webhook rejimidagi **haqiqiy run** | E3, E13 |
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh), ANL (`01` §21 ning **ikkita** dashboardi) |
 | Rasmiy manba (H-4) kelishuvi | E18 |
 | Yopiq yig'ish bosqichi | E10 → E11 → E12 → E20 |
@@ -285,7 +382,8 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 | `mahallas.name_ru` nullable — §23 faqat UZ ni so'raydi, RU kafolatlanmagan | E15, E17, `01` §23 |
 | MFA yo'q (BRD NFR-S-01 «Обязательно») — admin auth bitta omil | SEC (`01` §20), E8 |
 | `tg_id` «псевдонимизированный вид» — hujjatni tahrirlash yoki pepper li xesh | SEC (`01` §20) |
-| Ommaviy API da rate limit yo'q (`01` §16 uni meros qiladi) — ilovada yoki proxy da? | SEC (BRD NFR-S-03), E15 |
+| Ommaviy API da rate limit yo'q (`01` §16 uni meros qiladi) — ilovada yoki proxy da? ⚠️ 122-run **proksida** qo'ydi (`limit_req` 10 r/s, burst 40, `deploy/nginx.locations.conf`): bu javob qabul qilinadimi yoki ilovada ham kerakmi | SEC (BRD NFR-S-03), E15 |
+| `/api/v1/admin/*` va `/api/v1/metrics` domen orqali ochiq bo'ladi (token bilan himoyalangan, lekin ko'rinadi) — nginx da IP bo'yicha cheklansinmi. 122-run ataylab **cheklamadi**: bu 👤 ning o'z kirishini jimgina yopib qo'yardi | SEC, E8, E15 |
 | `01` §17 ning to'rtta eskirgan qatori (`h3_index` ikki joyda, `is_city_district`, `independent_reporters` tipi, `population` ning o'rni) | DATA |
 | `05` §2.2 DDL si `geom_exact` ni `NOT NULL` deydi, §3.2 esa `NULL` talab qiladi — hujjatning ichki ziddiyati (kod §3.2 ni tanladi) | E2, `05` §2.2 |
 | `TELEGRAM_MODE` standarti `polling`, `01` §18 esa «HTTPS webhook» deydi — standart o'zgaradimi yoki hujjat | INT, E3 |
@@ -342,31 +440,44 @@ ma'lumot bo'lmasligi kerak. Ziddiyat chiqsa — `PROGRESS.md` haq.
 ## 6. Sandboxda PostGIS ko'tarish (retsept)
 
 Cheklovlar: `/sessions` (`$HOME`) to'la bo'lishi mumkin → hamma narsa
-`/tmp` ga; bitta `bash` chaqiruvining haqiqiy chegarasi ~180 s; server
-chaqiruv oxirida o'ladi → `pg_ctl start` va `pytest` **bitta**
-chaqiruvda; `/tmp` dagi eski `pgdata*` boshqa sandbox
-foydalanuvchisiniki bo'lishi mumkin → har safar yangi
-`initdb -D /tmp/pgdataNN` va yangi port.
+`/tmp` ga; bitta `bash` chaqiruvining haqiqiy chegarasi ~180 s
+(`timeout_ms` dan qat'i nazar); server chaqiruv oxirida o'ladi →
+`pg_ctl start` va `pytest` **bitta** chaqiruvda; `/tmp` dagi eski
+`pgdata*` **va `mamba/envs`** boshqa sandbox foydalanuvchisiniki
+bo'lishi mumkin (`nobody:755` — o'qish mumkin, yozish yo'q) → yangi
+muhit **yangi prefiksga** (`/tmp/svNN/…`), yangi
+`initdb -D /tmp/svNN/pgdata` va yangi port.
+
+⚠️ **`pg_ctl status` ga ishonmang.** O'lgan serverdan keyin ham
+`postmaster.pid` qoladi → `status` `0` qaytaradi → keng tarqalgan
+`pg_ctl status || pg_ctl start` retsepti `start` ni **o'tkazib
+yuboradi**. `tests/conftest.py` portga ulanolmasa `requires_db` ni
+`skip` qiladi, ya'ni natija **yashil ko'rinadi**, lekin DB testlari
+yurmaydi. Har bash chaqiruvida **shartsiz** `start` yozing
+(«another server might be running» ogohlantirishi normal).
 
 ```bash
-export TMPDIR=/tmp HOME=/tmp/home CONDA_PKGS_DIRS=/tmp/pkgs \
-       MAMBA_ROOT_PREFIX=/tmp/mamba XDG_CACHE_HOME=/tmp/cache
+export TMPDIR=/tmp HOME=/tmp/home XDG_CACHE_HOME=/tmp/cache \
+       CONDA_PKGS_DIRS=/tmp/svNN/pkgs MAMBA_ROOT_PREFIX=/tmp/svNN/mamba
 curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj bin/micromamba
-/tmp/bin/micromamba create -y -p /tmp/mamba/envs/py311 -c conda-forge python=3.11
-/tmp/mamba/envs/py311/bin/python -m pip install -e ".[dev]"   # timeout bo'lsa qayta
-/tmp/bin/micromamba create -y -p /tmp/mamba/envs/pg -c conda-forge postgresql postgis
-PGBIN=/tmp/mamba/envs/pg/bin
-$PGBIN/initdb -D /tmp/pgdataNN -U sveta --auth=trust
-$PGBIN/pg_ctl -D /tmp/pgdataNN -l /tmp/pg.log \
-  -o "-p 555NN -k /tmp -c listen_addresses=127.0.0.1" start; sleep 3
+# py311 muhiti oldingi sandboxdan tirik qolgan bo'lsa — o'qish mumkin,
+# qayta qurish shart emas; faqat YANGI muhitlar /tmp/svNN ga quriladi.
+/tmp/bin/micromamba create -y -p /tmp/svNN/py311 -c conda-forge python=3.11
+/tmp/svNN/py311/bin/python -m pip install -e ".[dev]"   # timeout bo'lsa qayta
+/tmp/bin/micromamba create -y -p /tmp/svNN/pg -c conda-forge postgresql postgis
+PGBIN=/tmp/svNN/pg/bin
+$PGBIN/initdb -D /tmp/svNN/pgdata -U sveta --auth=trust
+# har chaqiruvda SHARTSIZ (status ga ishonmang):
+$PGBIN/pg_ctl -D /tmp/svNN/pgdata -l /tmp/svNN/pg.log \
+  -o "-p 555NN -k /tmp -c listen_addresses=127.0.0.1" start >/dev/null 2>&1; sleep 3
 $PGBIN/psql -h /tmp -p 555NN -U sveta -d postgres -c "CREATE DATABASE sveta;"
 $PGBIN/psql -h /tmp -p 555NN -U sveta -d sveta -c "CREATE EXTENSION postgis;"
 export DATABASE_URL="postgresql+asyncpg://sveta:sveta@127.0.0.1:555NN/sveta"
 # shu chaqiruvning o'zida: alembic upgrade head && pytest ...
 ```
 
-Butun to'plam to'rt partiyada yuritiladi (`ls tests/test_*.py |
-sed -n '1,35p'` va h.k.). `tests/conftest.py` bayroq so'ramaydi:
+Butun to'plam olti partiyada yuritiladi (25–42 fayldan: `ls
+tests/test_*.py | sed -n '1,25p'` va h.k.), har partiya 35–70 s. `tests/conftest.py` bayroq so'ramaydi:
 portni `socket` bilan tekshiradi, port ochiq bo'lsa `requires_db`
 avtomatik yuriladi. `pgserver` (PyPI) yaramaydi — g'ildiragida
 PostGIS yo'q; ishlaydigan yo'l — `micromamba` + `conda-forge`.

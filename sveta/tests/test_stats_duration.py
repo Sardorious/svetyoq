@@ -161,6 +161,37 @@ def test_percentile_endpoints() -> None:
     assert duration.percentile(values, 1.0) == 25
 
 
+def test_percentile_rounds_and_does_not_truncate() -> None:
+    """Interpolyatsiya natijasi **yaxlitlanadi**, kesilmaydi.
+
+    124-run mutatsiyasi (`round` → `int`) barcha mavjud testlardan
+    o'tardi: nazorat qiymatlari (`[10, 20, 30, 40]`) shunday tanlanganki,
+    interpolyatsiya butun songa tushadi va ikkala amal bir xil javob
+    beradi. Butun songa tushmaydigan namunada esa farq bir tomonlama —
+    kesish har doim **pastga** oladi, ya'ni nashr etiladigan mediana va
+    P90 tizimli ravishda kamaygan bo'lardi (`01` §4 ning ikkala
+    kuzatiladigan ko'rsatkichi ham shu funksiyadan chiqadi).
+
+    `[10, 20, 30, 41]`, p=0.9 → `rank = 2.7` → `30 + 11*0.7 = 37.7`.
+    """
+    assert duration.percentile([10, 20, 30, 41], 0.9) == 38
+
+
+def test_percentile_of_two_values_interpolates() -> None:
+    """Ikkita qiymat — bu ham namuna, eng kichigi emas.
+
+    `len(ordered) == 1` qorovuli aynan **bitta** qiymat uchun: u yerda
+    interpolyatsiya qiladigan ikkinchi nuqta yo'q. Qorovul `<= 2` gacha
+    kengaysa, ikkita qiymatda persentil har doim **eng kichigini**
+    qaytarardi (`p=0.9` da ham) va buni birorta test ko'rmasdi —
+    `summarize` bu funksiyani `MIN_SAMPLE` dan kam namunada umuman
+    chaqirmaydi, ya'ni bo'shliqni faqat to'g'ridan-to'g'ri chaqiruv
+    yopadi.
+    """
+    assert duration.percentile([10, 20], 0.5) == 15
+    assert duration.percentile([10, 20], 0.9) == 19
+
+
 # --- 4. Kesim ----------------------------------------------------------
 
 
@@ -245,6 +276,52 @@ def test_ongoing_ratio_is_measured_against_everyone() -> None:
     assert cut.ongoing_ratio == 0.75
 
 
+def test_a_cut_where_nothing_has_closed_yet() -> None:
+    """Bitta ham yopilgan hodisa yo'q — ikkala ulush ham o'z maxrajini biladi.
+
+    Bu holat 124-rungacha umuman testlanmagan edi va ikkita mustaqil
+    mutatsiya undan o'tib ketardi. Ikkalasi ham «nolga bo'linish»
+    qorovulini **boshqa** maxrajga bog'lab qo'yadi:
+
+    * `ongoing_ratio` da `total == 0` → `measured == 0`: hammasi ochiq
+      bo'lgan hududda ulush `1.0` o'rniga `0.0` chiqardi, ya'ni aynan
+      shu ulush uchun yozilgan ogohlantirish (mediana pastga siljigan)
+      hech qachon yonmasdi — eng yomon holat eng tinch ko'rinardi;
+    * `timeout_ratio` da `measured == 0` → `total == 0`: o'sha hududda
+      `0 / 0` — `ZeroDivisionError`, ya'ni vitrina umuman ochilmasdi.
+
+    Mavjud testlarning hammasida kamida bitta yopilgan hodisa bor edi.
+    """
+    cut = duration.summarize(facts(None, None, None))
+    assert cut.measured == 0
+    assert cut.ongoing == 3
+    assert cut.total == 3
+    assert cut.ongoing_ratio == 1.0
+    assert cut.timeout_ratio == 0.0
+    # Ogohlantirish yo'q, lekin sababi boshqa: o'lchov yo'q, ya'ni
+    # ogohlantiradigan raqam ham yo'q.
+    assert cut.sufficient is False
+    assert cut.warnings == ()
+
+
+def test_a_zero_minute_outage_is_measured_not_ongoing() -> None:
+    """`0` — davomiylik, `None` emas.
+
+    «Ochiq» belgisi faqat `duration_min is None` dan chiqadi. Qorovulga
+    `or duration_min == 0` qo'shilsa (124-run mutatsiyasi), bir daqiqadan
+    tez tiklangan hodisa **ochiq** deb sanalardi: u gistogrammadan
+    tushib qolardi, `measured` kamayardi va `ongoing_ratio` sun'iy
+    ravishda ko'tarilib yolg'on ogohlantirish berardi. Birorta mavjud
+    test `summarize` ga nol bermagan edi (`band_of(0)` esa alohida
+    tekshirilgan — ya'ni bo'shliq aynan chegarada emas, yo'lda edi).
+    """
+    cut = duration.summarize(facts(0, 5, 10, 15, 20))
+    assert cut.measured == 5
+    assert cut.ongoing == 0
+    assert cut.bands["under_30m"] == 5
+    assert cut.median_min == 10
+
+
 # --- 7. Ogohlantirishlar -----------------------------------------------
 
 
@@ -291,6 +368,21 @@ def test_no_warning_when_there_is_no_number_to_warn_about() -> None:
 def test_both_warnings_can_fire_together() -> None:
     cut = duration.summarize(facts(10, 20, 30, 40, 50, None, None, timeout=4))
     assert set(cut.warnings) == {duration.WARNING_ONGOING, duration.WARNING_TIMEOUT}
+
+
+def test_the_warning_order_is_stable() -> None:
+    """Ikkalasi yonganda tartib qat'iy: avval «ochiq», keyin «taymer».
+
+    Yuqoridagi test `set()` bilan solishtiradi, ya'ni tartibni **umuman**
+    ko'rmaydi — ikkita shartni joyini almashtirgan mutatsiya undan
+    o'tib ketardi. Tartib esa javobning bir qismi: vitrina ro'yxatni
+    kelgan holicha chizadi va birinchi qator eng ko'p o'qiladi.
+    Birinchi o'ringa `ongoing` qo'yilgan, chunki u nashr etilayotgan
+    **raqamga** ta'sir qiladi (mediana pastga siljigan), `timeout` esa
+    o'sha raqamning kelib chiqishi haqida ogohlantiradi.
+    """
+    cut = duration.summarize(facts(10, 20, 30, 40, 50, None, None, timeout=4))
+    assert cut.warnings == (duration.WARNING_ONGOING, duration.WARNING_TIMEOUT)
 
 
 # --- 8. Vitrinaning uchala kesimi (`03` §R1.2 kontrakti) ---------------

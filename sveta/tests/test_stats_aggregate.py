@@ -213,3 +213,127 @@ def test_suppressed_outages_are_absent_from_the_duration_cut_too() -> None:
     )
     assert agg.suppressed_outages == 1
     assert agg.total.duration.total == 0
+
+
+# --- Mutatsiya qulflari (123-run) -------------------------------------
+#
+# Quyidagi oltita test o'lchov bilan topilgan bo'shliqlarni yopadi:
+# har biri tirik qolgan mutantni o'ldiradi. Mahsulot kodi tegilmagan.
+
+
+def test_duration_is_floored_never_rounded_up() -> None:
+    """Daqiqa **to'lgani** sanaladi, yaxlitlanmaydi.
+
+    `//` ni `round` ga almashtirgan mutant tirik qolgan edi: barcha
+    mavjud testlar davomiylikni butun daqiqada beradi va farq ko'rinmasdi.
+    Yaxlitlash uzilishlarni **uzunroq** ko'rsatardi (har hodisada 30
+    soniyagacha), ya'ni `03` §R1.2 ning davomiylik kesimi — mediana ham,
+    P90 ham — vitrinada tizimli ravishda yuqoriga siljigan bo'lardi.
+    Ayniqsa qisqa uzilishlarda: 50 soniyalik uzilish «1 daqiqa» emas,
+    **0 daqiqa**.
+    """
+
+    def resolved_after(seconds: int) -> aggregate.OutageFact:
+        return aggregate.OutageFact(
+            id=uuid.uuid4(),
+            district_id=D1,
+            status="resolved",
+            scale="local",
+            confidence=80,
+            started_at=NOW,
+            resolved_at=NOW + timedelta(seconds=seconds),
+            report_count=5,
+            last_report_at=NOW,
+        )
+
+    assert resolved_after(110).duration_min == 1
+    assert resolved_after(50).duration_min == 0
+    assert resolved_after(60).duration_min == 1
+
+
+def test_the_five_percent_limit_itself_does_not_warn() -> None:
+    """`03` §R1.2 mezoni — «≤5%», ya'ni **aynan 5% hali normal**.
+
+    Chegaraning o'zi hech qachon sinalmagan edi (mavjud testlarda 25% va
+    0%), shuning uchun `>` ni `>=` ga almashtirgan mutant tirik qolardi —
+    va aynan mezonni bajaradigan hudud vitrinada ogohlantirish bilan
+    chiqib, chiqish mezoni buzilgandek ko'rinardi.
+    """
+    at_limit = [fact(district_id=D1)] * 19 + [fact(district_id=None)]
+    agg = aggregate.build(list(at_limit), min_reports=3, autoclose_after_min=120)
+    assert agg.unassigned_ratio == aggregate.MAX_UNASSIGNED_RATIO
+    assert agg.needs_unassigned_warning is False
+
+    above = [fact(district_id=D1)] * 18 + [fact(district_id=None)] * 2
+    agg = aggregate.build(list(above), min_reports=3, autoclose_after_min=120)
+    assert agg.needs_unassigned_warning is True
+
+
+def test_buckets_are_ordered_by_size_descending() -> None:
+    """Tartib — kamayish bo'yicha: vitrinaning birinchi qatori eng ko'p
+    uzilish bo'lgan tuman.
+
+    Tartib yo'nalishi umuman testlanmagan edi: `-b.outages_total` ni
+    `b.outages_total` ga almashtirgan mutant tirik qolardi va statistika
+    sahifasi eng tinch tumandan boshlanardi.
+    """
+    facts = [fact(district_id=D2)] * 3 + [fact(district_id=D1)] * 5
+    agg = aggregate.build(list(facts), min_reports=3, autoclose_after_min=120)
+    assert [b.district_id for b in agg.buckets] == [D1, D2]
+    assert [b.outages_total for b in agg.buckets] == [5, 3]
+
+
+def test_the_unassigned_bucket_stays_last_even_when_it_is_the_largest() -> None:
+    """`unassigned` — kesim emas, **qoldiq**: hajmi tartibga ta'sir qilmaydi.
+
+    Mavjud test uni teng hajmda tekshirardi va u yerda tartib tasodifan
+    identifikator bo'yicha to'g'ri chiqardi. Qoldiq eng katta bo'lganda
+    esa (yosh mintaqada bu odatiy hol — chegaralar hali import qilinmagan)
+    mutant uni ro'yxatning **boshiga** chiqarardi.
+    """
+    facts = [fact(district_id=None)] * 7 + [fact(district_id=D1)] * 2
+    agg = aggregate.build(list(facts), min_reports=3, autoclose_after_min=120)
+    assert agg.buckets[-1].district_id is None
+    assert agg.buckets[-1].outages_total == 7
+
+
+def test_average_duration_is_rounded_not_truncated() -> None:
+    """O'rtacha yaxlitlanadi: 6.67 → 7, 6 emas.
+
+    Kesish o'rtachani har doim pastga siljitardi, ya'ni `avg` va
+    davomiylik kesimi bir xil ma'lumotdan ikki xil taassurot berardi.
+    """
+    facts = [
+        fact(status="resolved", resolved_after_min=5),
+        fact(status="resolved", resolved_after_min=5),
+        fact(status="resolved", resolved_after_min=10),
+    ]
+    agg = aggregate.build(facts, min_reports=3, autoclose_after_min=120)
+    assert agg.total.duration_sum_min == 20
+    assert agg.total.resolved_count == 3
+    assert agg.total.avg_duration_min == 7
+
+
+def test_reconciles_checks_the_total_bucket_too() -> None:
+    """Moslashuv sharti umumiy natijaga ham qo'yiladi.
+
+    `Aggregation` — ommaviy dataclass va uni `build` dan tashqarida ham
+    yig'ish mumkin. Chelaklar bo'yicha `all(...)` sharti umumiy chelakni
+    **qamramaydi**: uni olib tashlagan mutant tirik qolardi, chunki
+    `build` ikkala tomonni bir vaqtda to'ldiradi va ular tabiiy ravishda
+    hech qachon ajralmaydi. Shart o'zining alohida qorovuli bilan
+    qulflanadi — invariant kelajakdagi yig'uvchi yo'lga ham tegishli.
+    """
+    good = aggregate.build([fact(district_id=D1)], min_reports=3, autoclose_after_min=120)
+    total = aggregate.Bucket(district_id=None)
+    total.outages_total = good.total.outages_total
+    total.reports_total = good.total.reports_total
+    # Davomiylik faktlari to'ldirilmagan: kesim jami 0, hodisalar jami 1.
+    broken = aggregate.Aggregation(
+        buckets=good.buckets,
+        total=total,
+        suppressed_outages=0,
+        suppressed_reports=0,
+    )
+    assert broken.total.duration.total != broken.total.outages_total
+    assert broken.reconciles is False

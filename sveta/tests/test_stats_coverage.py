@@ -135,6 +135,60 @@ def test_unknown_territory_says_it_does_not_know() -> None:
     assert result.data_quality == QUALITY_UNKNOWN
 
 
+def test_a_negative_component_is_clamped_to_zero_not_carried_through() -> None:
+    """Moduldagi «noaniqlik pastga» qoidasi manfiy qiymatda ham amal qiladi.
+
+    `active_users_30d` manfiy bo'lishi kutilmaydi, lekin u o'lchov
+    natijasi — nol nuqtasi surilgan agregat manfiy son berishi mumkin.
+    Chegaralanmasa `sufficiency` manfiy bo'lardi va indeks `-100` ga
+    tushardi: `band_of` uchun bu `NONE`, ya'ni **jimgina** to'g'ri
+    pog'ona — xato faqat raqamda ko'rinardi.
+    """
+    result = coverage.compute(make(active=-30, households=None))
+    assert result.sufficiency == 0.0
+    assert result.index == 0
+
+
+def test_a_zero_threshold_does_not_raise_and_yields_no_sufficiency() -> None:
+    """`min_active = 0` — konfiguratsiya xatosi, lekin quvurni yiqitmaydi.
+
+    Qorovulsiz bu `ZeroDivisionError` bo'lardi va `/stats` butunlay
+    `500` qaytarardi: chegara noto'g'ri qo'yilgani uchun **butun**
+    vitrina o'chardi.
+    """
+    result = coverage.compute(make(min_active=0, households=None))
+    assert result.sufficiency == 0.0
+    assert result.limiting_factor == "sufficiency"
+    assert result.index == 0
+
+
+def test_negative_households_drop_penetration_instead_of_zeroing_the_index() -> None:
+    """Manfiy `households` — noma'lum bilan bir xil muomala.
+
+    `households` `territory_stats` dan keladi va manfiy qiymat u yerda
+    ma'noga ega emas. Uni «bor» deb qabul qilsak `penetration` manfiy
+    bo'lib chegaralanardi va **eng kuchsiz komponent** sifatida indeksni
+    har doim nolga tushirardi — ya'ni bitta buzuq qator butun tumanni
+    «qamralmagan» deb ko'rsatardi.
+    """
+    result = coverage.compute(make(households=-1500))
+    assert result.penetration is None
+    assert result.limiting_factor in {"sufficiency", "spread"}
+    assert result.index > 0
+
+
+def test_the_index_is_rounded_not_truncated() -> None:
+    """`round`, `int` emas — kesish indeksni doimo pastga siljitardi.
+
+    23/30 = 0.7666… → 77. Kesilsa 76 chiqadi: farq bitta ball, lekin u
+    **har** hisobda bir tomonga ketadi va `01` PRD dagi «past pog'onadan
+    yuqori» maqsadini o'lchaydigan raqamni tizimli ravishda pasaytiradi.
+    """
+    result = coverage.compute(make(active=23, min_active=30, households=None))
+    assert result.limiting_factor == "sufficiency"
+    assert result.index == 77
+
+
 def test_every_band_has_a_message_key() -> None:
     """Qattiq kodlangan matn — bloklovchi defekt (`04` §6)."""
     from app.core.i18n import all_keys

@@ -67,7 +67,11 @@ docker compose logs migrate --tail 3 || true
 
 echo "-- API sog'lig'i --"
 for i in $(seq 1 20); do
-    if curl -fsS "http://127.0.0.1:${API_PORT}/health" >/dev/null 2>&1; then
+    # ⚠️ Ildiz sathida `/health` YO'Q — u `/api/v1/health/live` da
+    # (`app/api/router.py` `api_router` ni `settings.api_prefix` bilan ulaydi).
+    # Eski `${API_PORT}/health` 404 qaytarardi va bu tekshiruv hech qachon
+    # o'tmasdi (122-run topdi).
+    if curl -fsS "http://127.0.0.1:${API_PORT}/api/v1/health/live" >/dev/null 2>&1; then
         echo "API OK (port ${API_PORT})"; break
     fi
     [[ "$i" -eq 20 ]] && { echo "❌ API 20 urinishda javob bermadi"; exit 1; }

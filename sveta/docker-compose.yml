@@ -7,8 +7,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sveta}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sveta}
       POSTGRES_DB: ${POSTGRES_DB:-sveta}
+    # ⚠️ Standart holda faqat LOKAL interfeys. Ilgari bu qator
+    # `"${POSTGRES_PORT:-5432}:5432"` edi, ya'ni Docker port ni `0.0.0.0`
+    # ga ochardi va baza (standart paroli bilan) butun internetdan
+    # ko'rinardi. Tashqaridan ulanish kerak bo'lsa — SSH tunnel yoki
+    # ataylab `POSTGRES_BIND=0.0.0.0` + kuchli parol.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -63,6 +68,13 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
     command: ["python", "-m", "app.jobs.runner"]
+    # Rasmning HEALTHCHECK i `curl /api/v1/health/live` qiladi, bu xizmat esa
+    # HTTP server ko'tarmaydi — natijada konteyner DOIM `unhealthy` ko'rinadi
+    # va haqiqiy nosozlik shu shovqin ichida yo'qoladi. Fon jarayonining
+    # sog'lig'i boshqa joyda o'lchanadi: `05` §10 ning `job_last_run_age`
+    # metrikasi va `ALERT_SNAPSHOT_AGE_S` ogohlantirishi.
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -78,6 +90,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sveta}:${POSTGRES_PASSWORD:-sveta}@db:5432/${POSTGRES_DB:-sveta}
       TELEGRAM_MODE: polling
     command: ["python", "-m", "app.bot"]
+    # `jobs` bilan bir xil sabab: polling boti ham HTTP server emas.
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -87,10 +102,15 @@ services:
   # `web/README.md`: CORS yoqilmagan, sahifa va API bir domendan berilishi
   # kerak — nginx `/api/` ni `api:8000` ga uzatadi. Buildsiz: `web/`
   # to'g'ridan-to'g'ri mount qilinadi (o'qish uchun).
+  # Prod (bormitok.uz, HTTPS) uchun ustqurma:
+  #   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml …
+  # U `default.conf` nishonini `nginx.prod.conf` bilan almashtiradi va
+  # certbot ni qo'shadi; proksi qoidalari ikkalasida ham bitta snippetdan.
   web:
     image: nginx:1.27-alpine
     volumes:
       - ./web:/usr/share/nginx/html:ro
+      - ./deploy/nginx.locations.conf:/etc/nginx/snippets/sveta-locations.conf:ro
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "${WEB_PORT:-8080}:80"
