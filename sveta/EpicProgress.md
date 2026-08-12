@@ -57,7 +57,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 * **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3365
   passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
   start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
-  o'ladi); `alembic` 0001→**0011** (`0011` sandboxda yurgizilmadi — offline SQL toza); `ruff` toza; mutatsiya qamrovi
+  o'ladi); `alembic` 0001→**0011** (`0011` sandboxda yurgizilmadi, lekin **prodda tasdiqlandi** — 2026-08-12 chegara importi); `ruff` toza; mutatsiya qamrovi
   `business_requirements`, `business_reporting`,
   `business_acceptance`, `business_architecture`,
   `business_glossary`, `business_environment`,
@@ -82,8 +82,9 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   **ADR-08 hal — tayl manbasi OSM** (`.env.example`, pilot uchun);
   **mahalla qamrovi qisman bo'lishi mumkin** (OSM to'liq emas, E17
   qisman boshlanadi).
-* **Kutilayotgan asosiy odam ishlari:** serverda `scripts/deploy.sh` +
-  `scripts/bootstrap_samarkand.sh` yurgizish (E9/E19); brauzer
+* **Kutilayotgan asosiy odam ishlari:** ~~serverda `scripts/deploy.sh` +
+  `scripts/bootstrap_samarkand.sh` yurgizish~~ ✅ **bajarildi
+  2026-08-12** — Samarqand prodda faol, 6 tuman; brauzer
   tekshiruvi (360 px, til almashtirish — MCP orqali ham mumkin,
   server URL kerak); Telegram token (E3); mahalla poligonlari (E17);
   rasmiy manba kelishuvi (E18); `cleanup-sessions.ps1`.
@@ -97,7 +98,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | # | Epic | Holat | Kod | ✅ uchun nima kerak |
 |---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | — |
-| E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010`, `0011` | — (⚠️ `0011` prodda hali qo'yilmagan: `boundary_staging` kaliti `status` ni ham qamraydi — etalon staged tumanlardan biri bo'la olishi uchun; `--reference-ref` bilan birga chegara importini ochadi) |
+| E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010`, `0011` | — (✅ 2026-08-12 prodda tasdiqlandi: `0011` + `--reference-ref` bilan Samarqand importi sifat darvozasidan **o'tdi** — 6/6 geometriya, ustma-ustlik 0.17%, qoplash 100%, nomlar to'liq) |
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | **Haqiqiy Telegram runi** (E3-a) |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | — |
 | E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | — |
@@ -115,7 +116,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | Haqiqiy zichlik (E10) |
 | E17 | Mahalla darajasi | ⬜ | — | 👤 **poligonlar** |
 | E18 | Rasmiy manba parsing | ⬜ | — | 👤 **H-4** |
-| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | **Ikkinchi mintaqani haqiqiy import** (`01` §7 uni Future Release da deydi — 👤 savol) |
+| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | ✅ 2026-08-12: **birinchi** mintaqa (samarkand) prodda import qilindi va faollashtirildi — 6 tuman. Qoldi: **ikkinchi** mintaqani haqiqiy import (`01` §7 uni Future Release da deydi — 👤 savol) |
 | E20 | PWA + Web Push | ⬜ | — | E12 |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
