@@ -57,7 +57,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 * **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3365
   passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
   start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
-  o'ladi); `alembic` 0001→0010 toza; `ruff` toza; mutatsiya qamrovi
+  o'ladi); `alembic` 0001→**0011** (`0011` sandboxda yurgizilmadi — offline SQL toza); `ruff` toza; mutatsiya qamrovi
   `business_requirements`, `business_reporting`,
   `business_acceptance`, `business_architecture`,
   `business_glossary`, `business_environment`,
@@ -97,7 +97,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | # | Epic | Holat | Kod | ✅ uchun nima kerak |
 |---|---|---|---|---|
 | E1 | Skelet: repo, Docker, DB, CI | ✅ | `app/core/`, `app/db/`, `main.py` | — |
-| E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010` | — |
+| E2 | Ma'lumot sxemasi + hudud yuklash | ✅ | `app/geo/`, `app/db/spatial.py`, `tools/import_boundaries.py`, `0002`, `0010`, `0011` | — (⚠️ `0011` prodda hali qo'yilmagan: `boundary_staging` kaliti `status` ni ham qamraydi — etalon staged tumanlardan biri bo'la olishi uchun; `--reference-ref` bilan birga chegara importini ochadi) |
 | E3 | Bot: `/start`, til, geo, xabar | 🔄 | `app/bot/`, `app/reports/intake.py` | **Haqiqiy Telegram runi** (E3-a) |
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | — |
 | E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | — |
@@ -155,7 +155,7 @@ to'plam (DB bilan) **3365 passed, 1 skipped**; `-m requires_db`
 **231 passed** — ⚠️ `pg_ctl start`, `alembic upgrade head` va
 `pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
 chaqiruv oxirida o'ladi va o'nlab yolg'on yiqilish chiqadi;
-`alembic upgrade head` 0001→0010 toza; `ruff check` toza. Sandboxda
+`alembic upgrade head` 0001→**0011**; `ruff check` toza. Sandboxda
 PostGIS — §6 retsepti.
 
 | Epic | Test fayllari |

@@ -201,7 +201,7 @@ _INSERT = text(
         ST_BuildArea(ST_Node(ST_GeomFromText(:wkt, 4326))), 3)),
       :status
     )
-    ON CONFLICT (batch_id, source_ref) DO NOTHING
+    ON CONFLICT (batch_id, source_ref, status) DO NOTHING
     """
 )
 
@@ -306,15 +306,17 @@ async def cmd_stage(args: argparse.Namespace) -> int:
             b for b in osm.parse_boundaries(ref_payload) if b.admin_level == args.reference_level
         ]
 
-    # Etalon staged to'plamining ichida bo'lsa, qoplash o'lchovi ma'nosiz —
-    # va `boundary_staging` ning `UNIQUE (batch_id, source_ref)` i tufayli
-    # etalon qatorlari `ON CONFLICT DO NOTHING` bilan **jimgina** tushib
-    # qolardi (118-run defekti): natijada tekshiruv «etalon berilmagan»
-    # deb bloklardi. Endi holat nomlanadi va etalon umuman yozilmaydi.
     # Shart **tenglik**, qism-to'plam emas: etalon staged larning biri bo'lishi
     # (masalan «Samarqand shahri» oltita tumandan biri) normal va o'lchov
     # o'sha holda ham haqiqiy — birlashma shaharni qoplaydimi. Ma'nosiz
-    # bo'ladigan yagona holat — staged to'plami etalonning **aynan o'zi**.
+    # bo'ladigan yagona holat — staged to'plami etalonning **aynan o'zi**:
+    # nisbat ta'rifan 1.0 chiqadi va darvoza hech narsa o'lchamaydi.
+    #
+    # Egizak qatorning o'zi endi muammo emas: `0011` dan beri noyoblik
+    # kaliti `status` ni ham qamraydi, ya'ni bitta relation bir vaqtda
+    # `staged` va `reference` bo'la oladi. Undan oldin etalon egizagi
+    # `ON CONFLICT DO NOTHING` bilan jimgina tushib qolardi va import
+    # «shahar chegarasi berilmagan» deb sababsiz bloklanardi.
     staged_refs = {b.source_ref for b in boundaries}
     reference_refs = {b.source_ref for b in reference}
     degenerate = bool(reference_refs) and reference_refs == staged_refs

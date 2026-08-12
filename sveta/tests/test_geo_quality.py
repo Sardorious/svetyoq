@@ -119,3 +119,45 @@ def test_degenerate_flag_does_not_leak_into_normal_measurement() -> None:
     assert quality.check_coverage_ratio(covered_area=98.0, reference_area=100.0).passed
     assert quality.check_coverage_ratio(covered_area=97.9, reference_area=100.0).is_blocker
     assert quality.check_coverage_ratio(covered_area=0.0, reference_area=None).is_blocker
+
+
+def test_staging_key_lets_one_relation_be_both_district_and_reference() -> None:
+    """`05` §5.3 etaloni staged tumanlardan biri bo'la oladi (`0011`).
+
+    Samarqandda `admin_level=8` umuman yo'q, ya'ni tumanlar ham, shahar ham
+    6-darajada: «Samarqand shahri» bir vaqtda district nomzodi **va** qoplash
+    etaloni. `0011` gacha noyoblik kaliti `(batch_id, source_ref)` edi va
+    etalon egizagi `ON CONFLICT DO NOTHING` bilan jimgina tushib qolardi —
+    keyin qoplash «shahar chegarasi berilmagan» deb sababsiz bloklardi.
+    Prodda aynan shu bo'ldi: 6/6 nom to'liq, geometriya haqiqiy, ustma-ustlik
+    0.17%, import esa bloklangan.
+    """
+    from app.geo.models import BoundaryStaging
+
+    (constraint,) = [
+        c
+        for c in BoundaryStaging.__table__.constraints
+        if c.name == "uq_boundary_staging_batch_id_source_ref_status"
+    ]
+
+    assert [c.name for c in constraint.columns] == ["batch_id", "source_ref", "status"]
+
+
+def test_insert_conflict_target_matches_the_staging_key() -> None:
+    """`ON CONFLICT` nishoni noyoblik kaliti bilan bir xil bo'lishi shart.
+
+    Ular ajralib qolsa Postgres `ON CONFLICT` ni umuman qabul qilmaydi
+    («no unique or exclusion constraint matching») — ya'ni xato ishga
+    tushirish paytida, prodda chiqadi.
+    """
+    from app.geo.models import BoundaryStaging
+    from tools.import_boundaries import _INSERT
+
+    (constraint,) = [
+        c
+        for c in BoundaryStaging.__table__.constraints
+        if c.name == "uq_boundary_staging_batch_id_source_ref_status"
+    ]
+    target = ", ".join(c.name for c in constraint.columns)
+
+    assert f"ON CONFLICT ({target}) DO NOTHING" in str(_INSERT)

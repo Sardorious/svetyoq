@@ -159,7 +159,17 @@ class BoundaryStaging(UUIDPrimaryKeyMixin, Base):
 
     __tablename__ = "boundary_staging"
     __table_args__ = (
-        UniqueConstraint("batch_id", "source_ref", name="uq_boundary_staging_batch_id_source_ref"),
+        # `status` kalitning bir qismi: bitta partiyada bitta relation ham
+        # `staged` (district nomzodi), ham `reference` (qoplash etaloni,
+        # `05` §5.3) bo'lishi mumkin — Samarqandda «shahar» aynan shunday,
+        # chunki 8-daraja yo'q. `0011` gacha etalon egizagi jimgina tushib
+        # qolardi va import sababsiz bloklanardi.
+        UniqueConstraint(
+            "batch_id",
+            "source_ref",
+            "status",
+            name="uq_boundary_staging_batch_id_source_ref_status",
+        ),
         Index("ix_boundary_staging_geom", "geom", postgresql_using="gist"),
     )
 
