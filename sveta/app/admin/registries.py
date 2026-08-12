@@ -93,6 +93,12 @@ from app.integrations import registry as integrations_mod
 from app.notifications import channels as channels_mod
 from app.obs import monitoring as monitoring_mod
 from app.release import acceptance as acceptance_mod
+from app.release import business_acceptance as bacc_mod
+from app.release import business_architecture as barch_mod
+from app.release import business_environment as benv_mod
+from app.release import business_glossary as bglos_mod
+from app.release import business_interfaces as bifc_mod
+from app.release import business_reporting as brep_mod
 from app.release import business_requirements as business_mod
 from app.release import business_rules as brl_mod
 from app.release import dependencies as dependencies_mod
@@ -622,6 +628,184 @@ def _probe_business_rules(_doc: str | None = None) -> Probe:
     )
 
 
+def _probe_business_interfaces(_doc: str | None = None) -> Probe:
+    """BRD §18–§19 — 18 qator: 10 integratsiya, 8 rol (104-run).
+
+    `total` — ikki jadval qatorlarining yig'indisi. `flagged` ikki
+    sababni yig'adi va bu xavfsiz (to'plamlar kesishmaydi — har qator
+    o'z jadvalida): `gap` i bo'sh bo'lmagan integratsiyalar (hujjat
+    bilan kod ajragan joylar — webhook↔polling, muzlatilgan seed,
+    o'lik geokoder talabi, Kafka/Redis↔ADR-05, skoupdan oldinda
+    qurilgan Open Data) va `BUILT` bo'lmagan rollar (sakkizdan
+    ikkitasi to'liq).
+
+    `undeclared` — 1: Overpass API ikkala hujjatning §18 idan ham
+    tashqarida (73-run + 104-run).
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_interfaces_contract` ikki tomonlama qulflaydi.
+    """
+    report = bifc_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.integrations) + len(report.roles),
+        flagged=len(report.flagged_integrations) + len(report.flagged_roles),
+        undeclared=1,
+    )
+
+
+def _probe_business_reporting(_doc: str | None = None) -> Probe:
+    """BRD §20–§21 — 25 qator: 6 hisobot, 4 dashboard, 7 KPI, 8 metrika (105-run).
+
+    `total` — to'rt jadval qatorlarining yig'indisi. `flagged` — `gap` i
+    bo'sh bo'lmagan qatorlar; to'plamlar kesishmaydi (har qator o'z
+    jadvalida), shuning uchun yig'ish xavfsiz: yig'ilmaydigan sifat
+    hisoboti/dashboardi, o'lchab bo'lmaydigan uch §21 metrikasi
+    (Time-to-answer, UZ-sessiya, SLA), qurilish bo'yicha bo'sh ikki
+    o'lchov (avtotasdiq ulushi, agregat farqi) va son ko'rsatilmaydigan
+    `DERIVABLE` qatorlar.
+
+    `undeclared` — 0: bu bo'limlar tizim e'lon qilmaydi, o'lchov va'da
+    qiladi; e'lon qilinmagan o'lchov tushunchasi bu yerda bo'sh.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_reporting_contract` ikki tomonlama qulflaydi.
+    """
+    report = brep_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=(
+            len(report.reports)
+            + len(report.dashboards)
+            + len(report.kpis)
+            + len(report.metrics)
+        ),
+        flagged=len(report.flagged),
+        undeclared=0,
+    )
+
+
+def _probe_business_acceptance(_doc: str | None = None) -> Probe:
+    """BRD §22–§23 — 21 qator: 14 qabul mezoni, 7 faza (106-run).
+
+    `total` — ikki jadval qatorlarining yig'indisi. `flagged` — `gap` i
+    bo'sh bo'lmagan qatorlar; to'plamlar kesishmaydi (mezon o'z jadvalida,
+    faza o'znikida), yig'ish xavfsiz: `LIVE` bo'lmagan o'nta mezon
+    (Ph.0 ning beshalasi ham — dala ishi odamniki, Toshkent regressiyasi
+    va skoupli rollar bu repoda ifodalanmaydi) va beshta faza (uchtasi
+    go/no-go dan oldin bajarib qo'yilgan — xronologiya topilmasi, Ph.0
+    boshlanmagan, Support ta'rifan yopilmaydi).
+
+    `undeclared` — 0: bu bo'limlar qabul va jadvalni va'da qiladi, tizim
+    e'lon qilmaydi; e'lon qilinmagan xulq tushunchasi bu yerda bo'sh.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_acceptance_contract` ikki tomonlama qulflaydi.
+    """
+    report = bacc_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.acceptance) + len(report.phases),
+        flagged=len(report.flagged),
+        undeclared=0,
+    )
+
+
+def _probe_business_architecture(_doc: str | None = None) -> Probe:
+    """BRD §24 — 25 qator: 19 diagramma tuguni, 6 arxitektura qarori (107-run).
+
+    `total` — diagramma tugunlari (Users subgraph siz — u auditoriya,
+    mahsulot emas) va qarorlar jadvalining yig'indisi. `flagged` — `gap` i
+    bo'sh bo'lmagan qatorlar; to'plamlar kesishmaydi (tugun diagrammada,
+    qaror o'z jadvalida), yig'ish xavfsiz: oltita `ABSENT` tugun
+    (Kafka/Redis — ADR-05, ombor/ingestor/geokoder/manba oqimi — umuman
+    yo'q), yorlig'i kodga zid uchta `RESHAPED` (Go-bot, React-web,
+    DBSCAN-worker), va'da qilingan qismi yetishmaydigan to'rt monolit
+    tuguni va yarim bajarilgan bitta qaror (Territory Registry).
+
+    `undeclared` — 0: bo'lim mahsulot shaklini va'da qiladi, tizim e'lon
+    qilmaydi; e'lon qilinmagan xulq tushunchasi bu yerda bo'sh.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_architecture_contract` ikki tomonlama qulflaydi.
+    """
+    report = barch_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=len(report.nodes) + len(report.decisions),
+        flagged=len(report.flagged),
+        undeclared=0,
+    )
+
+
+def _probe_business_glossary(_doc: str | None = None) -> Probe:
+    """BRD §25–§26 — 50 qator: 17 atama, 9 hujjat, 12 standart, 4
+    diagramma, 8 ochiq savol (108-run, paket yakuni).
+
+    `flagged` — `gap` i bo'sh bo'lmagan qatorlar: ikkita eskirgan «3 часа»
+    atamasi (`BR-014` egizagi), ikkita yolg'on tasdiq (DBSCAN va kodda
+    mavjud bo'lmagan qamrov-tashqarisi statusi), §26.1 ning repoda yo'q
+    to'qqiz hujjati, SEC holatiga zid xavfsizlik standarti da'vosi va 👤 qarori
+    bekor qilgan `OQ-1` «bloklaydi» ustuni. To'plamlar kesishmaydi —
+    har qator o'z jadvalida, yig'ish xavfsiz.
+
+    `undeclared` — 1: butun BRD «джиттер» ni bilmaydi, mahsulotning
+    markaziy maxfiylik mexanizmi (`05` §3.1) lug'atdan tashqarida.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_glossary_contract` ikki tomonlama qulflaydi.
+    """
+    report = bglos_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=(
+            len(report.terms)
+            + len(report.docs)
+            + len(report.standards)
+            + len(report.diagrams)
+            + len(report.oq)
+        ),
+        flagged=len(report.flagged),
+        undeclared=len(bglos_mod.UNDECLARED_TERMS),
+    )
+
+
+def _probe_business_environment(_doc: str | None = None) -> Probe:
+    """BRD §14–§17 — 39 qator: 10 taxmin, 7 cheklov, 12 risk, 10 bog'liqlik (103-run).
+
+    `total` — to'rt jadval qatorlarining yig'indisi. `flagged` to'rt
+    sababni **yig'adi** va bu xavfsiz (to'plamlar kesishmaydi — har
+    qator faqat o'z jadvalida): javobi oldindan tanlangan taxminlar,
+    buzilgan/chetga qo'yilgan cheklovlar, chorasi repoda to'liq
+    bo'lmagan risklar va qurilgan mahsulotda o'lik bog'liqliklar.
+
+    `undeclared` — 0, `business_requirements` bilan bir sabab: bu
+    bo'limlar muhitni tasvirlaydi, qurilgan-nomlanmagan xulqni boshqa
+    reyestrlar sanaydi.
+
+    Hujjat kerak emas: baholar reyestrda, hujjat bilan tenglikni
+    `test_business_environment_contract` ikki tomonlama qulflaydi.
+    """
+    report = benv_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.accurate),
+        total=(
+            len(report.assumptions)
+            + len(report.constraints)
+            + len(report.risks)
+            + len(report.dependencies)
+        ),
+        flagged=(
+            len(report.prejudged)
+            + len(report.breached)
+            + len(report.waived)
+            + len(report.unguarded_risks)
+            + len(report.moot)
+        ),
+        undeclared=0,
+    )
+
+
 def _probe_user_stories(_doc: str | None = None) -> Probe:
     """`01` §9/§10 — to'qqizta band, uchta o'q.
 
@@ -821,6 +1005,54 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.SELF_CONTAINED,
         endpoint=None,
         probe=_probe_business_rules,
+    ),
+    Registry(
+        code="business_environment",
+        spec=benv_mod.SPEC,
+        module="app.release.business_environment",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_environment,
+    ),
+    Registry(
+        code="business_interfaces",
+        spec=bifc_mod.SPEC,
+        module="app.release.business_interfaces",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_interfaces,
+    ),
+    Registry(
+        code="business_reporting",
+        spec=brep_mod.SPEC,
+        module="app.release.business_reporting",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_reporting,
+    ),
+    Registry(
+        code="business_acceptance",
+        spec=bacc_mod.SPEC,
+        module="app.release.business_acceptance",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_acceptance,
+    ),
+    Registry(
+        code="business_architecture",
+        spec=barch_mod.SPEC,
+        module="app.release.business_architecture",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_architecture,
+    ),
+    Registry(
+        code="business_glossary",
+        spec=bglos_mod.SPEC,
+        module="app.release.business_glossary",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_business_glossary,
     ),
     Registry(
         code="risks",

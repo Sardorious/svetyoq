@@ -50,6 +50,10 @@ EXCLUDED = {
     # sifatida saqlaydi — guvoh emas (77/82/85/100-runlar qoidasi).
     "business_requirements.py",
     "test_business_requirements_contract.py",
+    # 108-run: BRD §26.2 reyestri standart nomlarini hujjat kataklari
+    # sifatida saqlaydi (BABOK, PMBOK, …) — guvoh emas, nusxa.
+    "business_glossary.py",
+    "test_business_glossary_contract.py",
 }
 
 
@@ -154,6 +158,21 @@ def test_s07_declares_no_separate_slo(nfr_spec: str) -> None:
     assert "отдельного SLO" in row
     nfr = next(n for n in na.NFRS if n.code == "NFR-S-07")
     assert nfr.delivered is na.Delivered.UNREADABLE
+
+
+def test_spec_points_at_the_measured_sections(prd_text: str) -> None:
+    """`SPEC` ankraji aynan test o'lchaydigan bo'limlarni nomlaydi.
+
+    116-run M1 (113 M8 sinfi): vitrina `entry.spec == na.SPEC` deb
+    refleksiv solishtiradi — noto'g'ri raqam (`§30`) ham o'tardi.
+    Bu yerda raqamlar hujjatga yechiladi: birinchi bo'limda §15
+    jadvali, ikkinchisida §31 bandlari yashashi shart.
+    """
+    numbers = [int(m) for m in re.findall(r"§(\d+)", na.SPEC)]
+    assert numbers == sorted(numbers) and len(numbers) == 2
+    first, second = (_section(prd_text, n) for n in numbers)
+    assert "| NFR-S-01 |" in first
+    assert "### Наследуемые документы" in second
 
 
 # --------------------------------------------------------------------------
@@ -278,6 +297,19 @@ def test_baseline_doc_mentioned_only_in_appendix(prd_text: str) -> None:
     lines = [ln for ln in prd_text.splitlines() if na.BASELINE_DOC in ln]
     assert len(lines) == 1
     assert "ташкентский пакет" in lines[0]
+
+
+def test_baseline_doc_is_the_nfr_document() -> None:
+    """Tayanch hujjat — ro'yxatdagi NFR fayli, boshqa nom emas.
+
+    116-run M4: `..._is_in_inherited_list` har qanday ro'yxat a'zosini,
+    `..._mentioned_only_in_appendix` esa faqat §31 qatorida uchraydigan
+    har qanday nomni o'tkazadi — `05_API.md` ham ikkala darvozadan
+    o'tardi. NFR deltasining tayanchi NFR hujjati ekani nomning o'zida
+    o'lchanadi: ro'yxatda to'rtinchi o'rin va `NFR` o'zagi.
+    """
+    assert na.BASELINE_DOC == na.INHERITED_DOCS[3].name
+    assert "NFR" in na.BASELINE_DOC
 
 
 def test_no_research_artifacts_in_repo() -> None:
@@ -478,6 +510,42 @@ def test_report_verdicts(report: na.NfrAppendixReport) -> None:
     assert not report.accurate
 
 
+def test_accurate_needs_each_of_the_three_conjuncts() -> None:
+    """`accurate` uch kon'yunktning har biriga alohida muhtoj.
+
+    116-run M12 (107/110/112/113/114/115 sinfi): bugun uchala kon'yunkt
+    ham `False`, shuning uchun `and`→`or` mutanti farqsiz o'tardi.
+    Uchta sun'iy hisobot har kon'yunktni yolg'iz `True` qiladi —
+    `and` da javob `False` bo'lib qolishi shart, `or` da `True`
+    bo'lib ketardi.
+    """
+    base = na.evaluate()
+
+    class RowsHoldOnly(na.NfrAppendixReport):
+        @property
+        def rows_hold(self) -> bool:
+            return True
+
+    class InheritanceOnly(na.NfrAppendixReport):
+        @property
+        def inheritance_witnessed(self) -> bool:
+            return True
+
+    class NoDormantOnly(na.NfrAppendixReport):
+        @property
+        def dormant_remarks(self) -> tuple[na.Remark, ...]:
+            return ()
+
+    for cls in (RowsHoldOnly, InheritanceOnly, NoDormantOnly):
+        r = cls(
+            nfrs=base.nfrs,
+            inherited_docs=base.inherited_docs,
+            remarks=base.remarks,
+            standards=base.standards,
+        )
+        assert not r.accurate, cls.__name__
+
+
 def test_by_delivered_partition(report: na.NfrAppendixReport) -> None:
     partition = report.by_delivered
     assert sum(len(v) for v in partition.values()) == len(report.nfrs)
@@ -536,6 +604,24 @@ def test_guard_unverifiable_requires_gap() -> None:
 
     bad = replace(na.NFRS[2], gap="")
     with pytest.raises(na.NfrAppendixError, match="farq yozilmagan"):
+        na.NfrAppendixReport(
+            nfrs=(bad,),
+            inherited_docs=na.INHERITED_DOCS,
+            remarks=na.REMARKS,
+            standards=na.STANDARDS,
+        )
+
+
+def test_guard_rejects_a_dotless_bind() -> None:
+    """116-run M7 (111 M8 sinfi): nuqta-qorovul joriy reyestrda hech
+    qachon otilmaydi — har real bindda `.` bor (`app.x` yoki `x.py`).
+    Sun'iy nuqtasiz bind uni yolg'iz qoldirib tekshiradi; qorovul
+    o'chsa xato keyingi (`test bindi`) qorovulga siljiydi va `match`
+    baribir yiqiladi."""
+    from dataclasses import replace
+
+    bad = replace(na.NFRS[0], binds=("appgeoregistrypick_for_point",))
+    with pytest.raises(na.NfrAppendixError, match="shakli buzilgan"):
         na.NfrAppendixReport(
             nfrs=(bad,),
             inherited_docs=na.INHERITED_DOCS,

@@ -221,6 +221,21 @@ def test_guard_rejects_a_foreign_twin(report: brl.BusinessRulesReport) -> None:
         brl.BusinessRulesReport(rules=broken)
 
 
+def test_guard_rejects_built_without_evidence(report: brl.BusinessRulesReport) -> None:
+    """`BUILT` dalilsiz bo'lmaydi — qorovulning o'zi ham qulflanadi.
+
+    111-run mutatsiyasi ko'rsatdi: bu qorovulni o'chirib qo'yish
+    41 testning birortasini yiqitmasdi — haqiqiy qatorlarda `binds`
+    doim bor edi (`test_every_rule_has_evidence`), qorovul esa
+    faqat buzilgan kirishda ishlaydi.
+    """
+    broken = tuple(
+        replace(r, binds=()) if r.code == "BRL-02" else r for r in report.rules
+    )
+    with pytest.raises(brl.BusinessRulesError):
+        brl.BusinessRulesReport(rules=broken)
+
+
 def test_guard_rejects_healing_the_official_pair(report: brl.BusinessRulesReport) -> None:
     """`OFFICIAL_PAIR` ni jimgina `BUILT` qilib qo'yish mumkin emas."""
     broken = tuple(
@@ -430,6 +445,33 @@ def test_broken_set_is_the_majority(report: brl.BusinessRulesReport) -> None:
     assert len(report.broken) == 11
     assert not report.rules_hold
     assert not report.accurate
+
+
+def test_spec_gated_is_the_two_spec_change_rules(report: brl.BusinessRulesReport) -> None:
+    """`spec_gated` sirti qulflanadi — 111-rungacha bu xossani hech
+    bir test o'qimasdi (mutatsiya M9 shuni ochdi)."""
+    assert [r.code for r in report.spec_gated] == ["BRL-09", "BRL-15"]
+    for rule in report.spec_gated:
+        assert "§9" in rule.note and "yo'q" in rule.note, rule.code
+
+
+def test_spec_gated_needs_the_absence_word_not_just_the_section(
+    report: brl.BusinessRulesReport,
+) -> None:
+    """Ikkala kon'yunkt ham ishlaydi: §9 tilga olinishi yetmaydi —
+    kalit **yo'qligi** ham aytilgan bo'lishi shart. Joriy qatorlarda
+    ikki shart doim birga uchraydi, shuning uchun yarim-kon'yunkt
+    mutanti tarkibga qarab ushlanmaydi (108–110 survivorlari sinfi);
+    bu test shartni sun'iy kirishda ajratadi.
+    """
+    doctored = tuple(
+        replace(r, note=r.note + " (Izoh: `06` §9 jadvaliga qarang.)")
+        if r.code == "BRL-02"
+        else r
+        for r in report.rules
+    )
+    probe = brl.BusinessRulesReport(rules=doctored)
+    assert [r.code for r in probe.spec_gated] == ["BRL-09", "BRL-15"]
 
 
 def test_registry_is_wired_into_the_index() -> None:

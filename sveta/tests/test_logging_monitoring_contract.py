@@ -392,6 +392,9 @@ def test_the_product_still_does_not_geocode() -> None:
         "app/core/config.py",
         "app/integrations/registry.py",
         "app/obs/monitoring.py",
+        # 107-run: BRD §24 `GC` tuguni — o'n birinchi reyestr, o'sha
+        # sinf: chaqiruv emas, izoh (`ABSENT` bahosi kalitlarni nomlaydi).
+        "app/release/business_architecture.py",
         # 76-run: `01` §28 ning `DP-3` qatori — bo'shliq endi to'rtta
         # reyestrda to'rt xil savolga javob beradi. Bu yerda: «§28
         # ning bog'liqligi hali ham voz kechilganmi».
@@ -414,6 +417,16 @@ def test_the_product_still_does_not_geocode() -> None:
         # aynan shu sababdan `01` §16/§18 ning `GEOCODER_UNAVAILABLE`
         # xato kodi hech qachon ishlab chiqarilmaydi.
         "app/release/ux_requirements.py",
+        # 103-run: BRD §17 ning `D-06` qatori — **to'qqizinchi** reyestr.
+        # Bu yerdagi savol: «hujjat "Высокая" degan bog'liqlik qurilgan
+        # mahsulotda hali ham o'likmi». Javob: ha — sozlama sirti bor,
+        # mexanizm yo'q, va `D-06` shu sababdan `MOOT`.
+        "app/release/business_environment.py",
+        # 104-run: BRD §18 ning «Геокодер — Требуется» qatori —
+        # **o'ninchi** reyestr. Bu yerdagi savol: «BRD ning integratsiya
+        # jadvali talab deb yozgan tizim hali ham qurilmaganmi». Javob:
+        # ha — va bu to'g'ri: mahsulot usiz qurilgan (H-6, `D-06` MOOT).
+        "app/release/business_interfaces.py",
     }
 
     fields = set(Settings.model_fields)

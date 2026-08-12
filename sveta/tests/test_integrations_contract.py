@@ -462,6 +462,18 @@ def test_geocoder_has_no_call_site() -> None:
         "app/core/config.py",
         "app/integrations/registry.py",
         "app/obs/monitoring.py",
+        # 107-run: BRD §24 `GC` tuguni — o'n birinchi reyestr, o'sha
+        # sinf: chaqiruv emas, izoh («klient kodda yo'q» bahosining
+        # o'zi `geocoder_provider` kalitlarini nomlab o'tadi).
+        "app/release/business_architecture.py",
+        # 103-run: BRD §17 `D-06` — to'qqizinchi reyestr, qolganlari
+        # bilan bir sinf: chaqiruv emas, izoh. Savoli: «BRD kritik
+        # degan geokoder repo uchun hali ham `MOOT` mi».
+        "app/release/business_environment.py",
+        # 104-run: BRD §18 «Геокодер — Требуется» qatori — o'ninchi
+        # reyestr, o'sha sinf: chaqiruv emas, izoh (`D-06` MOOT ga
+        # bog'lam).
+        "app/release/business_interfaces.py",
         # 76-run: `01` §28 ning geokoder qatori — beshinchi reyestr.
         "app/release/dependencies.py",
         "app/release/risks.py",

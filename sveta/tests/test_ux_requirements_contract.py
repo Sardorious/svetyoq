@@ -1286,6 +1286,20 @@ def test_the_registry_rejects_duplicate_codes() -> None:
         ux.UxRequirementsReport(nodes=(), clauses=(_clause(), _clause()), edges=())
 
 
+def test_the_registry_rejects_a_web_bind_without_a_target() -> None:
+    """114-run survivori (M10): `web/` dalilida nishon **majburiy**.
+
+    Qoida `_bind_shape` da yozilgan («fayl nomining o'zi 94–96-run
+    defektlarini ko'rsatmagan»), lekin `web/` yarmining «`:` yo'q»
+    tarmog'i hech qachon otilmagan edi — `return True` mutanti 70
+    testdan o'tdi (111 M8 sinfi: qorovulning o'zi testlanmagan).
+    """
+    with pytest.raises(ux.UxRequirementsError, match="shakli"):
+        ux.UxRequirementsReport(
+            nodes=(_node(binds=("web/style.css",)),), clauses=(), edges=()
+        )
+
+
 def _node(**kwargs) -> ux.FlowNode:
     defaults = {
         "key": "A",
@@ -1480,6 +1494,30 @@ def test_the_verdict_is_inaccurate_and_every_condition_matters() -> None:
     assert report.witnesses_hold is False
     assert report.voices_hold is False
     assert report.flow_completes is False
+
+
+def test_accurate_needs_all_four_conjuncts() -> None:
+    """114-run survivori (M12): `and`→`or` joriy ma'lumotda farqsiz.
+
+    Bugun to'rtala shart ham `False`, ya'ni kon'yunksiya va dizyunksiya
+    bir xil javob beradi (112 M11 / 107–113 `accurate` sinfi). Ikkita
+    sun'iy hisobot ikki tomondan qulflaydi: uchta shart rost, oqim
+    uzuq — va oqim butun, bitta qator qurilmagan. Ikkalasida ham
+    `accurate` `False` bo'lishi shart.
+    """
+    three_hold = ux.UxRequirementsReport(nodes=(), clauses=(), edges=())
+    assert three_hold.surfaces_hold and three_hold.witnesses_hold and three_hold.voices_hold
+    assert three_hold.flow_completes is False
+    assert three_hold.accurate is False
+
+    flow_only = ux.UxRequirementsReport(
+        nodes=(_node(key="A"), _node(key="O")),
+        clauses=(_clause(surface=ux.Surface.PARTIAL, gap="qurilmagan"),),
+        edges=(("A", "O"),),
+    )
+    assert flow_only.flow_completes is True
+    assert flow_only.surfaces_hold is False
+    assert flow_only.accurate is False
 
 
 def test_the_registry_is_in_the_index() -> None:

@@ -257,7 +257,9 @@ def test_br005_rejection_not_storage(brd_text: str) -> None:
     offenders = [
         p.name
         for p in APP_DIR.rglob("*.py")
-        if p.name != "business_requirements.py"
+        # `business_glossary.py` — §25 ning `out_of_coverage` atamasini
+        # baholaydigan reyestr (108-run): izoh, chaqiruv emas.
+        if p.name not in ("business_requirements.py", "business_glossary.py")
         and br.DOC_STATUS in p.read_text(encoding="utf-8")
     ]
     assert offenders == [], f"maqom endi kodda: {offenders}"
@@ -550,3 +552,70 @@ def test_guard_requires_evidence_for_built_and_gap_for_the_rest() -> None:
 def test_guard_recounts_group_sizes() -> None:
     with pytest.raises(br.BusinessRequirementsError):
         _rebuild(code="BR-028", group="Notification")
+
+
+# --------------------------------------------------------------------------
+# 7. Mutatsiya qulflari (113-run: M8–M12 survivorlari)
+# --------------------------------------------------------------------------
+
+
+def test_spec_names_the_section_the_rows_come_from(brd_text: str, spec: str) -> None:
+    """`SPEC` — bezak emas, jadval yashaydigan bo'lim raqami (113 M8).
+
+    Fixture §8 ni raqam bilan qazadi, `SPEC` esa alohida satr edi —
+    «§9» mutanti 45 testdan o'tardi. Endi raqam `SPEC` dan olinadi va
+    o'sha bo'limda jadval haqiqatan turgani tekshiriladi.
+    """
+    number = re.search(r"§(\d+)$", br.SPEC)
+    assert number
+    section = _section(brd_text, int(number.group(1)))
+    assert section == spec
+    assert "| BR-001 " in section
+
+
+def test_guard_rejects_empty_sources() -> None:
+    """113 M9: «manba katagi bo'sh» qorovulining o'zi yurgiziladi.
+
+    Bo'sh kortejda `_computed_warrant` ham `NATIVE` qaytaradi, ya'ni
+    qorovul o'chirilsa xato indamay o'tib ketardi.
+    """
+    with pytest.raises(br.BusinessRequirementsError, match="bo'sh"):
+        _rebuild(code="BR-001", sources=())
+
+
+def test_guard_rejects_a_bind_without_a_dot() -> None:
+    """113 M10: `binds` shakl qorovulining nuqta yarmi yurgiziladi.
+
+    Satr-niqob testi kortej tekshiruvida to'xtaydi — «`.` yo'q» sharti
+    shu paytgacha hech qachon otilmagan edi.
+    """
+    with pytest.raises(br.BusinessRequirementsError, match="shakli"):
+        _rebuild(code="BR-018", binds=("subscription",))
+
+
+def test_missing_docs_shrinks_when_no_row_uses_the_source(report) -> None:
+    """113 M11: `missing_docs` reyestrdan hisoblanadi, lug'atdan emas.
+
+    `PG-5` — `02_PRD.md` ning yagona ishlatuvchisi (BR-010). U manba
+    almashtirsa hujjat to'plamdan chiqishi shart; `SOURCE_HOME`
+    qiymatlarini quruq sanaydigan mutant buni sezmasdi.
+    """
+    assert "02_PRD.md" in report.missing_docs
+    rebuilt = _rebuild(code="BR-010", sources=("BP-3",), warrant=br.Warrant.NATIVE)
+    assert "02_PRD.md" not in rebuilt.missing_docs
+    assert rebuilt.missing_docs == report.missing_docs - {"02_PRD.md"}
+
+
+def test_accurate_needs_both_conjuncts() -> None:
+    """113 M12: `accurate` kon'yunksiya (110/112 sinfi).
+
+    Joriy ma'lumotda ikkala shart birga `False`, `and`→`or` sezilmasdi.
+    Hamma qator `BUILT` qilinganda `delivered_hold` chin bo'ladi,
+    `warrants_hold` esa yolg'onligicha qoladi — `accurate` baribir
+    `False` bo'lishi shart.
+    """
+    rows = tuple(replace(r, delivered=br.Delivered.BUILT) for r in br.REQUIREMENTS)
+    rebuilt = br.BusinessRequirementsReport(requirements=rows)
+    assert rebuilt.delivered_hold is True
+    assert rebuilt.warrants_hold is False
+    assert rebuilt.accurate is False

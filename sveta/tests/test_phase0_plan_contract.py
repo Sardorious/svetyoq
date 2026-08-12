@@ -326,6 +326,20 @@ def test_critical_path_is_m7_and_m6(doc_text: str) -> None:
     assert "2026-09-01 da ishga tushiriladi" in line
 
 
+def test_critical_path_order_is_read_from_doc(doc_text: str) -> None:
+    """`CRITICAL_PATH` ning **tartibi** hujjatdan sanaladi (112-run qulfi).
+
+    Eski test faqat a'zolikni tekshirardi (`**M-7` va `**M-6` qatorda
+    bor-yo'qligini) — juftlikni `("M-6", "M-7")` ga almashtirgan mutant
+    54 testdan o'tib ketardi. Tartib ma'noli: §5.2 kritik yo'lni M-7
+    (45 kun, eng uzun) boshlaydi.
+    """
+    sec = _section(doc_text, 5)
+    line = sec.split("### 5.2")[1].split("###")[0]
+    first_seen = list(dict.fromkeys(re.findall(r"M-\d", line)))
+    assert first_seen[: len(pp.CRITICAL_PATH)] == list(pp.CRITICAL_PATH)
+
+
 def test_asymmetric_rule_scope_and_shape(doc_text: str) -> None:
     """§5.3: qoida aynan H-1 va H-7 uchun; jadvali uch qatorli va
     asimmetriya ochiq aytilgan."""
@@ -777,6 +791,77 @@ def test_guard_critical_risk_needs_mitigation() -> None:
 def test_guard_closes_must_point_at_real_things() -> None:
     with pytest.raises(pp.Phase0PlanError, match="Ilova D da yo'q"):
         pp.Phase0Report(**{**_base(), "closes": {"C-99": "M-3"}})
+
+
+def test_guard_duplicate_hypothesis_codes_raise() -> None:
+    """Takror kod qorovuli o'zi ham yiqitiladi (112-run qulfi).
+
+    Qorovul bor edi, lekin uni hech bir test yurgizmasdi — o'chirgan
+    mutant sezilmasdi (111 M8 sinfi: qorovulning o'zi testlanmagan).
+    """
+    from dataclasses import replace
+
+    bad = tuple(
+        replace(h, code="H-1") if h.code == "H-2" else h for h in pp.HYPOTHESES
+    )
+    with pytest.raises(pp.Phase0PlanError, match="takrorlanadi"):
+        pp.Phase0Report(**{**_base(), "hypotheses": bad})
+
+
+def test_guard_partial_outside_serves_raises() -> None:
+    """`partial ⊆ serves` qorovuli ham yurgiziladi (112-run qulfi)."""
+    from dataclasses import replace
+
+    bad = tuple(
+        replace(m, partial=("H-7",)) if m.code == "M-1" else m for m in pp.METHODS
+    )
+    with pytest.raises(pp.Phase0PlanError, match="tashqarida"):
+        pp.Phase0Report(**{**_base(), "methods": bad})
+
+
+def test_guard_exit1_fires_on_any_untested_not_all() -> None:
+    """EXIT-1 qorovuli **kamida bitta** o'lchanmagan gipotezada otiladi
+    (112-run qulfi).
+
+    Joriy ma'lumotda sakkizalasi `UNTESTED` — `any` va `all` farqsiz,
+    shuning uchun `any`→`all` mutanti eski to'plamdan o'tib ketardi
+    (108–111 «bor tekshirilardi, to'liq emas» sinfi). Bitta gipoteza
+    o'lchangan holda ham qorovul otilishi shart.
+    """
+    from dataclasses import replace
+
+    mixed = tuple(
+        replace(h, result=pp.Result.CONFIRMED) if h.code == "H-1" else h
+        for h in pp.HYPOTHESES
+    )
+    checked = tuple(
+        replace(c, checked=True) if c.code == "PH0-EXIT-1" else c
+        for c in pp.EXIT_CRITERIA
+    )
+    with pytest.raises(pp.Phase0PlanError, match="EXIT-1"):
+        pp.Phase0Report(
+            **{**_base(), "hypotheses": mixed, "exit_criteria": checked}
+        )
+
+
+def test_accurate_needs_both_conjuncts() -> None:
+    """`accurate` kon'yunksiya — yarmi yetmaydi (112-run qulfi).
+
+    Joriy ma'lumotda ikkala shart ham `False`, shuning uchun `and`→`or`
+    mutanti sezilmasdi (110 BENV/BIFC dagi `accurate` survivorlari bilan
+    bitta sinf). OS-01 ziddiyati olib tashlangan-u posturalar qolgan
+    holda ham hukm `False` bo'lishi shart.
+    """
+    from dataclasses import replace
+
+    no_tension = tuple(
+        replace(o, tension="") if o.code == "PH0-OS-01" else o
+        for o in pp.OUT_OF_SCOPE
+    )
+    report = pp.Phase0Report(**{**_base(), "out_of_scope": no_tension})
+    assert not report.scope_tensions  # birinchi kon'yunkt endi qanoatlangan
+    assert not report.free_to_measure  # ikkinchisi hali ham yiqiq
+    assert not report.accurate
 
 
 # --------------------------------------------------------------------------

@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-11.
+**Oxirgi yangilanish:** 2026-08-12.
 
 ---
 
@@ -21,12 +21,51 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `BRD_Samarkand.md` §8 (28 `BR-*`) — bog'langan
   (`app/release/business_requirements.py`); BRD §13 (15 `BRL-*`
   qoidasi) — bog'langan (`app/release/business_rules.py`; 11 tasi
-  buzilgan, `BRL-08` — statistika agregatida **mahsulot defekti**).
-  Keyingi nomzod: BRD ning qolgan bo'limlari (§14–§19, §20–§23).
-* **Yashil holat:** 141 test fayli; butun to'plam (DB bilan) **3059
+  buzilgan, `BRL-08` — statistika agregatida **mahsulot defekti**);
+  BRD §14–§17 (atrof-muhit: 10 `A-*`, 7 cheklov, 12 `RS-*`, 10 `D-*`)
+  — bog'langan (`app/release/business_environment.py`; `CON-05` stek
+  ziddiyati — BRD Redis/Kafka/K8s ↔ ADR-05; `RS-*` nomfazosi `01` §26
+  bilan to'qnashadi; kritik yo'l o'z jadvaliga zid, `D-09`/`D-04`/
+  `D-06` mahsulotda MOOT); BRD §18–§19 (10 integratsiya + 8 rol) —
+  bog'langan (`app/release/business_interfaces.py`; Open Data API
+  «вне скоупа» lekin qurilgan; Kafka/Redis `BASELINE-TAS` — `CON-05`
+  ga hujjat ichidan dalil; 8 rol ↔ 3 kod roli, moderator
+  confirm/split siz; Overpass ikkala §18 dan tashqarida);
+  BRD §20–§21 (6 hisobot + 4 dashboard + 7 KPI + 8 metrika) —
+  bog'langan (`app/release/business_reporting.py`; §21 «izmerimost»
+  yakuni 3 metrikada yiqiladi; avtotasdiq KPI qurilish bo'yicha
+  bajariladi; agregat farqi bitta-manba arxitekturasida bo'sh;
+  sifat hisoboti/dashboardi `ABSENT`); BRD §22–§23 (14 qabul mezoni +
+  7 faza) — bog'langan (`app/release/business_acceptance.py`;
+  xronologiya teskari — mahsulot go/no-go dan oldin qurilgan,
+  `PH0-OS-01` egizagi; §22/§23-Support yakuni o'lchab bo'lmaydigan
+  §21 ga tayanadi; AC-1.7 Toshkent regressiyasi va AC-1.8 skoupli
+  rollar bu repoda ifodalanmaydi; AC-0.5 qayd joyi yo'q);
+  BRD §24 (19 diagramma tuguni + 6 arxitektura qarori) — bog'langan
+  (`app/release/business_architecture.py`; §24 ↔ `01` §29 — ikkita
+  har xil «High-Level Architecture», beshta konteyner faqat §24 da;
+  chizma mikroservis/Kafka/Redis ↔ repo monolit — 6 tugun `ABSENT`,
+  7 `IN_MONOLITH`; «Go»/«React»/«DBSCAN» yorliqlari kodga zid;
+  §24.2 qarorlarining 5/6 tasi esa bajarilgan — muammo chizmada);
+  BRD §25–§26 (17 atama + 9 hujjat + 12 standart + 4 diagramma +
+  8 OQ) — bog'langan (`app/release/business_glossary.py`; `OQ-*`
+  ro'yxati topildi, lekin `01` ning `OQ-01` iga mos emas — ikkinchi
+  nomfazo to'qnashuvi; bitta paketda ikkita lug'at, «отметка» ikki
+  xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
+  birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
+  **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
+* **Yashil holat:** 147 test fayli; butun to'plam (DB bilan) **3357
   passed, 1 skipped**; `-m requires_db` **231 passed** (⚠️ `pg_ctl
   start` bilan bitta bash chaqiruvida — alohida chaqiruvda server
-  o'ladi); `alembic` 0001→0010 toza; `ruff` toza.
+  o'ladi); `alembic` 0001→0010 toza; `ruff` toza; mutatsiya qamrovi
+  `business_requirements`, `business_reporting`,
+  `business_acceptance`, `business_architecture`,
+  `business_glossary`, `business_environment`,
+  `business_interfaces` va `business_rules` da 12/12 — **butun BRD
+  oilasi (§8 talablar reyestri bilan birga) mutatsiya qarzsiz**;
+  `phase0_plan`, `ux_requirements`, `user_stories` va `nfr_appendix`
+  ham 12/12 — **eski kontraktlarning mutatsiya qarzi to'liq yopildi**
+  (107–116-runlar seriyasi).
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
   (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
@@ -92,6 +131,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | NFR — `01` §15 (NFR deltasi) + §31 (Appendix: meros hujjatlari, zamechanielar, standartlar) | 🔄 | `app/release/nfr_appendix.py` |
 | PH0 — `02` Faza 0 validatsiya rejasi (gipotezalar, metodlar, go/no-go, RACI) | 🔄 | `app/release/phase0_plan.py` |
 | BRD — BRD §8 biznes talablari (28 `BR-*` ↔ qurilgan mahsulot; 20 High dan 11 tasi `BUILT` emas; 17 qator asosi yo'q hujjatlarda, sinf 10→13) | 🔄 | `app/release/business_requirements.py` |
+| BGLOS — BRD §25–§26 (lug'at, ilova: hujjatlar, standartlar, diagrammalar, `OQ-*`; paket yakuni — §8–§26 to'liq bog'landi) | 🔄 | `app/release/business_glossary.py` |
 | BRL — BRD §13 biznes qoidalari (15 `BRL-*` ↔ xulq-atvor; 11 tasi buzilgan; rasmiy qatlam `confidence=100` — taqiqlangan chegara; `stats_rows_started_between` `layer` ni ko'rmaydi — yagona mahsulot defekti; 4 kategorik hukmdan 0 tasi to'liq) | 🔄 | `app/release/business_rules.py` |
 | UX-2 — `01` §11–§14 (User Flow, Business Process, UX/UI talablari); §11 graf sifatida o'qiladi, `flow_completes = False` | 🔄 | `app/release/ux_requirements.py`, `tests/test_ux_requirements_contract.py` |
 | WEB — `web/` xulq-atvor qatlami (DOM + CSS kaskadi + JS chaqiruv grafi); matn qatlami ko'rmaydigan defekt sinfini tuzilma qatlami ushlaydi | 🔄 | `web/`; qorovul — `tests/test_ux_requirements_contract.py` |
@@ -100,8 +140,8 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **141 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam (DB bilan) **3059 passed, 1 skipped**; `-m requires_db`
+Jami **147 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
+to'plam (DB bilan) **3353 passed, 1 skipped**; `-m requires_db`
 **231 passed** — ⚠️ `pg_ctl start`, `alembic upgrade head` va
 `pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
 chaqiruv oxirida o'ladi va o'nlab yolg'on yiqilish chiqadi;
@@ -132,12 +172,18 @@ PostGIS — §6 retsepti.
 | INT | `test_integrations_contract` |
 | ARCH | `test_architecture_contract` |
 | VIT | `test_admin_registries` |
-| UX-2 | `test_ux_requirements_contract` — **70 test**: uch o'quvchi (DOM, CSS kaskadi, JS chaqiruv grafi); §11 graf sifatida (`reachable`, `flow_completes`); o'quvchilarning o'zlari ham testlanadi |
-| UX | `test_user_stories_contract` — **69 test**, to'rt qatlam (`ast` bilan, matn qidirilmaydi) |
-| NFR | `test_nfr_appendix_contract` — **49 test**: hujjat + fayl tizimi + kod + boshqa kontraktlar; `Delivered` × `Enforcement` × `Baseline` |
-| PH0 | `test_phase0_plan_contract` — **54 test**: hujjat (H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, sanalar mosligi), kod guvohlari, boshqa reyestrlar, fayl tizimi |
-| BRD | `test_business_requirements_contract` — **45 test**: hujjat (yetti kichik bo'lim, 28 qator, legenda, «Источник» kataklari), fayl tizimi (yetti yo'q hujjat), kod (TTL, jitter, rol, xato kodi, sxema), boshqa reyestrlar; qorovullar alohida |
-| BRL | `test_business_rules_contract` — **41 test**: hujjat (15 qator, shakl ЕСЛИ/kategorik matndan qayta sanaladi, sonlar «3 ч»/«30» parse), kod (`AUTHORITATIVE_CONFIDENCE`, `stats_rows_started_between` `ast` bilan, sxema ustunlari), §8 egizaklari, indeks; qorovullar alohida |
+| UX-2 | `test_ux_requirements_contract` — **72 test**: uch o'quvchi (DOM, CSS kaskadi, JS chaqiruv grafi); §11 graf sifatida (`reachable`, `flow_completes`); o'quvchilarning o'zlari ham testlanadi; mutatsiya 12/12 (ikki survivor — `_bind_shape` ning `web/` nishonsiz yarmi va `accurate` kon'yunksiyasi — aynan qulflangan) |
+| UX | `test_user_stories_contract` — **71 test**, to'rt qatlam (`ast` bilan, matn qidirilmaydi); mutatsiya 12/12 (ikki survivor — `preconditions_hold` ning `if s.gherkin` filtri va `accurate` kon'yunksiyasi — aynan qulflangan) |
+| NFR | `test_nfr_appendix_contract` — **53 test**: hujjat + fayl tizimi + kod + boshqa kontraktlar; `Delivered` × `Enforcement` × `Baseline`; mutatsiya 12/12 (to'rt survivor — `SPEC` ankraji, `BASELINE_DOC` almashuvi, bind nuqta-qorovuli, `accurate` kon'yunksiyasi — aynan qulflangan) |
+| PH0 | `test_phase0_plan_contract` — **59 test**: hujjat (H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, sanalar mosligi, kritik yo'l tartibi), kod guvohlari, boshqa reyestrlar, fayl tizimi; qorovullar alohida; mutatsiya 12/12 (besh survivor — `CRITICAL_PATH` tartibi, ikki yurgizilmagan qorovul, EXIT-1 `any`/`all`, `accurate` kon'yunksiyasi — aynan qulflangan) |
+| BRD | `test_business_requirements_contract` — **50 test**: hujjat (yetti kichik bo'lim, 28 qator, legenda, «Источник» kataklari), fayl tizimi (yetti yo'q hujjat), kod (TTL, jitter, rol, xato kodi, sxema), boshqa reyestrlar; qorovullar alohida; mutatsiya 12/12 (besh survivor — `SPEC` ankraji, bo'sh `sources` va `binds`-nuqta qorovullari, `missing_docs` hisoblanishi, `accurate` kon'yunksiyasi — aynan qulflangan) |
+| BENV | `test_business_environment_contract` — **47 test**: to'rt jadval (10 `A-*`, 7 cheklov, 12 `RS-*`, 10 `D-*`) hujjatdan qayta sanaladi; kritik yo'l va `RS-*` to'qnashuvi ikkala hujjatdan; qorovullar alohida; mutatsiya 12/12 (to'rt survivor — `BANNED_TECH` to'plami, ikki juft→yarim qorovul, `accurate` kon'yunksiyasi — aynan qulflangan) |
+| BIFC | `test_business_interfaces_contract` — **55 test**: ikki jadval (10 integratsiya, 8 rol) hujjatdan qayta sanaladi; `01` §18 egizaklari (`Warrant` sinxron), «Ограничения» ↔ `security`, Kafka/Redis ↔ `BANNED_TECH`, Overpass teskari topilmasi; qorovullar alohida; mutatsiya 12/12 (olti survivor — «to'plamning yarmi» sinfi va qorovul o'chirilishi — aynan qulflangan) |
+| BREP | `test_business_reporting_contract` — **43 test**: to'rt jadval (6 hisobot, 4 dashboard, 7 KPI, 8 metrika) hujjatdan qayta sanaladi; §22 «izmerimost» iborasi matndan; UZ-sessiya chegaralari ↔ `analytics.dashboards`, avtotasdiq ↔ `business_interfaces`; qorovullar alohida; mutatsiya 12/12 (survivor testi — `UZ_SESSION_LIMITS` aynan qulflangan) |
+| BACC | `test_business_acceptance_contract` — **43 test**: §22 ikki jadvali (5+9 mezon) va §23 fazalar jadvali hujjatdan qayta sanaladi, gantt sanalari qulflangan; xronologiya dalillari repo tuzilishidan; `business_reporting`/`phase0_plan`/`roadmap`/`admin.roles` bog'lamlari; qorovullar alohida; mutatsiya 12/12 (survivor testi — `success_holds` kon'yunksiyasi qulflangan) |
+| BARCH | `test_business_architecture_contract` — **42 test**: §24.1 mermaid tugunlari subgraph kesimida va §24.2 qarorlar jadvali hujjatdan qayta sanaladi; `01` §29 bilan farq ikkala hujjatdan (`S24_ONLY_CONTAINERS`); yorliq-yolg'onlar kod skanidan (aiogram, React siz, inkremental); NER/geokoder yo'qligi runtime paketlardan; `core.architecture`/`business_environment`/`business_acceptance` bog'lamlari; qorovullar alohida; mutatsiya 12/12 (ikki survivor — `S24_ONLY_CONTAINERS` to'plami va `{"KF","RD"}` qorovuli — aynan qulflangan), **44 test** |
+| BGLOS | `test_business_glossary_contract` — **45 test**: §25 jadvali, §26.1/§26.3/§26.4 jadvallari va §26.2 ro'yxati hujjatdan qayta sanaladi; `OQ-01` havolalari `01` dan sanaladi (nomfazo to'qnashuvi); 120 daq/`out_of_coverage`/UZ-RU/LICENSE/джиттер — kod va fayl tizimidan; `business_requirements`/`glossary`/`dependencies`/`security` bog'lamlari; qorovullar alohida; mutatsiya 12/12 (survivor — `_check_evidence` qorovulining STALE yarmi — `test_guard_rejects_stale_without_evidence` bilan aynan qulflangan) |
+| BRL | `test_business_rules_contract` — **44 test**: hujjat (15 qator, shakl ЕСЛИ/kategorik matndan qayta sanaladi, sonlar «3 ч»/«30» parse), kod (`AUTHORITATIVE_CONFIDENCE`, `stats_rows_started_between` `ast` bilan, sxema ustunlari), §8 egizaklari, indeks; qorovullar alohida; mutatsiya 12/12 (ikki survivor — «`BUILT` dalilsiz» qorovulining o'zi va `spec_gated` sirti — aynan qulflangan) |
 | LEX | `test_glossary_contract` |
 | SUC | `test_success_metrics_contract` |
 | SCOPE | `test_scope_contract` |
@@ -254,8 +300,14 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 | §28 ning birinchi qatori «весь региональный запуск» ni to'sadi deydi; amalda `bbox` qorovuli va `FR-S-802` degradatsiyasi — qator torroq yoziladimi | REL (`01` §28), E2, E14 |
 | §28 ga Telegram Bot API va OSM/ODbL qatorlari qo'shiladimi (bugun ikkalasi ham reyestrda yo'q) | REL (`01` §28), E3, E2 |
 | `AUTHORITATIVE_CONFIDENCE = 100` — `BRL-03` «не предельного» deydi, `06` §2.2 son bermaydi: 100 pasaytiriladimi yoki BRD tahrirlanadimi; «конфликт источников» bayrog'i alohida ishmi | BRL, E5b, E8 |
+| Open Data API — BRD §18 «Ph.3, вне скоупа», repo esa REST/CSV/GeoJSON ni qurib bo'lgan: skoup qayta yoziladimi yoki sirt cheklanadimi | BIFC, E15, E14 |
+| BRD §19 ning 8 roli ↔ koddagi 3 rol: veb-akkaunt/operator/Super Admin yo'q, moderator «подтверждение»/«разделение» siz — hujjat tahriri yoki rol rejasi | BIFC, E8, E13, SEC |
 | `stats_rows_started_between` `layer` ni ko'rmaydi — rasmiy hodisa jamoaviy metrikaga qo'shiladi (`BRL-08` defekti); `05` §7.2 ga `layer` kesimi yoziladimi | BRL, E14, `05` §7.2 |
 | `BRL-05` (shaxsiy otmetka modeli) va `BRL-09` («30» chegarasi) so'zma-so'z qurilmaydi — BRD tahriri yoki `06` §9 ga yangi kalitlar | BRL, E5b, E14 |
+| BRD §22 muvaffaqiyatni «метрики §21 измерены» deb ta'riflaydi — 3 metrika o'lchab bo'lmaydi (Time-to-answer, UZ-sessiya, SLA), 2 tasi qurilish bo'yicha bo'sh: `05` §10 kengaytiriladimi yoki §21 qayta yoziladimi | BREP, BACC, REL, OBS, ANL |
+| BRD §23 jadvali hujjat sifatida bajarilmaydi (mahsulot go/no-go dan oldin qurilgan — `PH0-OS-01` sinfi) va AC-1.7 (Toshkent regressiyasi) / AC-1.8 (skoupli rollar) bu repoda ifodalanmaydi — mezonlar qayta yoziladimi | BACC, E8, `02` |
+| BRD §1–§7 va §9–§12 reyestrsiz qoladimi — §26.3 ning §9/§10 flowchartlarini hech bir reyestr o'qimaydi; paket §8–§26 bilan yakunlangan deb qayd etiladimi | BGLOS, REL |
+| `OQ-*` nomfazosi: `01` ning `OQ-01` i (chegara akti) BRD §26.4 dagi `OQ-1` (moliya) emas — `01` savoli ta'riflanadimi yoki BRD ro'yxati qonun deb raqamlash tuzatiladimi | BGLOS, REL (`01` §28), E2 |
 
 ---
 

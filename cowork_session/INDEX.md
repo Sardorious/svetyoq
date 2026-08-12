@@ -12,6 +12,453 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **116-run: `nfr_appendix` mutatsiyasi 12/12 — 107-runda boshlangan
+> eski kontraktlar mutatsiya seriyasi TUGADI.** 12 mutatsiya: 8 ushlandi,
+> **4 survivor**, to'rttasi ham tanish sinflar: M1 — `SPEC` ankraji
+> (`§31`→`§30`): vitrina `entry.spec == na.SPEC` refleksiv (113 M8
+> sinfi); M4 — `BASELINE_DOC`→`05_API.md`: «ro'yxatda bor» va «faqat
+> §31 qatorida uchraydi» darvozalari har ikkisi boshqa nomni ham
+> o'tkazardi; M7 — bind nuqta-qorovuli: har real bindda `.` bor,
+> tarmoq hech qachon otilmagan (111 M8 sinfi); M12 — `accurate`
+> `and`→`or` (107/110/112–115 sinfi): uchala kon'yunkt bugun `False`.
+> To'rt qulf testi (`test_spec_points_at_the_measured_sections` —
+> SPEC raqamlari hujjatga yechiladi;
+> `test_baseline_doc_is_the_nfr_document` — to'rtinchi o'rin + `NFR`
+> o'zagi; `test_guard_rejects_a_dotless_bind` — sun'iy nuqtasiz bind;
+> `test_accurate_needs_each_of_the_three_conjuncts` — uch subklass har
+> kon'yunktni yolg'iz qiladi), to'rtala mutant qayta ushlandi, fayl
+> 49 → **53 test**. Mahsulot kodi tegilmadi.
+> **Yashil:** butun to'plam **3357 passed, 1 skipped** (115: 3353 —
+> aynan +4); `alembic upgrade` 0001→0010 toza (`downgrade base` 0010 da
+> ataylab `NotImplementedError` — kutilgan); `ruff check` toza.
+> Git chaqirilmadi.
+> ⚠️ **Muhit (117 o'qisin):** 113–115 sandboxi yana tirik —
+> `/tmp/mamba/envs/{py311,pg}` qayta o'rnatilmadi; yangi
+> `initdb -D /tmp/pgdata116 -U sveta`, port **55531**, `-k /tmp`,
+> `listen_addresses=localhost` shart; `TMPDIR=/tmp` majburiy;
+> olti partiya (25 fayl), server bash chaqiruvlari orasida o'ladi —
+> har partiyada `pg_ctl status || start`; `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`). Drayver `/tmp/mut116/driver.py`.
+> **Keyingi qadam — 117-run:** (1) mutatsiya seriyasi tugadi — endi
+> `PROGRESS.md` «Ochiq savollar» dagi navbatdagi ish yoki yangi epic
+> bo'lagi; (2) 👤 §1–§7/§9–§12, §24↔§29, `OQ-*` nomfazosi va lug'at
+> savollari javob kutadi; (3) 👤 serverda `deploy.sh` va brauzer
+> tekshiruvi kutmoqda.
+
+> ✅ **115-run: `user_stories` mutatsiyasi 12/12 — mutatsiyasiz
+> eski kontraktlardan faqat `nfr_appendix` qoldi.** 12 mutatsiya:
+> 10 ushlandi, **2 survivor**, ikkalasi tanish sinflar: M11 —
+> `preconditions_hold` ning `if s.gherkin` filtri: joriy reyestrda
+> ikkala gherkinli `Given` allaqachon yiqiq (`US-S1`/`US-S3`
+> `UNREACHABLE`), filtrli va filtrsiz o'qish bir xil `False` berardi;
+> M12 — `accurate` `and`→`or` (107/110/112/113/114 sinfi): to'rtala
+> kon'yunkt bugun `False`. Ikki qulf testi
+> (`test_preconditions_judge_only_gherkin_stories` — sun'iy reyestr
+> filtrni yolg'iz qoldiradi; `test_accurate_needs_each_of_the_four_conjuncts`
+> — ikkita sun'iy hisobot ikki tomondan), ikkala mutant qayta ushlandi,
+> fayl 69 → **71 test**. Qolgan 10 mutatsiya birinchi urinishda KILLED
+> — hujjat-parse, taqsimot va qorovul (90/91-run «har biri alohida
+> yiqitiladi») testlari kuchli. Mahsulot kodi tegilmadi.
+> **Yashil:** butun to'plam **3353 passed, 1 skipped** (114: 3351 —
+> aynan +2); `alembic` 0001→0010 toza; `ruff check` toza (⚠️ `ruff
+> format --check` 0.16.2 da 124 faylni qayta formatlamoqchi — env
+> drifti, gate emas, kod formatlanmadi). Git chaqirilmadi.
+> ⚠️ **Muhit (116 o'qisin):** 113/114 sandboxi yana tirik —
+> `/tmp/mamba/envs/{py311,pg}` qayta o'rnatilmadi; yangi
+> `initdb -D /tmp/pgdata115 -U sveta`, port **55530**, `-k /tmp`,
+> **`listen_addresses=localhost` shart** (conftest portni TCP bilan
+> tekshiradi — socket-only rejimda `requires_db` skip bo'ladi);
+> `TMPDIR=/tmp` majburiy; olti partiya (25 fayl), har partiyada
+> `pg_ctl status || start`; `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`). Drayver `/tmp/mut115/driver.py`.
+> **Keyingi qadam — 116-run:** (1) mutatsiyasiz oxirgisi:
+> `nfr_appendix` (49 test); (2) 👤 §1–§7/§9–§12, §24↔§29, `OQ-*`
+> nomfazosi va lug'at savollari javob kutadi; (3) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi kutmoqda.
+
+> ✅ **114-run: `ux_requirements` mutatsiyasi 12/12 — mutatsiyasiz
+> eski kontraktlarning birinchisi yopildi.** 12 mutatsiya: 10 ushlandi,
+> **2 survivor**, ikkalasi tanish sinflar: M10 — `_bind_shape` ning
+> `web/` yarmi: «`:` yo'q» tarmog'i hech qachon otilmagan (111 M8
+> sinfi), `return True` mutanti 70 testdan o'tardi; M12 — `accurate`
+> `and`→`or` (107/110/112/113 sinfi): bugun **to'rtala** kon'yunkt ham
+> `False`, farq ko'rinmasdi. Ikki qulf testi
+> (`test_the_registry_rejects_a_web_bind_without_a_target`,
+> `test_accurate_needs_all_four_conjuncts` — ikkita sun'iy hisobot ikki
+> tomondan), ikkala mutant qayta ushlandi, fayl 70 → **72 test**.
+> Qolgan 10 mutatsiya birinchi urinishda KILLED — hujjat-parse va graf
+> testlari kuchli. Mahsulot kodi tegilmadi.
+> **Yashil:** butun to'plam **3351 passed, 1 skipped** (113: 3349 —
+> aynan +2); `alembic` 0001→0010 toza; `ruff` toza. Git chaqirilmadi.
+> ⚠️ **Muhit (115 o'qisin):** 113 sandboxi tirik chiqdi —
+> `/tmp/mamba/envs/{py311,pg}` qayta o'rnatilmadi; yangi
+> `initdb -D /tmp/pgdata114 -U sveta`, port **55529**, `-k /tmp`,
+> `TMPDIR=/tmp` majburiy; olti partiya (25 fayl), har partiyada
+> `pg_ctl start`; `/sessions` 100% to'la (👤 `cleanup-sessions.ps1`).
+> Drayver `/tmp/mut114/driver.py`.
+> **Keyingi qadam — 115-run:** (1) mutatsiyasiz qolgan ikkitadan
+> bittasi: `user_stories` (69) yoki `nfr_appendix` (49); (2) 👤
+> §1–§7/§9–§12, §24↔§29, `OQ-*` nomfazosi va lug'at savollari javob
+> kutadi; (3) 👤 serverda `deploy.sh` va brauzer tekshiruvi kutmoqda.
+
+> ✅ **113-run: `business_requirements` mutatsiyasi 12/12 — BRD oilasi
+> butunlay mutatsiya qarzsiz.** 12 mutatsiya: 7 ushlandi, **5 survivor**,
+> beshalasi tanish sinflar: M8 — `SPEC = "BRD §8"` ankrajsiz (indeks
+> `entry.spec == br.SPEC` deb refleksiv solishtiradi, «§9» o'tardi);
+> M9/M10 — bo'sh `sources` qorovuli va `binds` ning «`.` yo'q» yarmi
+> hech qachon otilmagan (111 M8 sinfi); M11 — `missing_docs` ni
+> `SOURCE_HOME` dan quruq sanaydigan mutant farqsiz (hamma uy
+> ishlatilgan — «hisoblangan↔doimiy»); M12 — `accurate` `and`→`or`
+> (107/110/112 sinfi). Besh qulf testi
+> (`test_spec_names_the_section_the_rows_come_from`,
+> `test_guard_rejects_empty_sources`,
+> `test_guard_rejects_a_bind_without_a_dot`,
+> `test_missing_docs_shrinks_when_no_row_uses_the_source`,
+> `test_accurate_needs_both_conjuncts`), beshala mutant qayta ushlandi,
+> fayl 45 → **50 test**. Mahsulot kodi tegilmadi.
+> **Yashil:** butun to'plam **3349 passed, 1 skipped** (112: 3344 —
+> aynan +5); `alembic` 0001→0010 toza; `ruff` toza. Git chaqirilmadi.
+> ⚠️ **Muhit (114 o'qisin):** `/tmp/mamba/envs/{py311,pg}` tirik —
+> qayta o'rnatilmadi; yangi `initdb -D /tmp/pgdata113 -U sveta`, port
+> **55528**, `-k /tmp`, `TMPDIR=/tmp` majburiy; olti partiya (25 fayl),
+> har partiyada `pg_ctl start`; `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`). Kontrakt fayli **sekin** (~23 s) —
+> drayver uch chaqiruvda (4+4+4), skript `/tmp/mut113/` da.
+> **Keyingi qadam — 114-run:** (1) mutatsiyasiz reyestrlar davomi:
+> `ux_requirements` / `user_stories` / `nfr_appendix` dan bittasi;
+> (2) 👤 §1–§7/§9–§12, §24↔§29, `OQ-*` nomfazosi va lug'at savollari
+> javob kutadi; (3) 👤 serverda `deploy.sh` va brauzer tekshiruvi
+> kutmoqda.
+
+> ✅ **112-run: `phase0_plan` mutatsiyasi 12/12 — mutatsiyasiz
+> reyestrlar davomi.** 12 mutatsiya: 7 ushlandi, **5 survivor**,
+> beshalasi ham tanish sinflar: M8 — `CRITICAL_PATH` **tartibi**
+> tekshirilmasdi (test faqat a'zolikni ko'rardi); M9/M10 — takror-kod
+> va `partial ⊆ serves` qorovullarining o'zi testlanmagan (111 M8
+> sinfi); M11 — EXIT-1 qorovulida `any`↔`all` joriy ma'lumotda farqsiz
+> (sakkizalasi `UNTESTED`); M12 — `accurate` `and`→`or` (110 BENV/BIFC
+> sinfi). Besh qulf testi
+> (`test_critical_path_order_is_read_from_doc`,
+> `test_guard_duplicate_hypothesis_codes_raise`,
+> `test_guard_partial_outside_serves_raises`,
+> `test_guard_exit1_fires_on_any_untested_not_all`,
+> `test_accurate_needs_both_conjuncts`), beshala mutant qayta ushlandi,
+> fayl 54 → **59 test**. Mahsulot kodi tegilmadi.
+> **Yashil:** butun to'plam **3344 passed, 1 skipped** (111: 3339 —
+> aynan +5); `alembic` 0001→0010 toza; `ruff` toza.
+> ⚠️ Yo'l-yo'lakay bir marta `git diff --stat` chaqirildi (qoida
+> buzish) — bu safar `index.lock` qolmadi, lekin takrorlanmasin.
+> ⚠️ **Muhit (113 o'qisin):** `/tmp/mamba/envs/{py311,pg}` tirik —
+> qayta o'rnatilmadi; yangi `initdb -D /tmp/pgdata112 -U sveta`, port
+> **55527**, `-k /tmp`, `TMPDIR=/tmp` majburiy; olti partiya (25 fayl),
+> har partiyada `pg_ctl start` — server bash chaqiruvlari orasida
+> o'ladi; `/sessions` 100% to'la (👤 `cleanup-sessions.ps1`). Kontrakt
+> fayli tez (~1 s) — driver ikki chaqiruvga sig'di (6+7).
+> **Keyingi qadam — 113-run:** (1) mutatsiyasiz reyestrlar davomi:
+> `ux_requirements` / `user_stories` / `nfr_appendix` /
+> `business_requirements` dan bittasi; (2) 👤 §1–§7/§9–§12, §24↔§29,
+> `OQ-*` nomfazosi va lug'at savollari javob kutadi; (3) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi kutmoqda.
+
+> ✅ **111-run: `business_rules` mutatsiyasi 12/12 — eski kontraktlar
+> mutatsiya qarzining birinchisi yopildi + 110 arxiv qarzi tiklandi.**
+> 12 mutatsiya: 10 ushlandi, **2 survivor**: M8 — «`BUILT` dalilsiz
+> bo'lmaydi» qorovulini o'chirsa 41 testning birortasi sezmasdi
+> (qorovulning o'zi testlanmagan edi); M9 — `spec_gated` xossasini
+> hech bir test o'qimasdi, ustiga «§9»/«yo'q» kon'yunktlari joriy
+> ma'lumotda doim birga (108–110 sinfi). Uch qulf testi
+> (`test_guard_rejects_built_without_evidence`,
+> `test_spec_gated_is_the_two_spec_change_rules`,
+> `test_spec_gated_needs_the_absence_word_not_just_the_section`),
+> ikkala mutant qayta ushlandi, fayl **44 test**. Mahsulot kodi
+> tegilmadi. Yo'l-yo'lakay: 110 sessiya limitiga urilib INDEX/arxivsiz
+> qolgan ekan — `110_benv_bifc_mutatsiya_95205d01.md` tiklandi, INDEX
+> yangilandi.
+> **Yashil:** butun to'plam **3339 passed, 1 skipped** (110: 3336 —
+> aynan +3); `requires_db` partiyalarda; `alembic` 0001→0010 toza;
+> `ruff` toza; 147 test fayli.
+> ⚠️ **Muhit (112 o'qisin):** `/tmp/mamba/envs/{py311,pg}` tirik —
+> qayta o'rnatilmadi; yangi `initdb -D /tmp/pgdata111 -U sveta`, port
+> **55526**, `-k /tmp`, `TMPDIR=/tmp` majburiy; olti partiya (25 fayl),
+> har partiyada `pg_ctl start`; `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`). Mutatsiya driveri bitta bash
+> chaqiruviga sig'maydi — `-x` bilan, ikki yarimda.
+> **Keyingi qadam — 112-run:** (1) mutatsiyasiz reyestrlar davomi:
+> `phase0_plan` / `ux_requirements` / `user_stories` / `nfr_appendix` /
+> `business_requirements` dan bittasi; (2) 👤 §1–§7/§9–§12, §24↔§29,
+> `OQ-*` nomfazosi va lug'at savollari javob kutadi; (3) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi kutmoqda.
+
+> ✅ **110-run: BENV + BIFC mutatsiyasi 12/12 — sessiya limit bilan
+> uzilgan, arxivi 111 da tiklangan.** BENV: 8 ushlandi, 4 survivor
+> (M4 `BANNED_TECH` elementi, M7/M9 juft→yarim, M12 `accurate`
+> `and`→`or`), to'rt qulf, fayl 47 test. BIFC: 6 ushlandi, 6 survivor
+> (dalil to'rtligi→`is LIVE`, `gap`→`is AHEAD`, rol→`is BUILT`,
+> `ABSENT` ning `code_role` yarmi, `rejected <= BANNED_TECH` qorovuli,
+> `accurate` `and`→`or`), olti qulf, fayl 55 test. Mahsulot kodi
+> tegilmadi. **Yashil:** 3336 passed, 1 skipped (109: 3326 — +10).
+> Batafsil: `110_benv_bifc_mutatsiya_95205d01.md`.
+
+> ✅ **109-run: `business_glossary` mutatsiyasi 12/12 — BRD paketining
+> mutatsiya qarzi to'liq yopiq.** 12 mutatsiya: 11 ushlandi, **1
+> survivor** — 108 survivorlari bilan bitta sinf («bor» tekshirilardi,
+> «to'liq» emas): `_check_evidence` dagi `t.ground in (Ground.HOLDS,
+> Ground.STALE)` jufti `is Ground.HOLDS` ga kuchsizlansa 44 test ham
+> sezmasdi — HOLDS yarmi testlangan edi, STALE yarmi emas.
+> `test_guard_rejects_stale_without_evidence` bilan qulflandi (STALE
+> atama ham dalilsiz kirmaydi), mutant qayta ushlanishi tasdiqlandi,
+> fayl 45 test. Mahsulot kodi tegilmadi; **yangi ish ataylab
+> boshlanmadi** — §1–§7/§9–§12 uchun reyestr ochish 👤 «paket §8–§26
+> bilan yakunmi» savolini oldindan hal qilib qo'ygan bo'lardi.
+> Yo'l-yo'lakay: 108 `PROGRESS.md` ning «Joriy holat» jadvalini
+> yangilamagan ekan (jurnal va INDEX to'g'ri edi) — 109 da tuzatildi
+> («Joriy epic» → 109, «Oldingi run (108)» qatori qo'shildi).
+> **Yashil:** butun to'plam **3326 passed, 1 skipped** (108: 3325 —
+> aynan +1 qulf testi); `requires_db` 231; `alembic` 0001→0010 toza;
+> `ruff` toza; 147 test fayli.
+> ⚠️ **Muhit (110 o'qisin):** `/tmp/mamba/envs/{py311,pg}` tirik
+> chiqdi — qayta o'rnatilmadi; `pgdata108` `nobody:700` yaroqsiz —
+> yangi `initdb -D /tmp/pgdata109 -U sveta`, port **55524**, `-k /tmp`,
+> `TMPDIR=/tmp` majburiy; olti partiya (25 fayl), har partiyada
+> `pg_ctl start`; `/sessions` 100% to'la (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 110-run:** (1) 👤 §1–§7/§9–§12 savoliga qarab yo
+> yangi reyestr, yo boshqa 🔄 blok; (2) 👤 §24↔§29, `OQ-*` nomfazosi va
+> lug'at savollari javob kutadi; (3) 👤 serverda `deploy.sh` va
+> brauzer tekshiruvi hali kutmoqda.
+
+> ✅ **108-run: mutatsiya qarzi yopildi + BRD PAKETI YAKUNI —
+> §25–§26 lug'at va ilova kodda.** (a) `business_architecture` ga
+> 12 mutatsiya: 10 ushlandi, **2 survivor** — bir sinf («bor»
+> tekshirilardi, «to'liq» emas): `S24_ONLY_CONTAINERS` dan element
+> tushishi va `_check_neighbors` `{"KF","RD"}` ning yarmiga
+> kuchsizlanishi; `test_s24_only_containers_is_the_full_set` va
+> `test_guard_needs_both_kafka_and_redis_declined` bilan qulflandi,
+> 12/12, fayl 44 test.
+> (b) Yangi: `app/release/business_glossary.py` va
+> `tests/test_business_glossary_contract.py` (**44 test**); indeksga
+> ulandi (`registry.business_glossary` UZ+RU; `total=50` — 17 atama +
+> 9 hujjat + 12 standart + 4 diagramma + 8 OQ; `flagged=15`,
+> `undeclared=1`). Atamalar: 9 `HOLDS` / 4 `DOC_LAYER` / 2 `STALE` /
+> 2 `FALSE`; standartlar 4 `EVIDENCED` / 7 `DECLARED` / 1 `CONTESTED`.
+> 🔴 **Asosiy topilma — `OQ-*` ro'yxati topildi, lekin u boshqa
+> ro'yxat:** BRD §26.4 `OQ-1`…`OQ-8` ni ta'riflaydi, `01` esa `OQ-01`
+> ni uch marta havola qiladi va u BRD dagi birortasiga mos emas
+> (mazmuni chegara akti ↔ BRD `OQ-1` moliya) — `RS-*` dan keyingi
+> ikkinchi nomfazo to'qnashuvi, 95-run savoli yopilmadi, aniqlashdi
+> (👤 yangi savol PROGRESS da).
+> 🔴 **Ikkinchisi — bitta paketda ikkita lug'at:** `01` §30 «Report
+> (отметка)» sinonim deydi, §25 «Отметка»/«Репорт» ni ajratadi;
+> DBSCAN §25 da ham «применяемый» — yolg'onning uchinchi hujjat joyi.
+> 🔴 **Uchinchisi — §26.1 to'qqiz hujjatining birortasi repoda yo'q;**
+> `business_requirements.missing_docs` shu ro'yxatning qism-to'plami.
+> 🔴 **To'rtinchisi — «3 часа» lug'atda ham eskirgan** (↔ 120 daq,
+> `BR-014` egizagi); `out_of_coverage` §25 da status — kod rad etadi.
+> 🟡 Butun BRD «джиттер» ni bilmaydi (`undeclared=1`); §26.3 ning
+> §9/§10 flowchartlari o'quvchisiz — **BRD §1–§7/§9–§12 reyestrsiz,
+> paket §8–§26 bilan yakunmi — 👤 yangi savol**; OWASP ASVS ↔ SEC
+> (`CONTESTED`); `OQ-1` 👤 moliya qarori bilan `MOOT`; LICENSE
+> haqiqatan yo'q. Eski drift-qulflar kutilganidek yiqildi:
+> `test_br005` istisnosi va `nfr_appendix.EXCLUDED` ga
+> `business_glossary` qo'shildi; `registries.py` probe izohi tokensiz.
+> **Yashil:** butun to'plam **3325 passed, 1 skipped** (107: 3279 —
+> +44 +2 kuchaytirilgan); `requires_db` 231; `alembic` 0001→0010 toza;
+> `ruff` toza; 147 test fayli.
+> ⚠️ **Muhit (109 o'qisin):** `/tmp/mamba/envs/{py311,pg}` tirik
+> chiqdi — qayta o'rnatilmadi; `pgdata107` `nobody:700` yaroqsiz —
+> yangi `initdb -D /tmp/pgdata108 -U sveta`, port **55523**, `-k /tmp`,
+> `TMPDIR=/tmp` majburiy; olti partiya (18–30 fayl), har partiyada
+> `pg_ctl start`; `/sessions` 100% to'la (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 109-run:** (1) `business_glossary` ga 12
+> mutatsiya; (2) BRD paketi yakunlandi — 👤 §1–§7/§9–§12 savoliga
+> qarab yo yangi reyestr, yo boshqa 🔄 blok; (3) 👤 §24↔§29 va ikki
+> yangi savol javob kutadi; (4) 👤 serverda `deploy.sh` va brauzer
+> tekshiruvi hali kutmoqda.
+
+> ✅ **107-run: mutatsiya qarzi yopildi + paketning TO'QQIZINCHI hujjat
+> bo'limi kodda — BRD §24 arxitektura.** (a) `business_acceptance` ga
+> 12 mutatsiya: 11 ushlandi, 1 survivor (`success_holds` da `and`→`or` —
+> ikkala kon'yunkt bugun `False`) — `test_success_requires_both_conjuncts`
+> bilan qulflandi (report patchdan oldin quriladi, §21 sun'iy
+> «tuzatilganda» ham muvaffaqiyat `False`), 12/12.
+> (b) Yangi: `app/release/business_architecture.py` va
+> `tests/test_business_architecture_contract.py` (**42 test**); indeksga
+> ulandi (`registry.business_architecture` UZ+RU; `total=25` — 19 tugun
+> (11 platforma + 4 ombor + 4 tashqi) + 6 qaror, `flagged=14`,
+> `undeclared=0`). Map: 3 `AS_DRAWN` / 7 `IN_MONOLITH` / 3 `RESHAPED` /
+> 6 `ABSENT`; qarorlar 5 `HONORED` / 1 `PARTIAL`.
+> 🔴 **Asosiy topilma — ikkita «High-Level Architecture» bir-biriga
+> zid:** BRD §24 o'n to'qqiz tugun chizadi (beshta konteyner —
+> API Gateway, Territory Registry, Official Source Ingestor, Analytics
+> Service, Object Storage — `01` §29 da umuman yo'q; TERR «НОВОЕ»),
+> §29 esa «наследуется без изменений, faqat GEO» deydi; bo'limlar
+> bir-biriga havola bermaydi (👤 yangi savol PROGRESS da).
+> 🔴 **Ikkinchisi — chizma monolitga qarshi, qarorlar mos:** 6 tugun
+> `ABSENT` (KF/RD — ADR-05/`CON-05`; OBJ/ING/GC/SRC — umuman yo'q),
+> 7 tugun monolit moduli; §24.2 ning 6 qaroridan 5 tasi esa bajarilgan —
+> chizma Toshkentdan meros, forkda qayta chizilmagan (78-run tuzog'i).
+> 🔴 **Uchinchisi — yorliqlar yolg'on:** «Go» bot ↔ aiogram/Python,
+> «React» web ↔ ataylab vanilla JS, «DBSCAN worker» ↔ sinxron
+> inkremental (`05` §4.1) — alohida `RESHAPED` sinfi.
+> 🟡 **To'rtinchisi — ING/GC uchun kod yo'q:** parser/NER umuman
+> uchramaydi (rasmiy manba qo'lda), geokoderning faqat kaliti bor.
+> **Yashil:** butun to'plam **3279 passed, 1 skipped** (106: 3236 —
+> aynan +42 +1 kuchaytirilgan); `requires_db` 231; `alembic` 0001→0010
+> toza; `ruff` toza; 146 test fayli. ⚠️ Ikki geokoder drift-qulfi
+> kutilganidek yiqildi — ro'yxatlarga `business_architecture.py`
+> qo'shildi (o'n birinchi «izoh, chaqiruv emas» fayli).
+> ⚠️ **Muhit (108 o'qisin):** `pgdata106` `nobody:700` yaroqsiz —
+> yangi `initdb -D /tmp/pgdata107 -U sveta`, port **55522**, `-k /tmp`,
+> `DATABASE_URL` env bilan; 18 faylli partiyalar, har partiyada `pg_ctl
+> start`; `TMPDIR=/tmp` majburiy; `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 108-run:** (1) `business_architecture` ga 12
+> mutatsiya; (2) BRD §25–§26 (Glossary ↔ kod atamalari, Appendix §26.1
+> meros hujjatlar ↔ 101 «yo'q hujjatlar» sinfi) — paket yakuni;
+> (3) 👤 yangi savol (§24 ↔ §29) javob kutadi; (4) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi hali kutmoqda.
+
+> ✅ **106-run: mutatsiya qarzi yopildi + paketning SAKKIZINCHI hujjat
+> bo'limi kodda — BRD §22–§23 qabul va jadval.** (a) `business_reporting`
+> ga 12 mutatsiya: 11 ushlandi, 1 survivor (`UZ_SESSION_LIMITS` elementi
+> to'plam tekshiruvlarida sezilmasdi) — test aynan qulflandi, 12/12.
+> (b) Yangi: `app/release/business_acceptance.py` va
+> `tests/test_business_acceptance_contract.py` (**42 test**); indeksga
+> ulandi (`registry.business_acceptance` UZ+RU; `total=21` — 14 mezon +
+> 7 faza, `flagged=15`, `undeclared=0`). Build: 4 `LIVE` / 2 `PARTIAL` /
+> 4 `PROVISIONED` / 4 `ABSENT`.
+> 🔴 **Asosiy topilma — xronologiya teskari:** §23 gantt Ph.0 ni
+> 2026-09-01 dan boshlaydi, go/no-go 2026-10-20; repo esa bugun butun
+> mahsulot — Discovery/Development/Testing artefaktlari qarordan oldin
+> mavjud (`PH0-OS-01` egizagi, 👤 qaror qurilishga bor).
+> 🔴 **Ikkinchisi — §22 yakuni va §23-Support «метрики §21 измерены» ga
+> tayanadi**, u esa `False` (105 topilmasi; `SUCCESS_CLAUSE` ataylab
+> `brep.MEASURABILITY_CLAUSE` ning o'zi).
+> 🔴 **Uchinchisi — AC-1.7/AC-1.8 uchun voqelik yo'q:** Toshkent merosi
+> bu repoda yo'q; rollarda skoup tushunchasi yo'q — ikkalasi `ABSENT`.
+> 🟡 **To'rtinchisi — AC-0.5:** go/no-go qarorini yozadigan joy yo'q
+> (`roadmap.recorded` bo'sh, 75/77 sinfi).
+> **Yashil:** butun to'plam **3236 passed, 1 skipped** (105: 3193 —
+> aynan +43); `requires_db` 231; `alembic` 0001→0010 toza; `ruff` toza;
+> 145 test fayli. ⚠️ `PHASE0_START_DATE` nomi risk-reyestr qulfiga
+> ilindi — `PH0_START_DATE` ga qayta nomlandi (qorovul bo'shatilmadi).
+> ⚠️ **Muhit (107 o'qisin):** yangi `initdb -D /tmp/pgdata106`, port
+> **55521**; bash ~178 s — 18 faylli partiyalar, har partiyada `pg_ctl
+> start`; toza bazaga avval `alembic upgrade head`. `/sessions` 100%
+> to'la (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 107-run:** (1) `business_acceptance` ga 12
+> mutatsiya; (2) BRD §24 (arxitektura ↔ `01` §29/ADR, `CON-05`
+> to'qnashuvi kutiladi), keyin §25–§26; (3) 👤 yangi savol (§23 jadvali
+> va AC-1.7/1.8 skoupi); (4) 👤 brauzer tekshiruvi va serverda
+> `deploy.sh` hali kutmoqda.
+
+> ✅ **105-run: paketning YETTINCHI hujjat bo'limi kodda — BRD §20–§21
+> hisobot va muvaffaqiyat o'lchovlari.** Yangi:
+> `app/release/business_reporting.py` va
+> `tests/test_business_reporting_contract.py` (**42 test**); indeksga
+> ulandi (`registry.business_reporting` UZ+RU; `total=25` — 6 hisobot +
+> 4 dashboard + 7 KPI + 8 metrika, `flagged=17`, `undeclared=0`).
+> §22–§23 hajm sababli 106 ga qoldi. Yangi `Meter` o'qi:
+> 4 `MEASURED` / 3 `DERIVABLE` / 3 `MOOT` / 1 `MANUAL` / 4 `UNMEASURED`.
+> 🔴 **Asosiy topilma — §21 ning o'z yakuni bajarilmaydi:** BRD §22
+> muvaffaqiyatni «метрики §21 измерены» deb ta'riflaydi, sakkizdan
+> uchtasi o'lchab bo'lmaydi (Time-to-answer p90 — `05` §10 da yo'q;
+> UZ-sessiya — «sessiya» tushunchasi kodda yo'q; moderatsiya SLA —
+> mexanizm yo'q) (👤 savol PROGRESS da).
+> 🔴 **Ikkinchisi — avtotasdiq KPI o'z-o'zidan:** qo'lda «подтверждение»
+> yo'q (104 §19 egizagi) → 100% avtomatik, ≥60% qurilish bo'yicha
+> (`MOOT`, `bifc.MODERATOR_BUILT_VERBS` ga qulflangan).
+> 🟡 **Uchinchisi — «расхождение агрегатов» bo'sh:** hudud summasi va
+> jami bitta manbadan (`stats.aggregate`), solishtiradigan juft yo'q.
+> 🔴 **To'rtinchisi — sifat hisoboti/dashboardi `ABSENT`:** uchala soni
+> (moderatsiya ulushi, dubl ulushi, agregat farqi) ham yig'ilmaydi.
+> **Yashil:** butun to'plam **3193 passed, 1 skipped** (104: 3151 —
+> aynan +42); `requires_db` 231; `alembic` 0001→0010 toza; `ruff` toza.
+> ⚠️ Mutatsiya bu run o'tkazilmadi — 106 boshida yangi modulga.
+> ⚠️ **Muhit (106 o'qisin):** yangi `initdb -D /tmp/pgdata105`, port
+> **55520**; **bash chegarasi ~178 s** — to'plam 18 faylli 8 partiyada;
+> toza bazaga avval `alembic upgrade head`, konftest schema qurmaydi.
+> `/sessions` 100% to'la (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 106-run:** (1) yangi modulga 12 mutatsiya;
+> (2) BRD §22–§23 (Acceptance ↔ «izmerimost» bog'lami tayyor; Timeline —
+> kod go/no-go dan oldin qurilgan, `PH0-OS-01` sinfi); keyin §24–§26;
+> (3) 👤 yangi savol (§21 o'lchanganlik mezoni); (4) 👤 brauzer
+> tekshiruvi va serverda `deploy.sh` hali kutmoqda.
+
+> ✅ **104-run: paketning OLTINCHI hujjat bo'limi kodda — BRD §18–§19
+> interfeyslar.** Yangi: `app/release/business_interfaces.py` va
+> `tests/test_business_interfaces_contract.py` (**49 test**); indeksga
+> ulandi (`registry.business_interfaces` UZ+RU; `total=18` — 10
+> integratsiya + 8 rol, `flagged=12`, `undeclared=1` — Overpass API
+> **ikkala** hujjatning §18 idan tashqarida). «Статус» kataklari
+> heterogen — `Claim` sinfi `classify_status()` bilan hisoblanadi;
+> «Ограничения» uch bandi `security` reyestriga qulflandi (MFA
+> `ABSENT`, `read_exact_geo` `SUBSTITUTED`).
+> 🔴 **Asosiy topilma — Open Data API:** §18 «Ph.3, вне скоупа» — repo
+> esa qator sanagan hammasini qurib bo'lgan (E15 REST, CSV, GeoJSON);
+> `CON-02` ning teskari ishoralisi, yangi `Build.AHEAD` sinfi (👤
+> skoup qayta yozilsinmi).
+> 🟡 **Ikkinchisi — Kafka/Redis `CON-05` ni yumshatadi:** §18 ularni
+> `BASELINE-TAS` (Toshkent merosi bilim) deb belgilaydi, talab deb
+> emas — «§15 Toshkent platformasini tasvirlaydi» o'qishiga hujjat
+> ichidan dalil (103 savoliga javob emas, dalil).
+> 🔴 **Uchinchisi — §19: 8 rol ↔ kodda 3.** Veb-akkaunt, operator,
+> Super Admin — `ABSENT`; kurator/analitik — `SUBSTITUTED` (CLI
+> asboblar / ochiq vitrina); moderator «подтверждение» va
+> «разделение» siz (`05` §4.4 — 👤 rol modeli hujjat tahririmi).
+> **Yashil:** butun to'plam **3151 passed, 1 skipped** (103: 3102 —
+> aynan +49); `-m requires_db` **231 passed**; `alembic` 0001→0010
+> toza; `ruff` toza; **12 mutatsiya — 11 ushlandi, 1 survivor
+> (`RESTRICTION_LOCKS`) test kuchaytirilib yopildi**. ⚠️ Kutilgan
+> drift: ikkita «geokoder yo'q» skaneri yangi faylni ushladi —
+> o'ninchi reyestr sifatida allowlistga.
+> ⚠️ **Muhit (105 o'qisin):** `/tmp` tirik (py311+PG tayyor), yangi
+> `initdb -D /tmp/pgdata104`, port **55519**; retsept `103_*.md` §6
+> dagidek, har batchda `pg_ctl start` shart. `/sessions` 100% to'la
+> (👤 `cleanup-sessions.ps1`).
+> **Keyingi qadam — 105-run:** (1) nomzod: BRD §20–§23 (Reporting,
+> Success Metrics ↔ `01` §4, Acceptance ↔ `01` §23/`03` §6, Timeline);
+> keyin §24 (arxitektura ↔ `01` §29/ADR) va §25–§26; (2) 👤 ikkita
+> yangi savol (Open Data skoup; §19 rol modeli); (3) 👤 brauzer
+> tekshiruvi va serverda `deploy.sh` hali kutmoqda.
+
+> ✅ **103-run: paketning BESHINCHI hujjat bo'limi kodda — BRD §14–§17
+> atrof-muhit.** Yangi: `app/release/business_environment.py` va
+> `tests/test_business_environment_contract.py` (**43 test**); indeksga
+> ulandi (`registry.business_environment` UZ+RU; `total=39`,
+> `flagged=20`, `undeclared=0`). To'rt jadval bitta modulda: 10 `A-*`
+> (`Answer` gipoteza posturasidan **hisoblanadi**), 7 cheklov (`Fit`),
+> 12 `RS-*` (`Readiness`), 10 `D-*` (`Standing`) + kritik yo'l.
+> 🔴 **Asosiy topilma — `CON-05`:** BRD §15 «Технологии» (`ДАННЫЕ`)
+> Redis/Kafka/Kubernetes ni qotiradi va «Отдельный стек … не
+> допускается» deydi — repo esa ADR-05 bilan aynan alohida stek;
+> ikki qonun hujjat to'qnashadi (👤 qaysi haq).
+> 🔴 **Ikkinchisi — `RS-*` nomfazosi:** `01` §26 (10 qator) ↔ BRD §16
+> (12 qator) bir xil kodlar, siljigan mazmun; moliyaviy risk `01` da
+> `RS-07`, BRD da `RS-09` — `CLAUDE.md` §2 dagi 👤 qarorining «RS-07»
+> havolasi shu to'qnashuv tufayli BRD ga adashib nisbat berilgan (👤).
+> 🔴 **Uchinchisi — kritik yo'l o'z jadvaliga zid:** «D-08 → D-02 →
+> D-09; ни один не под контролем команды» ↔ jadvalda `D-09` egasi
+> «Команда»; ustiga `D-09` (Toshkent Faza 1) qurilgan mahsulotda
+> **MOOT** — klasterlash o'zimizniki. `D-04`/`D-06` ham MOOT
+> (nuqta-kirish, H-6). `RS-10` himoyasi vacuous `BRL-14` ga tayanadi.
+> §14: 10 taxmindan 6 tasi `PREJUDGED`.
+> **Yashil:** butun to'plam **3102 passed, 1 skipped** (102: 3059 —
+> aynan +43); `-m requires_db` **231 passed**; `alembic` 0001→0010
+> toza; `ruff` toza; **12 mutatsiya, hammasi ushlandi**. ⚠️ Kutilgan
+> drift: ikkita «geokoder yo'q» skaneri yangi faylni ushladi —
+> to'qqizinchi reyestr sifatida allowlistga (izoh bilan).
+> ⚠️ **Muhit (104-run o'qisin):** `/tmp` tirik edi (py311+PG tayyor),
+> lekin `/tmp/pgdata102b` `nobody:700` (102 dagi nohup jarohati) —
+> yangi `initdb -D /tmp/pgdata103`, port **55518**; retsept
+> o'zgarishsiz, tafsilot `103_*.md` §6. `/sessions` 100% to'la (👤
+> `cleanup-sessions.ps1`).
+> **Keyingi qadam — 104-run:** (1) nomzod: BRD §18–§19 (Integrations ↔
+> `01` §18 solishtirma, User Roles) yoki §20–§23; (2) 👤 uchta yangi
+> savol (`CON-05` stek; `RS-*` nomfazosi/CLAUDE.md havolasi; kritik
+> yo'l/`D-09`); (3) 👤 brauzer tekshiruvi hali kutmoqda.
+>
+> ---
+>
 > ➕ **102b (o'sha sessiya davomi, odam bilan chat):** 👤 **ADR-08 hal —
 > tayl manbasi OSM**; 👤 **mahalla qamrovi qisman bo'lishi OK** (E17).
 > Qurildi: `.env.example` da OSM qiymatlari; compose `web` xizmati
@@ -1886,6 +2333,20 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 116 | [nfr_mutatsiya](116_nfr_mutatsiya_0bc44388.md) | `local_0bc44388` | **`nfr_appendix` mutatsiyasi 12/12 — eski kontraktlarning mutatsiya qarzi to'liq yopildi** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 8 ushlandi, 4 survivor (M1 `SPEC` ankraji refleksiv — 113 M8 sinfi; M4 `BASELINE_DOC`→`05_API.md` ikkala darvozadan o'tardi; M7 bind nuqta-qorovuli hech qachon otilmagan — 111 M8 sinfi; M12 `accurate` `and`→`or` — uchala kon'yunkt bugun `False`) — to'rt qulf testi bilan yopildi, fayl 53 test. To'plam 3357 passed, 1 skipped |
+| 115 | [us_mutatsiya](115_us_mutatsiya_56587e5b.md) | `local_56587e5b` | **`user_stories` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M11 `preconditions_hold` ning `if s.gherkin` filtri — ikkala gherkinli `Given` bugun yiqiq, filtr farq yaratmagan; M12 `accurate` `and`→`or` — to'rtala kon'yunkt bugun `False`) — ikki qulf testi bilan yopildi, fayl 71 test. To'plam 3353 passed, 1 skipped |
+| 114 | [ux2_mutatsiya](114_ux2_mutatsiya_81af1740.md) | `local_81af1740` | **`ux_requirements` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M10 `_bind_shape` ning `web/` nishonsiz yarmi — qorovulning o'zi testlanmagan; M12 `accurate` `and`→`or` — to'rtala kon'yunkt bugun `False`) — ikki qulf testi bilan yopildi, fayl 72 test. To'plam 3351 passed, 1 skipped |
+| 113 | [brd8_mutatsiya](113_brd8_mutatsiya_317e43e3.md) | `local_317e43e3` | **`business_requirements` mutatsiyasi 12/12 — BRD oilasi qarzsiz** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 7 ushlandi, 5 survivor (M8 `SPEC` ankrajsiz — indeks refleksiv solishtiradi; M9 bo'sh `sources` va M10 `binds`-nuqta qorovullari testlanmagan; M11 `missing_docs` hisoblangan↔doimiy; M12 `accurate` `and`→`or`) — besh qulf testi bilan yopildi, fayl 50 test. To'plam 3349 passed, 1 skipped |
+| 112 | [phase0_mutatsiya](112_phase0_mutatsiya_34baf226.md) | `local_34baf226` | **`phase0_plan` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 7 ushlandi, 5 survivor (M8 `CRITICAL_PATH` tartibi; M9/M10 qorovullarning o'zi testlanmagan; M11 EXIT-1 `any`↔`all` farqsiz; M12 `accurate` `and`→`or`) — besh qulf testi bilan yopildi, fayl 59 test. To'plam 3344 passed, 1 skipped |
+| 111 | [brl_mutatsiya](111_brl_mutatsiya_cd547d46.md) | `local_cd547d46` | **`business_rules` mutatsiyasi 12/12 + 110 arxiv qarzi** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M8 «BUILT dalilsiz» qorovulining o'zi testlanmagan; M9 `spec_gated` umuman o'qilmagan) — uch qulf testi bilan yopildi, fayl 44 test. To'plam 3339 passed, 1 skipped. 110 arxivi tiklandi |
+| 110 | [benv_bifc_mutatsiya](110_benv_bifc_mutatsiya_95205d01.md) | `local_95205d01` | **BENV + BIFC mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi**, lekin sessiya limitga urilib INDEX/arxivsiz qolgan (111 tikladi). BENV 8/4, BIFC 6/6 survivor — o'n qulf testi, fayllar 47 va 55 test. To'plam 3336 passed, 1 skipped |
+| 109 | [bglos_mutatsiya](109_bglos_mutatsiya_75777226.md) | `local_75777226` | **`business_glossary` mutatsiyasi 12/12 — BRD paketi mutatsiya qarzi yopiq** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 11 ushlandi, 1 survivor — `_check_evidence` ning `(HOLDS, STALE)` jufti `HOLDS` ga kuchsizlansa sezilmasdi (108 sinfi: «bor» tekshirilardi, «to'liq» emas) — `test_guard_rejects_stale_without_evidence` bilan qulflandi, fayl 45 test. To'plam 3326 passed. Yangi ish ataylab boshlanmadi — §1–§7/§9–§12 reyestri 👤 savolni oldindan hal qilib qo'ygan bo'lardi. Yo'l-yo'lakay: 108 `PROGRESS.md` «Joriy holat» jadvalini yangilamagan ekan — tuzatildi. Yangi `pgdata109`, port 55524 |
+| 108 | [brd25_26_lugat_ilova](108_brd25_26_lugat_ilova_05dafbce.md) | `local_05dafbce` | **BRD §25–§26 — lug'at-ilova reyestri kodda + mutatsiya 12/12 (paket yakuni)** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_glossary.py` + 44 test (`total=50` — 17 atama + 9 hujjat + 12 standart + 4 diagramma + 8 OQ, `flagged=15`, `undeclared=1` — BRD «джиттер» ni bilmaydi); `business_architecture` mutatsiyasi 12/12 (2 survivor — `S24_ONLY_CONTAINERS` to'plami va `{"KF","RD"}` qorovuli — aynan qulflandi, fayl 44 test). Topilmalar: `OQ-*` ro'yxati BRD §26.4 da bor, lekin `01` ning `OQ-01` iga mos emas — ikkinchi nomfazo to'qnashuvi; bitta paketda ikkita lug'at («отметка» ikki xil, DBSCAN uchinchi joyda); §26.1 to'qqiz hujjati repoda yo'q (`missing_docs` ⊆); «3 часа» ↔ 120 daq lug'atda ham; `out_of_coverage` status sifatida kodda yo'q; §9/§10 flowchartlari o'quvchisiz. Uch eski drift-qulf kutilganidek kengaytirildi. To'plam 3325 passed. Yangi `pgdata108`, port 55523. 👤 **Ikkita yangi savol** (§1–§7/§9–§12 qamrovi; `OQ-*` nomfazosi) |
+| 107 | [brd24_arxitektura](107_brd24_arxitektura_a84c7b04.md) | `local_a84c7b04` | **BRD §24 — arxitektura reyestri kodda + mutatsiya 12/12** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_architecture.py` + 42 test (`total=25` — 19 tugun + 6 qaror, `flagged=14`); `business_acceptance` mutatsiyasi 12/12 (1 survivor — `success_holds` `and`→`or`, kon'yunksiya testi bilan qulflandi). Topilmalar: §24 ↔ `01` §29 — ikkita har xil arxitektura (beshta konteyner faqat §24 da); chizma mikroservis/Kafka/Redis ↔ repo monolit (6 `ABSENT`, 7 `IN_MONOLITH`), §24.2 qarorlarining 5/6 tasi esa bajarilgan; «Go»/«React»/«DBSCAN» yorliqlari kodga zid; ING/GC uchun kod yo'q. Ikki geokoder drift-qulfi kutilganidek kengaytirildi. To'plam 3279 passed. Yangi `pgdata107`, port 55522. 👤 **Bitta yangi savol** (§24 ↔ §29 — qaysi rasm qonun) |
+| 106 | [brd_qabul_reyestri](106_brd_qabul_reyestri_c6aa1a65.md) | `local_c6aa1a65` | **BRD §22–§23 — qabul va jadval reyestri kodda + mutatsiya 12/12** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_acceptance.py` + 42 test (`total=21`/`flagged=15`); `business_reporting` mutatsiyasi 12/12 (1 survivor testi kuchaytirildi). Topilmalar: §23 xronologiyasi teskari (`PH0-OS-01` egizagi); §22 yakuni o'lchab bo'lmaydigan §21 ga tayanadi; AC-1.7/AC-1.8 bu repoda ifodalanmaydi; AC-0.5 qayd joyi yo'q. To'plam 3236 passed. |
+| 105 | [brd_hisobot_reyestri](105_brd_hisobot_reyestri_1dc5c6f1.md) | `local_1dc5c6f1` | **BRD §20–§21 — hisobot va muvaffaqiyat reyestri kodda** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_reporting.py` (to'rt jadval: 6 hisobot × `Build`, 4 dashboard × `Build`, 7 KPI × `Claim`×`Meter`, 8 metrika × `Meter`; `Claim` «Статус» katagidan, `ОЦЕНКА` yangi sinf) va `tests/test_business_reporting_contract.py` — **42 test**, to'rt manba: hujjat (to'rt jadval ustunma-ustun, §22 «izmerimost» iborasi matndan), kod (vitrina/snapshot/digest/metrikalar oilasi, `time_to_answer` yo'qligi), boshqa reyestrlar (`analytics.dashboards` UZ-chegaralari, `bifc` moderator fe'llari), `binds` rezolvatsiyasi; 9 guard-test. Indeks: `total=25`, `flagged=17`, `undeclared=0`. 🔴 **§21 yakuni bajarilmaydi:** «метрики §21 измерены» ↔ 3 metrika o'lchab bo'lmaydi (Time-to-answer, UZ-sessiya, SLA) (👤). 🔴 **Avtotasdiq KPI `MOOT`:** qo'lda confirm yo'q → 100% avtomatik, ≥60% qurilish bo'yicha. 🟡 **Agregat farqi bo'sh:** bitta manba, juft yo'q. 🔴 **Sifat hisoboti/dashboardi `ABSENT`.** §22–§23 → 106. **Yashil:** 3193 passed / 1 skipped (aynan +42), `requires_db` 231 (yangi `initdb pgdata105`, port 55520; bash ~178 s → 8 partiya), alembic toza, ruff toza. ⚠️ Mutatsiya 106 ga qoldi. 👤 **Bitta yangi savol** (§21 o'lchanganlik mezoni) |
+| 104 | [brd18_19_interfeys](104_brd18_19_interfeys_10af30da.md) | `local_10af30da` | **BRD §18–§19 — interfeys reyestri kodda** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_interfaces.py` (10 integratsiya × `Claim`×`Build`, 8 rol × `RoleBuild`; `Claim` «Статус» katagidan hisoblanadi; `RESTRICTION_LOCKS` → `security`) va `tests/test_business_interfaces_contract.py` — **49 test**, to'rt manba: hujjat (ikkala jadval ustunma-ustun, «Ограничения» matndan, Overpass yo'qligi matndan), kod (3 rol/10 ruxsat, confirm/split yo'q, veb-akkaunt yo'q, `FeatureCollection`), boshqa reyestrlar (`integrations.registry` egizaklari `Warrant` sinxron, `security`, `BANNED_TECH`), `binds` rezolvatsiyasi; 10 guard-test. Indeks: `total=18`, `flagged=12`, `undeclared=1` (Overpass — ikkala hujjatda ham e'lon qilinmagan). 🔴 **Open Data API:** «Ph.3, вне скоупа» ↔ E15 REST + CSV + GeoJSON qurilgan — `Build.AHEAD`, skoup savoli (👤). 🟡 **Kafka/Redis:** §18 da `BASELINE-TAS` — `CON-05` ga hujjat ichidan dalil (§15 ehtimol Toshkent platformasi haqida, 👤). 🔴 **§19:** 8 rol ↔ 3 kod roli; moderator «подтверждение»/«разделение» siz (👤). «Ограничения»: MFA `ABSENT`, `read_exact_geo` `SUBSTITUTED`, ajratish qurilish bo'yicha. ⚠️ Ikkita «geokoder yo'q» skaneri — o'ninchi reyestr allowlistga. **Yashil:** 3151 passed / 1 skipped (aynan +49), `requires_db` 231 (yangi `initdb pgdata104`, port 55519), alembic toza, ruff toza, **12 mutatsiya: 11 ushlandi, 1 survivor test kuchaytirilib yopildi**. 👤 **Ikkita yangi savol** (Open Data skoup; §19 rol modeli) |
+| 103 | [brd_muhit_reyestri](103_brd_muhit_reyestri_2949771d.md) | `local_2949771d` | **BRD §14–§17 — atrof-muhit reyestri kodda** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_environment.py` (to'rt jadval: 10 `A-*` × `Mark`×`Answer` — javob `phase0_plan.Posture` dan hisoblanadi; 7 cheklov × `Fit`; 12 `RS-*` × hujjat baholari × `Readiness`; 10 `D-*` × `Standing`; kritik yo'l) va `tests/test_business_environment_contract.py` — **43 test**, to'rt manba: hujjat (to'rt jadval ustunlari aynan, kritik yo'l jumlasi, «финансирования» siljishi ikkala hujjatdan), kod (`WINDOW_OPENED`, i18n, `Settings` maydonlari, taqiqlangan stek `ast` importlaridan, compose/pyproject), boshqa reyestrlar (`phase0_plan`, `risks`, `business_rules`), barcha `binds` rezolvatsiyasi; 10 guard-test. Indeksga ulandi (`total=39`, `flagged=20`, `undeclared=0`). 🔴 **`CON-05`:** BRD §15 «Технологии» (`ДАННЫЕ`) Redis/Kafka/K8s ni qotiradi + «Отдельный стек не допускается» ↔ repo ADR-05 bilan aynan alohida stek — ikki qonun to'qnashuvi (👤). 🔴 **`RS-*` nomfazosi:** `01` §26 (10) ↔ BRD §16 (12) bir xil kodlar, siljigan mazmun; `CLAUDE.md` §2 dagi 👤 qarorining «RS-07» havolasi adashgan (moliyaviy `RS-07` — `01` da, BRD da u `RS-09`). 🔴 **Kritik yo'l o'z jadvaliga zid:** `D-09` egasi «Команда» ↔ «ни один не под контролем»; `D-09`/`D-04`/`D-06` qurilgan mahsulotda MOOT. `RS-10` himoyasi vacuous `BRL-14` ga tayanadi; §14 dan 6 taxmin `PREJUDGED`. ⚠️ Ikkita «geokoder yo'q» skaneri kutilganidek yiqildi — to'qqizinchi reyestr sifatida allowlistga. **Yashil:** 3102 passed / 1 skipped (aynan +43), `requires_db` 231 (yangi `initdb` — `pgdata102b` `nobody:700` yaroqsiz, port 55518), alembic toza, ruff toza, **12 mutatsiya ushlandi**. 👤 **Uchta yangi savol** (`CON-05` stek; `RS-*` nomfazosi; kritik yo'l/`D-09`) |
 | 102 | [brl_reyestri](102_brl_reyestri_0b9be9fe.md) | `local_0b9be9fe` | **BRL — BRD §13 biznes qoidalari kodda** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_rules.py` (15 `BRL-*` qoidasi; `Form` shakli — ЕСЛИ/kategorik — hujjat matnidan qayta sanaladi; `Delivered` va TTL/`out_of_coverage` `business_requirements` dan import, nusxa emas) va `tests/test_business_rules_contract.py` — **40 test**, to'rt manba: hujjat (15 qator, «3 ч»/«< 30» parse, «не предельного» yakori), kod (`AUTHORITATIVE_CONFIDENCE`, `stats_rows_started_between` va `freeze_weight` `ast` bilan, sxema ustunlari), §8 egizaklari (`BRL-04`=`BR-014`, `BRL-12`=`BR-013`, `BRL-14`=`BR-022` — sinf aynan), indeks + i18n; 5 guard-test. Indeksga ulandi (`registry.business_rules` UZ+RU; `total=15`, `flagged=11`, `undeclared=0`). 🔴 **`BRL-03`:** qator «до высокого, но не предельного» deydi — kod esa rasmiy qatlamga `AUTHORITATIVE_CONFIDENCE = 100` qo'yadi, aynan taqiqlangan chegara (`06` §2.2 son bermaydi, 👤); «конфликт источников» bayrog'i repoda umuman yo'q. 🔴 **`BRL-08` — yagona MAHSULOT defekti:** klasterlash qatlamni benuqson ajratadi (`find_candidate`), lekin `stats_rows_started_between` `layer` ni na tanlaydi, na filtrlaydi — rasmiy hodisa jamoaviy `outages_total`/mediana/P90 ga qo'shiladi; `05` §7.2 `layer` ni eslatmaydi (👤 qaysi tomon haq). 🔴 15 dan 11 qoida buzilgan; 4 kategorik hukmdan **0** to'liq (`categorical_built` bo'sh — sababi modulda). ⚠️ 101-run literal-qulfi (`out_of_coverage`) yangi modulni ushladi — literal `DOC_STATUS` havolasiga almashtirildi. ⚠️ Mutatsiya sivi o'tkazilmadi: odam mount ustida parallel tahrir qilayotgani kuzatildi — guard-testlar o'rnini bosadi. **Yashil:** 3058 passed / 1 skipped (aynan +40), `requires_db` 231 (⚠️ faqat TOZA bazada — batchlardan keyin 8 yolg'on yiqilish, DROP/CREATE retsepti `102_*.md` §4), alembic toza, ruff toza. 👤 **Uchta yangi savol** (`AUTHORITATIVE_CONFIDENCE=100`; `05` §7.2 `layer` kesimi; `BRL-05`/`BRL-09` spec-gate) |
 | 101 | [brd8_reyestri](101_brd8_reyestri_cebb4a4b.md) | `local_cebb4a4b` | **BRD — paketning uchinchi hujjati kodda: BRD §8 biznes talablari** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/business_requirements.py` (28 `BR-*` qatori yetti guruhda, `Delivered` × `Warrant`; warrant «Источник» katagidan hisoblanadi, sakkiz qorovul) va `tests/test_business_requirements_contract.py` — **45 test**, to'rt manba: hujjat (bo'limlar, qatorlar, legenda, manba kataklari — aynan), fayl tizimi (yetti uy hujjatning yo'qligi, `03_` prefiks to'qnashuvi), kod (TTL, jitter 60≠50, `Role` enumi, `out_of_coverage` yo'qligi, obuna sxemasi, snapshot import grafi) va boshqa reyestrlar (`functional_requirements`, `user_stories`, `nfr_appendix`, `risks` ↔ BRD §16, `security`, `ux_requirements`); indeksga ulandi (`total=28`, `flagged=17`). 🔴 **20 High dan 11 tasi `BUILT` emas** — hujjatning o'z legendasida ishga tushirish 11 marta bloklangan. 🔴 **17 qator asosi yo'q hujjatlarda** — meros sinfi 10→13 (`13_Risk_Register.md`, `21_Critical_Review.md`, `svetanet-use-cases.md`). 🔴 **TTL ziddiyati:** BRD «3 ч» ↔ `05` «120 daq» (kod `05` tomonida, 👤). ⚠️ Bitta kutilgan drift (literal-qulf skaneri) — literal `fr.H3_FIXED` ga almashtirildi. **Yashil:** 3018 passed / 1 skipped (aynan +45), `requires_db` 231, alembic toza, ruff toza, 12 mutatsiya ushlandi. ⚠️ `Read` mount keshi eski `EpicProgress.md` ni ko'rsatdi — jurnal tepasini bash bilan tekshirish qoidasi §1 da. 👤 **Uchta yangi savol** (TTL; meros hujjatlar; `BR-013`/`OQ-5` darvoza) |
 | 100 | [faza0_reja_reyestri](100_faza0_reja_reyestri_750993d1.md) | `local_750993d1` | **PH0 — paketning ikkinchi hujjati kodda: `02` Faza 0 validatsiya rejasi** | ✅ **Yozildi va hammasi yashil.** Yangi `app/release/phase0_plan.py` (8 gipoteza `Gate` × `Result` × `Posture` bilan, 7 metod, go/no-go matritsasi, PH0-EXIT-1…9, 10 risk, 5 skoup qatori, Ilova D) va `tests/test_phase0_plan_contract.py` — **54 test**, to'rt manba: hujjat (tasnif §2 mermaid **o'qlaridan**, H↔M bijeksiyasi ikkala tomondan, RACI `A` sanog'i, §7 yig'indi, sanalarning uch nusxasi), kod (`DEFAULT_LANGUAGE="uz"`, `confirm.min_users=3`, `on_location`, migratsiyalar), boshqa reyestrlar (`roadmap` `P0-*` to'liq qamrov, `risks`, `nfr_appendix` REMARKS to'plami aynan teng) va fayl tizimi; indeksga ulandi (`registry.phase0_plan` UZ+RU; `total=45`, `flagged=22`). 🔴 **Asosiy topilma — `PH0-OS-01` ↔ repo:** reja «kod yozish taqiqlanadi» (BRD §22), repo esa butun mahsulot, `04` qurishni buyuradi — hujjatlararo ziddiyat birinchi marta qayd etildi (`scope_tensions`, `accurate=False`, 👤). 🔴 **O'lchov erkin emas:** 8 gipotezadan 6 tasiga mahsulot allaqachon javob tanlagan (H-1/H-2/H-3/H-5/H-7 tasdiq tomonga, H-6 rad tomonga — nuqta-kirish qurilgan); chinakam ochiq faqat H-4 (E18) va H-8 (yuridik); `PH0-R-08` ning o'zi shu sinf. 🔴 **RACI: 10 qatordan 6 tasi konventsiyani buzadi** — bitta qatorda `A` ikkita, M-1…M-5 da umuman yo'q (👤). ⚠️ Uchta eski tripwire kutilganidek yiqildi va 82-run naqshi bilan kengaytirildi (istisno + reyestrning o'z hukmi: `untested == hypotheses` — natija qayd etilgan kuni yana yiqiladi). **Yashil:** butun to'plam (DB bilan) **2973 passed, 1 skipped** (aynan +54), `requires_db` 231, alembic 0001→0010, ruff toza, **12 mutatsiya ushlandi** (`md5sum` bilan tiklanish tasdiqlandi). Muhit: `/tmp` bo'sh edi — hammasi noldan qurildi (`initdb -D /tmp/pgdata100`, port 55500; retsept `100_*.md` §8). Migratsiya yo'q, vaqtinchalik fayl yo'q, mahsulot kodi tegilmadi. 👤 **Uchta yangi savol** (OS-01 ziddiyati; RACI `A` ustuni; pre-registration muddati 2026-09-01) |

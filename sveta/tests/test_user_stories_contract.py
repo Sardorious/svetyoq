@@ -408,6 +408,62 @@ def test_four_conditions_are_measured_separately(report: us.UserStoriesReport) -
     assert report.accurate is False
 
 
+def test_preconditions_judge_only_gherkin_stories() -> None:
+    """115-run qulfi: `preconditions_hold` faqat gherkinli hikoyalarni o'lchaydi.
+
+    Joriy reyestrda ikkala gherkinli `Given` allaqachon yiqiq, shuning
+    uchun `if s.gherkin` filtri tushirilsa ham natija o'zgarmasdi —
+    mutant 69 testdan o'tardi. Sun'iy reyestr filtrni yolg'iz qoldiradi:
+    gherkinli hikoya `REACHABLE`, gherkinisiz esa `UNWRITTEN` — filtrsiz
+    o'qish `UNWRITTEN` ga qoqilib `False` qaytaradi.
+    """
+    report = _report(
+        stories=(
+            _story(code="US-A", gherkin=True, reachable=us.Reachable.REACHABLE),
+            _story(code="US-B"),
+        ),
+        clauses=(_clause(code="C-A", story="US-A"),),
+    )
+    assert report.preconditions_hold is True
+
+
+def test_accurate_needs_each_of_the_four_conjuncts() -> None:
+    """115-run qulfi: `accurate` dagi `and` → `or` mutanti (107–114 sinfi).
+
+    Bugun to'rtala kon'yunkt ham `False`, shuning uchun `or` mutanti
+    farqsiz. Ikkita sun'iy hisobot ikki tomondan ajratadi: birida faqat
+    va'dalar buzilgan, ikkinchisida faqat nomlash — har ikkisida `or`
+    `True` bergan bo'lardi, `and` esa `False` beradi.
+    """
+    reachable_story = _story(code="US-A", gherkin=True, reachable=us.Reachable.REACHABLE)
+    promises_broken = _report(
+        stories=(reachable_story,),
+        clauses=(
+            _clause(
+                code="C-A",
+                story="US-A",
+                named=us.Named.TESTED,
+                binds=("tests/test_x.py",),
+            ),
+        ),
+    )
+    assert promises_broken.naming_holds is True
+    assert promises_broken.preconditions_hold is True
+    assert promises_broken.use_cases_hold is True
+    assert promises_broken.promises_hold is False
+    assert promises_broken.accurate is False
+
+    naming_broken = _report(
+        stories=(reachable_story,),
+        clauses=(_clause(code="C-A", story="US-A", realized=us.Realized.BUILT, gap=""),),
+    )
+    assert naming_broken.promises_hold is True
+    assert naming_broken.preconditions_hold is True
+    assert naming_broken.use_cases_hold is True
+    assert naming_broken.naming_holds is False
+    assert naming_broken.accurate is False
+
+
 def test_evaluate_is_pure_and_argument_free() -> None:
     first, second = us.evaluate(), us.evaluate()
     assert first == second

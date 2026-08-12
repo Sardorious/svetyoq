@@ -32,8 +32,21 @@ REGION_CODE="samarkand"
 # Ataylab kengroq: bbox — dag'al filtr, aniq biriktirish poligon bo'yicha.
 BBOX="39.58,66.82,39.75,67.08"
 
+# Overpass serveri. Asosiysi (overpass-api.de) tez-tez 504 beradi —
+# unda oynani almashtiring:
+#   OVERPASS_URL=https://overpass.kumi.systems/api/interpreter \
+#       bash scripts/bootstrap_samarkand.sh survey
+# Boshqa oynalar: https://overpass.osm.ch/api/interpreter
+OVERPASS_URL="${OVERPASS_URL:-}"
+
 run() {  # konteyner ichida — DATABASE_URL compose dan keladi
-    docker compose exec -T api python -m tools."$@"
+    local tool="$1"; shift
+    if [[ "${tool}" == "import_boundaries" && -n "${OVERPASS_URL}" ]]; then
+        docker compose exec -T api python -m tools.import_boundaries \
+            --overpass-url "${OVERPASS_URL}" "$@"
+    else
+        docker compose exec -T api python -m tools."${tool}" "$@"
+    fi
 }
 
 cmd_add() {
