@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.geo import osm
 
 BBOX = "39.55,66.85,39.75,67.10"
@@ -130,3 +132,27 @@ def test_lines_to_wkt() -> None:
 def test_lines_to_wkt_returns_none_without_geometry() -> None:
     boundary = next(b for b in osm.parse_boundaries(PAYLOAD) if b.source_ref == "r103")
     assert osm.lines_to_wkt(boundary) is None
+
+
+def test_parse_relation_id_accepts_both_spellings() -> None:
+    assert osm.parse_relation_id("r17544823") == 17544823
+    assert osm.parse_relation_id("17544823") == 17544823
+    assert osm.parse_relation_id("  R17544823 ") == 17544823
+
+
+@pytest.mark.parametrize("bad", ["", "r", "rel/123", "12a", "-5", "r 123"])
+def test_parse_relation_id_rejects_anything_else(bad: str) -> None:
+    """Noto'g'ri id jim o'tsa Overpass bo'sh javob beradi va sabab ko'rinmaydi."""
+    with pytest.raises(ValueError):
+        osm.parse_relation_id(bad)
+
+
+def test_relation_query_asks_for_one_relation_by_id() -> None:
+    """Etalon id bo'yicha olinadi — bbox to'rtburchak, hudud esa emas."""
+    query = osm.relation_query("r17544823")
+
+    assert "rel(17544823);" in query
+    assert "out geom;" in query
+    # bbox ham, admin_level filtri ham bo'lmasligi kerak: id yagona shart.
+    assert "admin_level" not in query
+    assert "boundary" not in query

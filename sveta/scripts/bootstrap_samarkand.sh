@@ -13,7 +13,9 @@
 #   bash scripts/bootstrap_samarkand.sh            # yo'l-yo'riqli to'liq oqim
 #   bash scripts/bootstrap_samarkand.sh add        # faqat mintaqa yaratish
 #   bash scripts/bootstrap_samarkand.sh survey     # faqat OSM darajalarini ko'rish
-#   bash scripts/bootstrap_samarkand.sh stage 8    # tanlangan darajani yuklash
+#   bash scripts/bootstrap_samarkand.sh stage 6    # tanlangan darajani yuklash
+#   REFERENCE_REF=r123456 bash scripts/bootstrap_samarkand.sh stage 6
+#                                                  # etalon relation id bo'yicha
 #   bash scripts/bootstrap_samarkand.sh promote <BATCH-UUID>
 #   bash scripts/bootstrap_samarkand.sh activate
 #
@@ -72,11 +74,22 @@ cmd_survey() {
 }
 
 cmd_stage() {
-    local level="${1:?admin_level kerak, masalan: stage 8}"
+    local level="${1:?admin_level kerak, masalan: stage 6}"
     echo "== 3. Staging: admin_level=${level} =="
-    run import_boundaries stage \
-        --region "${REGION_CODE}" \
-        --admin-level "${level}" --reference-level 6
+    # Etalon: `REFERENCE_REF` berilsa — relation id bo'yicha (aniq hudud),
+    # aks holda eski xulq-atvor (daraja bo'yicha). bbox to'rtburchak bo'lgani
+    # uchun daraja bo'yicha etalon qo'shni hududlarni ham tortadi — id
+    # afzalroq. Id larni `survey` chiqaradi.
+    #   REFERENCE_REF=r123456 bash scripts/bootstrap_samarkand.sh stage 6
+    if [[ -n "${REFERENCE_REF:-}" ]]; then
+        run import_boundaries stage \
+            --region "${REGION_CODE}" \
+            --admin-level "${level}" --reference-ref "${REFERENCE_REF}"
+    else
+        run import_boundaries stage \
+            --region "${REGION_CODE}" \
+            --admin-level "${level}" --reference-level 6
+    fi
     echo
     echo "Sifat hisobotini ko'rib chiqing. Hammasi joyida bo'lsa:"
     echo "  bash scripts/bootstrap_samarkand.sh promote <BATCH-UUID>"

@@ -92,6 +92,40 @@ def fetch_query(bbox: str, admin_level: int) -> str:
     return build_query(bbox, (admin_level,), with_geometry=True)
 
 
+def parse_relation_id(source_ref: str) -> int:
+    """`"r17544823"` yoki `"17544823"` → `17544823`.
+
+    `source_ref` ning kanonik shakli `parse_boundaries` da `f"r{id}"` deb
+    yasaladi, lekin operator uni qo'ldan kiritadi — ikkala yozuv ham
+    qabul qilinadi, boshqasi esa **rad etiladi**: noto'g'ri id jim
+    o'tsa Overpass bo'sh javob qaytaradi va sabab ko'rinmaydi.
+    """
+    raw = source_ref.strip()
+    if raw[:1] in ("r", "R"):
+        raw = raw[1:]
+    if not raw.isdigit():
+        raise ValueError(
+            f"relation id noto'g'ri: {source_ref!r} — 'r17544823' yoki '17544823' kutilgan"
+        )
+    return int(raw)
+
+
+def relation_query(source_ref: str) -> str:
+    """Bitta relationni **id bo'yicha** oladi (`05` §5.3 etaloni uchun).
+
+    Nima uchun kerak: bbox — to'rtburchak, hudud esa emas. Overpass bbox ga
+    **tegib turgan** har qanday relationni qaytaradi, shuning uchun bitta
+    viloyatni yoki bitta shaharni bbox bilan ajratib bo'lmaydi (118-run:
+    kengaytirilgan bbox sakkizta viloyatni, jumladan qo'shni davlatlarnikini
+    ham tortdi). Etalonni id bilan berish — buning yagona aniq yo'li.
+    """
+    return (
+        f"[out:json][timeout:{OVERPASS_TIMEOUT_S}];\n"
+        f"rel({parse_relation_id(source_ref)});\n"
+        "out geom;\n"
+    )
+
+
 def _admin_level(tags: dict[str, str]) -> int | None:
     raw = tags.get("admin_level")
     if raw is None:

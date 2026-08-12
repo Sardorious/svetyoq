@@ -12,6 +12,39 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **118-run: mutatsiya seriyasi MAHSULOT yadrosiga ko'chdi —
+> `app/clustering/confirmation.py` 12/12.** 117 ning to'rtala keyingi
+> qadami 👤 qaroriga bog'liq bo'lib chiqdi («Ochiq savollar» va
+> `EpicProgress.md` §4 qayta o'qildi — bloklanmagan **hujjat** ishi yo'q),
+> shuning uchun 107–116 seriyasi hujjat-reyestrlaridan `06` ni bajaradigan
+> **kodga** burildi: bazasiz, holatsiz, tasdiqlash qarorining o'zi.
+> **7 KILLED** — `06` §7 ishlangan misollari va §12 ssenariylari sonlarni
+> hujjatdagi qiymat bilan solishtirgani uchun ko'paytuvchi/pol/tartib
+> o'zgarishini darhol ko'radi.
+> 🔴 **5 survivor — beshalasi ham `06` matnida yozilgan, lekin testda
+> yo'q xossalar** (ya'ni bo'shliq hujjat↔kod orasida emas, kod↔test
+> orasida): dedupe ning «eng erta» qoidasi (§11 himoyasi — mavjud test
+> nomida «first» deydi, tekshirgani esa sanoq), `W` ning `numeric(6,1)`
+> miqyosi (§10), tarqoqlikning **diametr** ekani va chegarasining `≥`
+> ekani (§4.3), `n_req > 0` qorovuli. Olti qulf testi, beshala mutant
+> qayta KILLED, `test_confirmation.py` 56→**61 test**.
+> **Mahsulot kodi tegilmadi** — topilganlar defekt emas, test bo'shlig'i.
+> **Yashil:** **3365 passed, 1 skipped** (117: 3359 — aynan +6);
+> `requires_db` 231; `alembic` 0001→0010 toza; `ruff` toza. Git chaqirilmadi.
+> ⚠️ **Muhit (119 o'qisin): 117 sandboxi tirik** — `/tmp/mamba/envs/{py311,pg}`
+> qayta o'rnatilmadi. `TMPDIR=/tmp HOME=/tmp/home XDG_CACHE_HOME=/tmp/cache`
+> majburiy (`/sessions` 100% to'la); yangi `initdb -D /tmp/pgdata118`,
+> port **55618**. **Yangi bilim:** `mcp__workspace__bash` ning `timeout_ms`
+> parametri 600 s gacha ko'tariladi — to'plam olti partiyada (25 fayl) 400 s
+> ostida yurdi, ya'ni 120 s standart chegara endi to'siq emas. Butun DB-siz
+> to'plam baribir bitta chaqiruvga sig'maydi — mutatsiya nishoni tor bo'lsin.
+> **Keyingi qadam — 119-run:** (1) mutatsiyani mahsulotning qolgan toza
+> modullarida davom ettirish (`clustering/{scale,status,independence}.py`,
+> `reports/velocity.py`, `stats/coverage.py`, `geo/jitter`) — mahsulot
+> qatlamida survivor ko'proq chiqadi (5/12 ↔ reyestrlarda 2–4);
+> (2) 👤 «Ochiq savollar» ning hammasi odam qarorida; (3) 👤 serverda
+> `deploy.sh` va brauzer tekshiruvi; (4) 👤 `cleanup-sessions.ps1`.
+
 > ✅ **117-run: `web/` dagi oxirgi qattiq kodlangan matn olib tashlandi
 > — 98-run ning 2-savoli yopildi.** Mutatsiya seriyasi 116 da tugagach
 > navbatdagi ish qidirildi va «Ochiq savollar» ning deyarli hammasi
@@ -2380,6 +2413,7 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 118 | [yadro_mutatsiyasi](118_yadro_mutatsiyasi_71d87dab.md) | `local_71d87dab` | **Mutatsiya seriyasi kontrakt reyestrlaridan MAHSULOT yadrosiga ko'chdi — `app/clustering/confirmation.py` 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 117 qoldirgan to'rtala yo'nalish 👤 qaroriga bog'liq bo'lgani uchun 107–116 seriyasi hujjat-reyestrlaridan `06` §2.1/§4/§6 ni bajaradigan **kodga** burildi (tasdiqlash qarorining o'zi). Nishon — modulni chaqiradigan 15 fayl, 499 test. **7 ushlandi** (`TIME_FACTOR_FLOOR`, `_step_factor` chegarasi, `N_req` poli, `coverage_factor` poli, `min(1.0, W/N_req)` shifti, `confidence_key` chegarasi, `reason` tartibi) — `06` §7 misollari va §12 ssenariylari kuchli qorovul. **5 survivor, beshalasi ham `06` da yozilgan, lekin testda yo'q xossalar:** M3 — `dedupe_evidence` eng ertani emas, eng **kechni** qoldirsa 499 test sezmasdi (mavjud test nomida «first» deydi, tekshirgani esa **sanoq**) → §11 ning «takroriy xabar `W` ni ko'tara olmaydi» himoyasi qulfsiz edi, og'irroq manbadan qayta yozish `W` ni 0.4→3.0 qilardi; M4 — `round(total, 1)`→`2` (§10 `numeric(6,1)`, toza modul ↔ ustun jimgina ajralardi); M6 — diametr `max`→`min` (§4.3 «maksimal masofa»; testlardagi `spread_line` nuqtalarni teng qadamda chiziqqa qo'yadi — eng yaqin juftlik va diametr **hech qachon ajralmasdi**); M7 — `spread_ok` `>=`→`>` (chegaraning o'zi sinalmagan; qulfda to'siq nuqtalarning **o'z** masofasidan hisoblanadi, aks holda haversine 50.0 ga tushmaydi); M9 — `n_req <= 0` qorovuli `< 0` (111 M8 sinfi). Olti qulf testi, beshala mutant qayta **KILLED**, fayl 56→**61 test**. To'plam **3365 passed, 1 skipped** (117: 3359 — aynan +6), `requires_db` 231, alembic 0001→0010 toza, ruff toza. ⚠️ Muhit: 117 sandboxi **tirik**, `initdb /tmp/pgdata118`, port **55618**; `mcp__workspace__bash` ning `timeout_ms` (600 s gacha) bilan to'plam olti partiyada — 120 s standart chegara endi to'siq emas |
 | 117 | [web_aria_i18n](117_web_aria_i18n_6557d19c.md) | `local_6557d19c` | **`web/` dagi oxirgi qattiq kodlangan matn olib tashlandi (`04` §6) — 98-run ning 2-savoli yopildi** | ✅ **Tuzatildi, hammasi yashil.** 98-run topgan `aria-label="uz / ru"` — sahifadagi yagona qattiq kodlangan foydalanuvchi matni; bu «qilinsinmi?» savoli emas edi, `CLAUDE.md` §2 / `04` §6 uni **bloklovchi defekt** deb ataydi, ya'ni javob qoidada. Yangi kalit `map.language` (UZ «Interfeys tili», RU «Язык интерфейса»), markupdan atribut olib tashlandi, `applyStrings` uni katalogdan qo'yadi. 🔴 **Yo'l-yo'lakay ikkinchi defekt:** `#region` ning `aria-label` i katalogdan kelardi, lekin `fillRegions` da qo'yilardi — u bir marta ishlaydi, ya'ni til almashganda nom **eski tilda qolardi** (95-run ning `tiles` uyasi bilan aynan bitta sinf). U ham `applyStrings` ga ko'chirildi. 🟡 **Sinfning uchinchi yarmi — o'lchandi, tuzatilmadi:** mintaqa **nomlari** serverda tarjima qilinadi (`_summary(r, lang)`), `/map/config` esa faqat `boot()` da so'raladi → `<option>` matnlari til almashganda eskiradi; yechim ikkitadan biri va ikkalasi ham qaror talab qiladi (config qayta so'ralsinmi yoki nomlar tilga bog'liq bo'lmasinmi) — 👤 savol. Bugun ko'rinmaydi ham: mintaqa bitta, tanlagich `rows.length < 2` da yashirin. **Testlar:** defektning mavjudligini qulflagan `test_the_language_selector_carries_hardcoded_text` **olib tashlandi**, o'rniga uchta yangi (markupda bitta ham `aria-label` yo'q; ikkala nom katalogdan **va** `fillRegions` da yo'q; nom eskirishi + `_summary(r, lang)` dalili). ⚠️ **Yo'l-yo'lakay tuzatilgan test kuchsizlanishi:** mavjud `test_the_language_change_refreshes_every_notice` ishlovchini `getElementById("lang")` ning **birinchi** uchrashi bilan kesardi — 117-rundan beri u `applyStrings` ga tushadi va kesim butun `boot()` ni qamrardi; ankraj `_LANG_HANDLER` konstantasiga chiqarildi (yangi test buni darhol ko'rsatdi — birinchi yurgizishda `/map/config` ni `boot()` dan topib yiqildi). Reyestr `UI-6` yangilandi (`Surface.PARTIAL` o'zgarmadi — `[ГИПОТЕЗА]` yarmi hamon o'lchanmaydi). **Yashil:** butun to'plam **3359 passed, 1 skipped** (116: 3357 — aynan +2, −1 +3), `-m requires_db` **231 passed**, `alembic` 0001→0010 toza, `ruff` toza. Migratsiya yo'q, vaqtinchalik fayl yo'q, git chaqirilmadi. ⚠️ **Muhit noldan qurildi** (113–116 sandboxi o'lgan) — retsept `117_*.md` §7: `CONDA_PKGS_DIRS`/`HOME`/`XDG_CACHE_HOME` `/tmp` ga (aks holda `/sessions` to'laligidan `micromamba` yiqiladi), tizim `python3` **3.10** — `StrEnum` uchun `py311` shart, fon jarayoni (`nohup` ham) chaqiruvlar orasida o'ladi → to'plam **uch partiyada** |
 | 116 | [nfr_mutatsiya](116_nfr_mutatsiya_0bc44388.md) | `local_0bc44388` | **`nfr_appendix` mutatsiyasi 12/12 — eski kontraktlarning mutatsiya qarzi to'liq yopildi** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 8 ushlandi, 4 survivor (M1 `SPEC` ankraji refleksiv — 113 M8 sinfi; M4 `BASELINE_DOC`→`05_API.md` ikkala darvozadan o'tardi; M7 bind nuqta-qorovuli hech qachon otilmagan — 111 M8 sinfi; M12 `accurate` `and`→`or` — uchala kon'yunkt bugun `False`) — to'rt qulf testi bilan yopildi, fayl 53 test. To'plam 3357 passed, 1 skipped |
 | 115 | [us_mutatsiya](115_us_mutatsiya_56587e5b.md) | `local_56587e5b` | **`user_stories` mutatsiyasi 12/12** | ✅ **Hammasi yashil, mahsulot kodi tegilmadi.** 12 mutatsiya: 10 ushlandi, 2 survivor (M11 `preconditions_hold` ning `if s.gherkin` filtri — ikkala gherkinli `Given` bugun yiqiq, filtr farq yaratmagan; M12 `accurate` `and`→`or` — to'rtala kon'yunkt bugun `False`) — ikki qulf testi bilan yopildi, fayl 71 test. To'plam 3353 passed, 1 skipped |

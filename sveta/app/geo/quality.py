@@ -110,7 +110,32 @@ def check_overlap_ratio(overlap_area: float, total_area: float) -> CheckResult:
     )
 
 
-def check_coverage_ratio(covered_area: float, reference_area: float | None) -> CheckResult:
+def check_coverage_ratio(
+    covered_area: float,
+    reference_area: float | None,
+    *,
+    degenerate: bool = False,
+) -> CheckResult:
+    """Tumanlar birlashmasi etalonning ≥98% ini qoplaydimi (`05` §5.3).
+
+    `degenerate` — staged to'plami etalonning **o'zi** (bitta tumanli
+    mintaqa). Bunda nisbat ta'rifan `100%` chiqadi va darvoza hech narsa
+    o'lchamaydi, shuning uchun u `100%` deb **ko'rsatilmaydi**: tekshiruv
+    o'lchanmagan deb belgilanadi va bloklamaydi. Soxta `100%` yozish
+    darvozani yolg'onchi qilardi — 118-run shu holatga tushdi
+    (Samarqandda 8-daraja umuman yo'q, ya'ni `05` §5.3 ning
+    «tumanlar ⊂ shahar» modeli bu mintaqaga tushmaydi).
+    """
+    if degenerate:
+        return CheckResult(
+            name="Bo'shliq (qoplash)",
+            passed=True,
+            blocking=False,
+            detail=(
+                "o'lchanmadi — etalon districtning o'zi (bitta tumanli mintaqa); "
+                "tuman kesimi ma'lumot tashimaydi, batafsillik H3 qatlamida"
+            ),
+        )
     if not reference_area:
         return CheckResult(
             name="Bo'shliq (qoplash)",

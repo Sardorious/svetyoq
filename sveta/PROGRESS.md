@@ -335,6 +335,7 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 
 | Sana/vaqt | Epic | Nima qilindi | Keyingi qadam |
 |---|---|---|---|
+| 2026-08-12 | E2 | chegara importi: `--reference-ref` (etalon relation id bo'yicha) va qoplash tekshiruvining `degenerate` holati. Serverda `stage 8` bloklanib, Samarqandda 8-daraja yo'qligi aniqlandi (`survey`: 8-darajada bitta «Бошдарксон», qoplash 0.50%); bbox ni kengaytirish yaramaydi — to'rtburchak hududni ajratmaydi (8 viloyat, 50 tuman). 🔴 Asbob defekti tuzatildi: `UNIQUE (batch_id, source_ref)` + `ON CONFLICT DO NOTHING` + staged/reference bitta batchda → `--reference-level` staged daraja bilan teng bo'lganda etalon qatorlari **jimgina** tushib qolardi va qoplash «etalon berilmagan» deb bloklardi. `osm.parse_relation_id`/`relation_query` (id bo'yicha so'rov, bbox va `admin_level` filtrisiz), `quality.check_coverage_ratio(..., degenerate=True)` — soxta `100%` o'rniga «o'lchanmadi» va bloklamaydi; `degenerate` sharti **tenglik** (etalon staged larning biri bo'lishi normal). CLI da `--reference-ref` va `--reference-level` o'zaro istisno. Testlar: `test_geo_osm` +3, `test_geo_quality` +3 (34 passed); nishon 17 fayl — 568 passed; ruff toza | 👤 skoup «faqat shahar» ning ikki o'qilishidan birini tanlash (6 tuman + etalon shahar — halol o'lchov, yoki bitta district — `degenerate`); ikkinchisi uchun staged ni etalonga kesuvchi filtr qurilishi kerak; keyin serverda `stage` → nomlarni to'ldirish → `promote` |
 | 2026-08-12 | E5b | mutatsiya qamrovi mahsulot yadrosida: `app/clustering/confirmation.py` 12/12 — 5 survivor qulflandi (118-run). Seriya kontrakt reyestrlaridan `06` ni bajaradigan **kodga** ko'chdi. 12 mutatsiya, nishon — modulni chaqiradigan 15 fayl (499 test): 7 ushlandi, 5 survivor. M3 — `dedupe_evidence` eng ertani emas, eng kechni qoldirsa hech narsa yiqilmasdi (mavjud test nomida «first», tekshirgani esa **sanoq**) → `06` §11 ning «takroriy xabar `W` ni ko'tara olmaydi» himoyasi qulfsiz edi; M4 — `round(total, 1)`→`2` (`06` §10 `numeric(6,1)`); M6 — diametr `max`→`min` (`06` §4.3 «maksimal masofa»; `spread_line` teng qadamda — eng yaqin juftlik va diametr hech qachon ajralmasdi); M7 — `spread_ok` `>=`→`>` (chegaraning o'zi sinalmagan); M9 — `n_req <= 0` qorovuli `< 0` (111 M8 sinfi). Olti qulf testi (dedupe eng ertasi; `W` miqyosi `Outage.__table__` dan; uch nuqtali diametr; chegaraning o'z masofasi; `n_req` 0 va -1), beshala mutant qayta KILLED, fayl 56 → **61 test**. Mahsulot kodi tegilmadi. To'plam **3365 passed, 1 skipped** (117: 3359 — aynan +6); `requires_db` 231; alembic 0001→0010 toza; ruff toza | 119-run: mutatsiyani mahsulotning qolgan toza modullarida davom ettirish (`clustering/scale.py`, `clustering/status.py`, `reports/velocity.py`, `stats/coverage.py`, `geo/jitter`); 👤 ochiq savollarning hammasi odam qarorida; 👤 serverda `deploy.sh` va brauzer tekshiruvi kutadi |
 | 2026-08-12 | E9 | `web/`: oxirgi qattiq kodlangan matn i18n ga o'tkazildi (`04` §6) — `#lang` ning qattiq kodlangan `aria-label` i olib tashlandi, yangi kalit `map.language` (UZ/RU), nom `applyStrings` da katalogdan qo'yiladi. Yo'l-yo'lakay: `#region` ning nomi `fillRegions` dan `applyStrings` ga ko'chirildi — u bir marta ishlardi va til almashganda nom eski tilda qolardi (95-run ning `tiles` uyasi sinfi). Uchinchi yarmi o'lchandi, tuzatilmadi: mintaqa **nomlari** serverda tarjima qilinadi va `/map/config` qayta so'ralmaydi → 👤 savol. Testlar: defekt mavjudligini qulflagan test olib tashlandi, uchta yangi qo'shildi; `test_the_language_change_refreshes_every_notice` ning kesim ankraji tuzatildi (`_LANG_HANDLER` — aks holda u butun `boot()` ni qamrab jimgina kuchsizlanardi). Reyestr `UI-6` yangilandi. To'plam 3359 passed, 1 skipped (+2); `requires_db` 231; alembic 0001→0010 toza; ruff toza | 👤 mintaqa nomlari savoli; qolgan ochiq savollar odam qarorida; `web/` ning `UI-5`/`outage-halo`/to'rtinchi status qarzlari ham 👤 javobsiz boshlanmaydi |
 | 2026-08-12 | NFR | mutatsiya qamrovi: `nfr_appendix` 12/12 — 4 survivor qulflandi (116-run); **eski kontraktlarning mutatsiya qarzi to'liq yopildi**. 12 mutatsiya: 8 ushlandi, 4 survivor — M1 `SPEC` ankraji refleksiv (113 M8 sinfi), M4 `BASELINE_DOC`→`05_API.md` (ikkala darvoza boshqa nomni ham o'tkazardi), M7 bind nuqta-qorovuli hech qachon otilmagan (111 M8 sinfi), M12 `accurate` `and`→`or` (uchala kon'yunkt bugun `False`). Qulflar: `test_spec_points_at_the_measured_sections`, `test_baseline_doc_is_the_nfr_document`, `test_guard_rejects_a_dotless_bind`, `test_accurate_needs_each_of_the_three_conjuncts`; to'rtala mutant qayta KILLED, fayl 49→53 test. To'plam 3357 passed, 1 skipped (aynan +4); alembic 0001→0010 toza; ruff check toza. Mahsulot kodi tegilmadi | 117-run: mutatsiya seriyasi tugadi — «Ochiq savollar» dagi navbatdagi ish yoki yangi epic bo'lagi; 👤 §1–§7/§9–§12, §24↔§29, `OQ-*` va lug'at savollari; 👤 serverda `deploy.sh` va brauzer tekshiruvi kutadi |
@@ -546,6 +547,34 @@ Modul toza: `app.analytics.catalogue` dan boshqa hech narsani import qilmaydi.
 ## Ochiq savollar (odamga)
 
 <!-- Run davomida yuzaga kelgan, qaror talab qiladigan savollar -->
+
+- ✅ **👤 QAROR (2026-08-12, 118-run chatida): chegara importi — etalon
+  relation id bilan beriladi; Samarqand skoupi — «faqat Samarqand shahri».**
+  Serverda `stage 8` ikkita `[BLOK]` berdi va tekshiruvda ma'lum bo'ldiki,
+  Samarqandda **8-daraja umuman yo'q**: `survey` shahar bbox ida 8-darajada
+  bitta obyekt ko'rsatdi («Бошдарксон», `r17544823` — kirillcha, `name:uz` siz,
+  ya'ni ikkinchi blokning ham manbai), qoplash esa 0.50%. Ya'ni `05` §5.3 ning
+  «tumanlar (8) ⊂ shahar (6)» modeli bu mintaqaga **tushmaydi**.
+  bbox ni kengaytirish ham yordam bermadi: to'rtburchak hududni ajrata
+  olmaydi — `39.0,65.5,40.6,68.5` sakkizta viloyatni (jumladan
+  Согдийская область va Turkiston) va 50 tumanni tortdi.
+  Qaror: (a) asbobga `--reference-ref` qo'shiladi — etalon **id bo'yicha**
+  olinadi; (b) mintaqa skoupi — Samarqand shahri.
+  🔴 **Yo'l-yo'lakay topilgan asbob defekti (tuzatildi):**
+  `boundary_staging` da `UNIQUE (batch_id, source_ref)`, `_INSERT` da esa
+  `ON CONFLICT (batch_id, source_ref) DO NOTHING`, va `cmd_stage` staged
+  bilan reference ni **bitta `batch_id`** ostida yozadi. `--reference-level`
+  staged daraja bilan teng bo'lganda (skript `stage 6` uchun aynan shunday)
+  etalon qatorlari jimgina tushib qolardi — keyin qoplash «etalon
+  berilmagan» deb **bloklardi**. Endi holat nomlanadi va etalon yozilmaydi.
+  ⚠️ **Qolgan savol (👤):** skoup «faqat Samarqand shahri» ikki xil
+  o'qiladi va ikkalasi ham bugun quriladi: (1) districts = oltita 6-daraja
+  tumani, etalon = shahar — qoplash **haqiqiy** o'lchov bo'lib qoladi
+  (birlashma shaharni qoplaydimi) va darvoza halol o'tadi; (2) districts =
+  faqat shahar relationi — bitta tuman, qoplash ta'rifan ma'nosiz
+  (`degenerate` yo'li, bloklamaydi, `100%` deb ko'rsatilmaydi) va tuman
+  kesimi ma'lumot tashimaydi. Ikkinchisi uchun staged ni etalonga
+  kesadigan qo'shimcha filtr kerak — hali qurilmagan.
 
 - **👤 117-run — bitta savol (E9, `web/`), 98-run ning 2-savolini
   tuzatayotganda ochildi.**

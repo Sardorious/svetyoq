@@ -173,6 +173,12 @@ async def cmd_survey(args: argparse.Namespace) -> int:
         shown = ", ".join(names[:8]) + ("…" if len(names) > 8 else "")
         print(f"{level:>11} | {len(names):>4} | {shown}")
 
+    # `--reference-ref` id talab qiladi, jadval esa faqat nomlarni ko'rsatadi —
+    # id ni boshqa joydan qidirishga majbur qilmaslik uchun shu yerda beriladi.
+    print("\nrelation id lari (`stage --reference-ref` uchun):")
+    for boundary in sorted(boundaries, key=lambda b: (b.admin_level, b.display_name)):
+        print(f"  {boundary.admin_level:>2}  {boundary.source_ref:>12}  {boundary.display_name}")
+
     print(
         "\nQaysi daraja shahar tumanlariga mos kelishini O'ZINGIZ tanlang "
         "(ADR-07) va `stage --admin-level N` bilan davom eting."
@@ -225,7 +231,13 @@ async def _stage_boundaries(session, batch_id, region_code, boundaries, status) 
     return staged
 
 
-async def _run_quality(session, batch_id: uuid.UUID, rows: list[dict]) -> quality.QualityReport:
+async def _run_quality(
+    session,
+    batch_id: uuid.UUID,
+    rows: list[dict],
+    *,
+    degenerate: bool = False,
+) -> quality.QualityReport:
     report = quality.QualityReport()
 
     await session.execute(text(quality.SQL_MAKE_VALID), {"batch_id": batch_id})
@@ -247,17 +259,20 @@ async def _run_quality(session, batch_id: uuid.UUID, rows: list[dict]) -> qualit
     ).scalar_one()
     report.add(quality.check_overlap_ratio(float(overlap), float(total_area)))
 
-    coverage = (
-        await session.execute(text(quality.SQL_COVERED_AREA), {"batch_id": batch_id})
-    ).one_or_none()
-    if coverage is None:
-        report.add(quality.check_coverage_ratio(0.0, None))
+    if degenerate:
+        report.add(quality.check_coverage_ratio(0.0, None, degenerate=True))
     else:
-        report.add(
-            quality.check_coverage_ratio(
-                float(coverage.covered_area), float(coverage.reference_area) or None
+        coverage = (
+            await session.execute(text(quality.SQL_COVERED_AREA), {"batch_id": batch_id})
+        ).one_or_none()
+        if coverage is None:
+            report.add(quality.check_coverage_ratio(0.0, None))
+        else:
+            report.add(
+                quality.check_coverage_ratio(
+                    float(coverage.covered_area), float(coverage.reference_area) or None
+                )
             )
-        )
 
     report.add(quality.check_names(rows))
     report.add(quality.check_license(["ODbL"] * len(rows)))
@@ -277,13 +292,34 @@ async def cmd_stage(args: argparse.Namespace) -> int:
         return EXIT_BLOCKED
 
     reference: list[osm.OsmBoundary] = []
-    if args.reference_level:
+    ref_cache = args.cache.with_suffix(".ref.json") if args.cache else None
+    if args.reference_ref:
+        # Etalon id bo'yicha: bbox hududni ajrata olmaydi (`osm.relation_query`).
+        ref_payload = await _load_payload(
+            osm.relation_query(args.reference_ref), args.overpass_url, ref_cache
+        )
+        reference = osm.parse_boundaries(ref_payload)
+    elif args.reference_level:
         ref_query = osm.fetch_query(bbox, args.reference_level)
-        ref_cache = args.cache.with_suffix(".ref.json") if args.cache else None
         ref_payload = await _load_payload(ref_query, args.overpass_url, ref_cache)
         reference = [
             b for b in osm.parse_boundaries(ref_payload) if b.admin_level == args.reference_level
         ]
+
+    # Etalon staged to'plamining ichida bo'lsa, qoplash o'lchovi ma'nosiz —
+    # va `boundary_staging` ning `UNIQUE (batch_id, source_ref)` i tufayli
+    # etalon qatorlari `ON CONFLICT DO NOTHING` bilan **jimgina** tushib
+    # qolardi (118-run defekti): natijada tekshiruv «etalon berilmagan»
+    # deb bloklardi. Endi holat nomlanadi va etalon umuman yozilmaydi.
+    # Shart **tenglik**, qism-to'plam emas: etalon staged larning biri bo'lishi
+    # (masalan «Samarqand shahri» oltita tumandan biri) normal va o'lchov
+    # o'sha holda ham haqiqiy — birlashma shaharni qoplaydimi. Ma'nosiz
+    # bo'ladigan yagona holat — staged to'plami etalonning **aynan o'zi**.
+    staged_refs = {b.source_ref for b in boundaries}
+    reference_refs = {b.source_ref for b in reference}
+    degenerate = bool(reference_refs) and reference_refs == staged_refs
+    if degenerate:
+        reference = []
 
     async with session_scope() as session:
         staged = await _stage_boundaries(
@@ -293,7 +329,9 @@ async def cmd_stage(args: argparse.Namespace) -> int:
             await _stage_boundaries(
                 session, batch_id, args.region, reference, quality.STATUS_REFERENCE
             )
-        report = await _run_quality(session, batch_id, [b.to_row() for b in boundaries])
+        report = await _run_quality(
+            session, batch_id, [b.to_row() for b in boundaries], degenerate=degenerate
+        )
 
     print(f"\nbatch_id: {batch_id}")
     print(f"staging ga yozildi: {staged} ta poligon")
@@ -400,11 +438,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_stage = sub.add_parser("stage", help="tanlangan darajani staging ga yuklash")
     common(p_stage)
     p_stage.add_argument("--admin-level", type=int, required=True)
-    p_stage.add_argument(
+    ref = p_stage.add_mutually_exclusive_group()
+    ref.add_argument(
         "--reference-level",
         type=int,
         default=None,
         help="shahar chegarasi darajasi — qoplashni o'lchash uchun (05 §5.3)",
+    )
+    ref.add_argument(
+        "--reference-ref",
+        default="",
+        help=(
+            "etalon relation id ('r17544823' yoki '17544823') — bbox hududni "
+            "ajrata olmaganda (05 §5.3)"
+        ),
     )
     p_stage.set_defaults(func=cmd_stage)
 

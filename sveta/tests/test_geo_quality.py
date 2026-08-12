@@ -78,3 +78,44 @@ def test_report_ok_when_all_pass() -> None:
 def test_thresholds_match_spec() -> None:
     assert quality.MAX_OVERLAP_RATIO == 0.01
     assert quality.MIN_COVERAGE_RATIO == 0.98
+
+
+def test_degenerate_coverage_is_not_reported_as_100_percent() -> None:
+    """Etalon districtning o'zi bo'lsa — soxta `100%` emas, o'lchanmagan holat.
+
+    118-run: Samarqandda 8-daraja umuman yo'q, ya'ni `05` §5.3 ning
+    «tumanlar ⊂ shahar» modeli tushmaydi va staged to'plami etalonga teng
+    bo'lib qoladi. Bunday konfiguratsiyada nisbat ta'rifan `1.0` — darvoza
+    o'tar edi, lekin hech narsa o'lchamas edi. Shuning uchun tekshiruv
+    **bloklamaydi**, lekin `100%` deb ham ko'rsatilmaydi.
+    """
+    check = quality.check_coverage_ratio(covered_area=0.0, reference_area=None, degenerate=True)
+
+    assert not check.is_blocker
+    assert not check.blocking
+    assert "100" not in check.detail
+    assert "o'lchanmadi" in check.detail
+
+
+def test_degenerate_coverage_shows_as_warning_not_ok() -> None:
+    """Hisobot qatorida u `[OK  ]` bo'lib ko'rinmasligi kerak edi, lekin...
+
+    `as_lines` belgisi `passed` dan kelib chiqadi, ya'ni o'lchanmagan
+    tekshiruv ham `[OK  ]` bo'lib chiqadi. Bu ataylab: `QualityReport`
+    ning ikki holatli belgisi (`passed`) uchinchi holatni bilmaydi va uni
+    kengaytirish `05` §5.3 hisobot shaklini o'zgartirardi — sabab
+    `detail` matnida to'liq yozilgan va u ham qatorga tushadi.
+    """
+    report = quality.QualityReport()
+    report.add(quality.check_coverage_ratio(0.0, None, degenerate=True))
+
+    (line,) = report.as_lines()
+    assert report.ok
+    assert "o'lchanmadi" in line
+
+
+def test_degenerate_flag_does_not_leak_into_normal_measurement() -> None:
+    """Bayroqsiz chaqiruvlarda xulq-atvor o'zgarmagan."""
+    assert quality.check_coverage_ratio(covered_area=98.0, reference_area=100.0).passed
+    assert quality.check_coverage_ratio(covered_area=97.9, reference_area=100.0).is_blocker
+    assert quality.check_coverage_ratio(covered_area=0.0, reference_area=None).is_blocker
