@@ -101,6 +101,55 @@ def test_days_are_rounded_down(days: float, expected_days: int, young: bool) -> 
     assert result.is_young is young
 
 
+def test_no_history_gives_exactly_one_reason() -> None:
+    """Xabar yo'q bo'lsa sabab **bitta**: `no_history`.
+
+    `days = 0` bo'lgani uchun «tarix qisqa» sharti ham rasman bajariladi,
+    lekin u sabablar ro'yxatiga qo'shilmasligi kerak: vitrinada «tarix
+    yo'q» va «tarix qisqa» yonma-yon turishi bir-birini inkor qiladigan
+    ikki xabar bo'lardi va o'quvchi qaysi biriga ishonishni bilmasdi.
+    Shu sababli koddagi shart `elif` — bu test aynan shuni qulflaydi.
+    """
+    assert make(days=None, events=0).reasons == (
+        maturity.REASON_NO_HISTORY,
+        maturity.REASON_FEW_EVENTS,
+    )
+
+
+def test_exactly_min_events_is_enough() -> None:
+    """Hodisalar chegarasi aynan `min_events` da yopiladi.
+
+    `<=` bo'lsa, chegarani aynan bajargan mintaqa yana bir hodisa
+    kutishga majbur bo'lardi va javobdagi `min_events` yolg'on bo'lardi:
+    o'quvchi 30 ni ko'rib turib 30 da hali «yosh» bo'lardi.
+    """
+    assert make(days=400, events=30).is_young is False
+    assert make(days=400, events=29).is_young is True
+
+
+def test_first_report_today_is_zero_days_not_one() -> None:
+    """Bugun boshlangan kuzatuv — 0 kun.
+
+    Kunlar pastga yaxlitlanadi va pastki chegara ham 0: `max(1, …)`
+    bo'lsa, birinchi xabar kelgan kuniyoq vitrina «bir kunlik tarix»
+    deb yozardi, ya'ni o'lchov o'zi haqida bittaga ko'p da'vo qilardi.
+    """
+    assert make(days=0, events=0).observed_days == 0
+
+
+def test_a_future_first_report_does_not_make_the_history_negative() -> None:
+    """Soat farqi tarixni manfiy qilmaydi.
+
+    `observed_since` kelajakda bo'lishi mumkin (serverning vaqti,
+    importdagi sana), va `max(0, …)` qorovulisiz `observed_days` manfiy
+    chiqardi — javobdagi son ma'nosini yo'qotardi va «-3 kun kuzatuv»
+    vitrinaga chiqardi.
+    """
+    result = make(days=-3, events=0)
+    assert result.observed_days == 0
+    assert maturity.REASON_SHORT_HISTORY in result.reasons
+
+
 def test_thresholds_travel_with_the_answer() -> None:
     """«Yosh» so'zining ma'nosi javobda ochiq turadi, mijozda emas."""
     result = make(min_days=45, min_events=10)

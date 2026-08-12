@@ -37,6 +37,9 @@ COMPOSE = ROOT / "docker-compose.yml"
 COMPOSE_PROD = ROOT / "deploy/docker-compose.prod.yml"
 DEPLOY_SH = ROOT / "scripts/deploy.sh"
 INIT_TLS_SH = ROOT / "scripts/init_tls.sh"
+#: Serverdagi ko'p loyihali stek va xost nginx sayti (repo ildizida).
+SERVER_COMPOSE = ROOT.parent / "deploy-server/docker-compose.yml"
+HOST_SITE = ROOT.parent / "deploy-server/bormitok.uz.nginx.conf"
 
 #: Snippet ikkala qobiqqa ham shu nom bilan ulanadi.
 SNIPPET_MOUNT = "/etc/nginx/snippets/sveta-locations.conf"
@@ -59,7 +62,17 @@ HEALTH_TARGET = "/api/v1/health/live"
 
 @pytest.mark.parametrize(
     "path",
-    [LOCATIONS, NGINX_DEV, NGINX_PROD, COMPOSE, COMPOSE_PROD, DEPLOY_SH, INIT_TLS_SH],
+    [
+        LOCATIONS,
+        NGINX_DEV,
+        NGINX_PROD,
+        COMPOSE,
+        COMPOSE_PROD,
+        DEPLOY_SH,
+        INIT_TLS_SH,
+        SERVER_COMPOSE,
+        HOST_SITE,
+    ],
     ids=lambda p: p.name,
 )
 def test_the_deploy_file_exists(path: Path) -> None:
@@ -210,6 +223,78 @@ def test_the_database_port_is_not_published_to_the_world_by_default() -> None:
     """`0.0.0.0:5432` — standart parol bilan birga to'g'ridan-to'g'ri xavf."""
     body = _read(COMPOSE)
     assert '"${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"' in body
+
+
+# --------------------------------------------------------------------------
+# Serverdagi ko'p loyihali compose (`deploy-server/`)
+# --------------------------------------------------------------------------
+#
+# Serverda Sveta.Net yolg'iz emas: bitta xostda ikkiattor, droneguard,
+# utilitybot va boshqalar bilan **bitta** compose faylida yashaydi. O'sha
+# fayl ilgari faqat serverda bor edi va repodagidan jimgina ajralib
+# ketardi (2026-08-12: ikkita stek bir vaqtda ishlab turgani shundan).
+# Endi u repoda, ya'ni ajralishi o'lchanadigan bo'ldi.
+
+
+def test_the_server_compose_is_in_the_repo() -> None:
+    assert SERVER_COMPOSE.is_file(), (
+        "serverdagi compose repoda yo'q — u yana jimgina ajralib ketadi"
+    )
+
+
+def test_the_server_compose_gives_the_api_the_alias_the_snippet_expects() -> None:
+    """Snippet `api:8000` ga murojaat qiladi, xizmat esa `sveta-api` deb atalgan.
+
+    Aliassiz nginx `host not found in upstream "api"` bilan **umuman**
+    ko'tarilmaydi — ya'ni xarita butunlay ochilmaydi.
+    """
+    assert "proxy_pass http://api:8000/api/;" in _read(LOCATIONS)
+    body = _read(SERVER_COMPOSE)
+    assert "aliases: [api]" in body
+
+
+def test_the_server_compose_mounts_the_same_snippet_from_the_repo() -> None:
+    """Nusxa emas, aynan repodagi fayl ulanadi — aks holda ikki manba bo'lardi."""
+    body = _read(SERVER_COMPOSE)
+    assert f"./svetyoq/sveta/deploy/nginx.locations.conf:{SNIPPET_MOUNT}:ro" in body
+    assert "./svetyoq/sveta/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro" in body
+
+
+def test_the_server_bot_is_behind_a_profile() -> None:
+    """Polling va webhook bir vaqtda ishlasa nosozlik JIM bo'ladi.
+
+    Telegram update larni ikki iste'molchi orasida tasodifiy bo'lib beradi:
+    foydalanuvchi «bot goho javob bermaydi» deb ko'radi, jurnalda esa xato
+    yo'q. Shuning uchun polling ataylab tanlanadi.
+    """
+    body = _read(SERVER_COMPOSE)
+    assert 'profiles: ["polling"]' in body
+
+
+def test_the_server_database_is_not_published_to_the_world() -> None:
+    body = _read(SERVER_COMPOSE)
+    assert '"127.0.0.1:5433:5432"' in body
+    assert '"0.0.0.0:' not in body
+
+
+def test_the_host_nginx_site_points_at_the_web_container() -> None:
+    """Xost nginx faqat uzatadi — marshrutlash konteyner ichida (bitta manba)."""
+    body = _read(HOST_SITE)
+    assert "server_name bormitok.uz www.bormitok.uz;" in body
+    assert "proxy_pass http://127.0.0.1:8080;" in body
+    assert "proxy_set_header X-Forwarded-Proto $scheme;" in body
+    # Marshrutlash takrorlanmasin: xost saytida `/api/` yoki webhook joyi
+    # paydo bo'lsa ikki fayl ajralib ketadi. Izohlar hisobga olinmaydi —
+    # ular aynan shu bo'linishni **tushuntiradi**.
+    directives = "\n".join(
+        line for line in body.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "location /api/" not in directives
+    assert "/telegram/webhook" not in directives
+
+
+def test_the_web_container_is_published_where_the_host_site_looks() -> None:
+    assert '"127.0.0.1:8080:80"' in _read(SERVER_COMPOSE)
 
 
 def test_the_http_only_services_do_not_pretend_to_be_healthy() -> None:

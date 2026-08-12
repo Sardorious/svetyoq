@@ -1,4 +1,7 @@
-# Sveta.Net — prod ustqurmasi (bormitok.uz, HTTPS).
+# Sveta.Net — prod ustqurmasi (bormitok.uz, HTTPS) — **xostda nginx BO'LMAGAN**
+# server uchun. Joriy serverda xost nginx bor va 80/443 band: u yerda
+# `deploy-server/docker-compose.yml` + `deploy-server/bormitok.uz.nginx.conf`
+# ishlatiladi. Batafsil sabab — `deploy/nginx.prod.conf` sarlavhasida.
 #
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
 #          --profile jobs up -d

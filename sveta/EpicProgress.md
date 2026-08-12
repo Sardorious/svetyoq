@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-12 (123-run).
+**Oxirgi yangilanish:** 2026-08-12 (124-run).
 
 ---
 
@@ -54,11 +54,11 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
-* **Yashil holat:** **148** test fayli; butun to'plam **3442 yig'ildi**
-  (123-run: DB siz **3210 passed, 232 skipped** — 122 ning 3432 si +
+* **Yashil holat:** **148** test fayli; butun to'plam **3452 yig'ildi**
+  (124-run: DB siz **3220 passed, 232 skipped** — 123 ning 3210 si +
   aynan 10 mutatsiya qulfi testi; DB bilan oxirgi o'lchov — 121-run,
-  **3401 passed, 1 skipped**). ⛔ 122 va 123 da `requires_db`
-  **yurgizilmadi** (ketma-ket ikki run): `/` ham, `/sessions` ham 100%
+  **3401 passed, 1 skipped**). ⛔ 122, 123 va 124 da `requires_db`
+  **yurgizilmadi** (ketma-ket uch run): `/` ham, `/sessions` ham 100%
   to'la, yangi `initdb` ga joy yo'q — 👤 `cleanup-sessions.ps1` endi
   **bloklovchi**. `-m requires_db` **231 passed** (121-run) (⚠️ `pg_ctl`
   **shartsiz `start`** bilan bitta bash chaqiruvida — server chaqiruv
@@ -163,8 +163,45 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   uchun ikki ulp kerak (1.5 mln juftlikda topilmadi); `attached <= 0`
   — nolda natija **bit-aynan** bir xil, manfiy `attached` esa SQL
   `COUNT` dan chiqmaydi.
-  Mutatsiyasiz mahsulot modullari qoldi:
-  `stats/aggregate.py`, `stats/heatmap.py`.
+  123 ning qulflari (`aggregate.py` + `heatmap.py`): `≤5%`
+  mezonining **chegarasi**, chelaklar tartibi va `unassigned`
+  qoldig'ining oxirda turishi; `heatmap` da shkalaning **faqat
+  ko'rinadigan** katakchalardan qurilishi va `ceil` ↔ `floor`.
+* **🔴 124-run: «mutatsiyasiz modul qolmadi» xulosasi BEKOR.**
+  123 yakuni faqat **yadro** haqida edi; o'lchanmagan yana oltita
+  toza (bazasiz, HTTP siz) mahsulot moduli bor ekan:
+  `stats/duration.py`, `obs/alerts.py`, `geo/quality.py`,
+  `stats/mahalla_coverage.py`, `stats/maturity.py`,
+  `stats/boundaries.py`. Ikkitasi 124 da olindi:
+  ✅ `app/stats/duration.py` — **19/19** (13 KILLED, 6 survivor
+  qulflandi, ekvivalent yo'q) va ✅ `app/obs/alerts.py` +
+  `obs/counters.error_rate` — **14/14** (7 KILLED, 7 survivor
+  qulflandi). Mahsulot kodi tegilmadi.
+  `duration` ning eng qimmatlari: `ongoing_ratio` ning nolga
+  bo'linish qorovuli maxrajga mos emasligi — **bitta ham hodisa
+  yopilmagan** hududda ulush `1.0` o'rniga `0.0` chiqardi, ya'ni
+  ogohlantirish aynan o'zi uchun yozilgan holatda yonmasdi; o'sha
+  holatda `timeout_ratio` da `0 / 0`; persentilda `round` →
+  kesish (`01` §4 ning nashr etiladigan mediana va P90 si tizimli
+  kamayardi — nazorat qiymatlari butun songa tushgani uchun
+  sezilmasdi); `len(ordered) == 1` qorovulining kengayishi;
+  `duration_min == 0` ning «ochiq» deb sanalishi; ogohlantirishlar
+  tartibi (mavjud test `set()` bilan solishtirardi).
+  `alerts` ning yettala survivori **bitta sinf — refleksivlik**:
+  hamma test `alerts.ALERTS` va konstantalarga murojaat qilgani
+  uchun Prometheus yorliqlarining **o'zi** (`snapshot_stale`,
+  `error_rate`) va ularning tartibi hech qayerda tekshirilmagan
+  edi — nom o'zgargan kuni `alert_active{alert=…}` ni o'qiydigan
+  tashqi qoida jim qolardi; qolgan uchtasi chegaralar
+  (`total >= min_requests` → `>`, `rate > error_rate` → `>=`,
+  `error_rate` maxrajidan `5xx` ning chiqib ketishi).
+  ⚠️ Repodagi `tools/_mut.py` hali ham `returncode != 0` bilan
+  hukm qiladi (119-run ning yolg'on `KILLED` i) — 124 harnessni
+  `/tmp` da qat'iy `rc == 1` bilan yozdi. 👤 `tools/_mut.py` ni
+  tuzatish yoki o'chirish kerak.
+  Mutatsiyasiz qolgan toza modullar: `geo/quality.py`,
+  `stats/mahalla_coverage.py`, `stats/maturity.py`,
+  `stats/boundaries.py`.
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
   (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
@@ -195,7 +232,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | — |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | — |
 | E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/{nginx.locations,nginx,nginx.prod}.conf`, `deploy/docker-compose.prod.yml`, `scripts/{deploy,init_tls}.sh`, `0004` | 👤 **domen `bormitok.uz`** DNS bilan yo'naltirilgan (2026-08-12); kod tayyor (122-run: HTTPS qobig'i, ACME, webhook proksi, `limit_req`), serverda `scripts/init_tls.sh --email …` yurgizilishi kerak. ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/{nginx.locations,nginx,nginx.prod}.conf`, `deploy/docker-compose.prod.yml`, `scripts/{deploy,init_tls}.sh`, `0004` | 👤 **domen `bormitok.uz`** DNS bilan yo'naltirilgan (2026-08-12); kod tayyor (122-run: webhook proksi, `limit_req`, `sveta-web` konteyneri, xost nginx sayti). ⚠️ Serverda xost nginx bor va 80/443 band — TLS **xostda** (`certbot --nginx`), konteyner-certbot yo'li (`deploy/nginx.prod.conf`, `deploy/docker-compose.prod.yml`, `scripts/init_tls.sh`) faqat bo'sh server uchun saqlandi. ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | E10, E11 |
@@ -241,7 +278,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 ## 2. Testlar epiclar bo'yicha
 
 Jami **148 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam **3432 yig'iladi** — 122-run da DB siz **3200 passed, 232
+to'plam **3441 yig'iladi** — 122-run da DB siz **3209 passed, 232
 skipped**, DB bilan oxirgi o'lchov 121-run da **3401 passed, 1
 skipped** edi (+6 qulf testi). `-m requires_db`
 **231 passed** (121-run; 122 da disk to'lgani uchun yurgizilmadi) — ⚠️ `pg_ctl start`, `alembic upgrade head` va
@@ -263,7 +300,7 @@ serverdan keyin ham `postmaster.pid` qoladi va `status || start`
 | E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
 | E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
-| E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **24 test** (122-run): nginx ↔ ilova ↔ compose; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi |
+| E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **33 test** (122-run): nginx ↔ ilova ↔ compose ↔ serverdagi ko'p loyihali stek; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi; `deploy-server/` — `api` aliasi ↔ snippet, polling profili, xost saytining marshrutlashni takrorlamasligi |
 | E13 | `test_notifications_outbox`, `test_notifications_render`, `test_notifications_db`, `test_notify_params`, `test_notification_domain_contract`, `test_notification_channels_contract` |
 | E14 | `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_boundaries`, `test_stats_maturity`, `test_stats_mahalla_coverage`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
 | E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
@@ -355,12 +392,13 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 
 | Nima | Kimni bloklaydi |
 |---|---|
+| 🟡 **`tools/_mut.py` verdiktni `returncode != 0` bilan chiqaradi** — bu aynan 119-run ni bekor qilgan xato (usage-error `rc=4` ham `KILLED` deb o'qiladi). 120–124 runlar o'z harnessini `/tmp` da yozib ishlatdi. Fayl tuzatilsinmi (`rc == 1`) yoki o'chirilsinmi — agent `allow_cowork_file_delete` ni chaqira olmaydi | keyingi mutatsiya runlari |
 | 🟡 `make lint` ning `ruff format --check` qadami repo bilan mos emas (124 fayl `0.16.2` da, 130 fayl `0.8.6` da — repo hech qachon `ruff format` bilan formatlanmagan). CI faqat `ruff check` ni yurgizadi, reliz bloklanmaydi. Uch yo'l: bir marta formatlash + versiyani qulflash / qadamni olib tashlash / farqni qayd etib qoldirish | REL (`03` §6), butun repo |
-| ⛔ **`cleanup-sessions.ps1` — endi bloklovchi, ketma-ket IKKINCHI run.** 122 da `/` da 62 MB, 123 da 52 MB bo'sh qoldi; `/sessions` ikkalasida ham **0**. Yangi `initdb` ga joy yo'q, `requires_db` ning 232 testi ikkala runda ham jimgina `skip` bo'ldi (oxirgi haqiqiy o'lchov — 121-run, 231 passed). Sandbox PostGIS retsepti (§6) disk bo'shamaguncha ishlamaydi | butun `requires_db` qatlami: E2, E3, E5, E8, E9, E13, E14, E15, E19 |
+| ⛔ **`cleanup-sessions.ps1` — bloklovchi, ketma-ket UCHINCHI run.** 122 da `/` da 62 MB, 123 da 52 MB, 124 da 44 MB bo'sh qoldi; `/sessions` uchalasida ham **0**. Yangi `initdb` ga joy yo'q, `requires_db` ning 232 testi uchala runda ham jimgina `skip` bo'ldi (oxirgi haqiqiy o'lchov — 121-run, 231 passed). Sandbox PostGIS retsepti (§6) disk bo'shamaguncha ishlamaydi | butun `requires_db` qatlami: E2, E3, E5, E8, E9, E13, E14, E15, E19 |
 | ⛔ **`.git/index.lock`** — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
-| ⛔ **Serverda ikkita parallel stek** bitta bazada ishlayapti (`docker ps`, 2026-08-12): `deploy-*` (`~/deploy/docker-compose.yml`) va repodagi `sveta-*`. Ikkala `jobs` runner bir vaqtda yuradi — outbox, snapshot va coverage vazifalari **ikki marta** bajariladi (bildirishnoma dublikati xavfi). Bittasi o'chirilsin | E13, E9, E14, JOBS |
-| `bormitok.uz`: `scripts/init_tls.sh --email …` yurgizish, keyin polling → webhook (`TELEGRAM_MODE`, `TELEGRAM_WEBHOOK_URL`, `MAP_PUBLIC_URL`) va polling konteynerini to'xtatish | E9, E3, E13 |
+| ⛔ **Serverda ikkita parallel stek** ishlayapti (`docker ps`, 2026-08-12): ko'p loyihali `~/deploy/` (`sveta-*`) va repodagi `sveta/docker-compose.yml` (`sveta-*-1`). Ikkala `jobs` runner yuradi va ⚠️ **ikkita alohida Postgres volume i** bor — o'chirishdan oldin Samarqand importi qaysi bazada ekani tekshirilsin (`deploy-server/README.md` §0) | E13, E9, E14, E2, JOBS |
+| `bormitok.uz`: `deploy-server/docker-compose.yml` ni serverga ko'chirish, xost nginx sayti + `certbot --nginx`, keyin polling → webhook (`TELEGRAM_MODE`, `TELEGRAM_WEBHOOK_URL`, `MAP_PUBLIC_URL`) va `sveta-bot` ni o'chirish | E9, E3, E13 |
 | ~~Telegram bot tokeni~~ ✅ 👤 bor (2026-08-12). Qoldi: webhook rejimidagi **haqiqiy run** | E3, E13 |
 | Mahalla poligonlari | E17, E14 (mahalla qamrovi), E15 (`/geo/mahallas` bo'sh), ANL (`01` §21 ning **ikkita** dashboardi) |
 | Rasmiy manba (H-4) kelishuvi | E18 |

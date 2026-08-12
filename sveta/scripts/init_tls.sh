@@ -2,6 +2,12 @@
 # =============================================================================
 # Sveta.Net — birinchi TLS sertifikati (odam ishga tushiradi, agent emas).
 #
+# ⚠️ FAQAT xostda nginx BO'LMAGAN serverda. Joriy serverda xost nginx
+# droneguard.uz ni xizmat qilyapti va 80/443 band — u yerda sertifikat
+# xostdagi certbot bilan olinadi:
+#     sudo certbot --nginx -d bormitok.uz -d www.bormitok.uz
+# (`deploy-server/bormitok.uz.nginx.conf` ga qarang).
+#
 # Muammo: nginx `ssl_certificate` fayli yo'q bo'lsa UMUMAN ko'tarilmaydi,
 # certbot esa tekshiruv faylini berish uchun ishlayotgan nginx ni talab
 # qiladi. Klassik tuxum-tovuq. Yechim uch qadamda:

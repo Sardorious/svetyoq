@@ -1,0 +1,408 @@
+services:
+  # ─── ikkiattor (parfyumeriya do'koni) ──────────────────────────────────────
+  # NB: service name must stay "backend" — ikkiattor/nginx.conf proxies /api
+  # to the hostname "backend" via Docker's internal DNS.
+  #
+  # Images are pulled from ghcr.io (built by ikkiattor's own GitHub Actions
+  # workflow on every push) rather than built locally — this is the ONLY
+  # place `docker-compose pull` should be used; every other service in this
+  # file still builds from local source. GITHUB_REPOSITORY_OWNER must be set
+  # once in .env (lowercase GitHub username/org, e.g. "sardorious").
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/ikkiattor-backend:latest
+    container_name: ikkiattor-backend
+    restart: unless-stopped
+    volumes:
+      - ikkiattor-db:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/dev.db
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3001
+      - ADMIN_PASSWORD=${IKKIATTOR_ADMIN_PASSWORD:-admin@123}
+    command: sh -c "mkdir -p /app/data && npx prisma migrate deploy && npm start"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/api/products || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [apps]
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/ikkiattor-frontend:latest
+    container_name: ikkiattor-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [apps]
+
+  # ─── drone-site (droneguard.uz marketing/landing) ──────────────────────────
+  drone-site:
+    build:
+      context: ./drone-site
+      dockerfile: Dockerfile
+    container_name: droneguard-site
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5001"   # host nginx (droneguard.uz) proxies here, see MIGRATION.md
+    environment:
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - INVESTOR_PASSWORD=${INVESTOR_PASSWORD}
+    healthcheck:
+      # python:3.11-slim has no wget/curl (unlike ikkiattor's node:18-alpine,
+      # which gets wget for free from busybox) — use Python's own stdlib instead.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [apps]
+
+  # ─── drone-admin (admin.droneguard.uz FPV/MAVLink kuzatuv paneli) ─────────
+  # Dockerfile does not exist upstream yet — copy the provided
+  # drone-admin.Dockerfile to ./drone-admin/Dockerfile before building.
+  drone-admin:
+    build:
+      context: ./drone-admin
+      dockerfile: Dockerfile
+    container_name: drone-admin
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"   # host nginx (admin.droneguard.uz) proxies here, see MIGRATION.md
+    environment:
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8765
+      - SECRET_KEY=${DRONE_ADMIN_SECRET_KEY}
+      - DEFAULT_ADMIN_USER=${DRONE_ADMIN_USER:-admin}
+      - DEFAULT_ADMIN_PASS=${DRONE_ADMIN_PASS}
+      - AUTH_REQUIRED=${DRONE_ADMIN_AUTH_REQUIRED:-1}
+      - SECURE_COOKIES=1
+      # Optional extras — uncomment & set in .env if used:
+      # - DRONES_JSON=${DRONE_ADMIN_DRONES_JSON}
+      # - TG_BOT_TOKEN=${DRONE_ADMIN_TG_BOT_TOKEN}
+      # - TG_CHAT_ID=${DRONE_ADMIN_TG_CHAT_ID}
+    volumes:
+      - drone-admin-uploads:/app/backend/uploads
+      - drone-admin-jobs:/app/backend/jobs
+      - drone-admin-detections:/app/backend/detections
+    # Real drone hardware needs a device or host network — pick ONE and edit:
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0"     # USB/serial telemetry radio
+    # network_mode: host                  # if drone streams MAVLink over UDP on the host NIC
+    networks: [apps]
+
+  # ─── telegram-bot-api (Local Bot API Server — needed for files > 20 MB) ───
+  # utilitybot's PDF OCR/translate flow needs to accept files up to 500 MB;
+  # Telegram's cloud Bot API caps downloads at 20 MB, so a self-hosted Local
+  # Bot API Server is required (supports up to ~2000 MB). Get TELEGRAM_API_ID
+  # and TELEGRAM_API_HASH from https://my.telegram.org and put them in .env.
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram-bot-api
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_LOCAL=true
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    networks: [apps]
+
+  # ─── bgutil-provider (PO Token provider for yt-dlp/YouTube) ───────────────
+  # Since ~Feb 2026 YouTube requires a valid Proof-of-Origin token in
+  # addition to cookies for most yt-dlp "player clients" - without it,
+  # requests get rejected with "Sign in to confirm you're not a bot" even
+  # with valid cookies. This container generates those tokens; utilitybot's
+  # yt-dlp calls reach it over the internal Docker network (see
+  # utils/video.py apply_cookies(), which points at http://bgutil-provider:4416
+  # by default). No host port needs to be published.
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    container_name: bgutil-provider
+    restart: unless-stopped
+    init: true
+    networks: [apps]
+
+  # ─── utilitybot (Telegram file-conversion bot, long-polling — no port) ────
+  # Dockerfile does not exist upstream — copy the provided
+  # utilitybot.Dockerfile to ./utilitybot/Dockerfile before building.
+  utilitybot:
+    build:
+      context: ./utilitybot
+      dockerfile: Dockerfile
+    container_name: utilitybot
+    restart: unless-stopped
+    depends_on:
+      - telegram-bot-api
+      - bgutil-provider
+    environment:
+      - BOT_TOKEN=${UTILITYBOT_TOKEN}
+      - ANTHROPIC_API_KEY=${UTILITYBOT_ANTHROPIC_API_KEY}
+      # Telegram user IDs allowed to approve/deny download requests and to
+      # manage the white/blacklists (comma separated). Without this, nobody
+      # can approve anything and every non-whitelisted user is refused.
+      - ADMIN_IDS=${UTILITYBOT_ADMIN_IDS}
+      # Points utilitybot at the Local Bot API Server above instead of
+      # Telegram's cloud API, so files up to ~2000 MB can be downloaded.
+      - TELEGRAM_LOCAL_API_URL=http://telegram-bot-api:8081
+      # Residential/mobile proxy for yt-dlp. YouTube blocks datacenter/VPS
+      # IPs outright ("Sign in to confirm you're not a bot" on every video,
+      # regardless of cookies/PO token/JS runtime), so YouTube downloads
+      # need traffic to originate from a consumer IP. Format:
+      # http://user:pass@host:port  — set YTDLP_PROXY in .env to enable.
+      # Leave unset to disable (Instagram works fine without it).
+      - YTDLP_PROXY=${YTDLP_PROXY:-}
+      # Optional, defaults to 500 in code - override here if you need a
+      # different cap:
+      # - MAX_DOCUMENT_SIZE_MB=500
+    volumes:
+      - utilitybot-data:/data
+      # Same path telegram-bot-api uses internally (/var/lib/telegram-bot-api)
+      # - required so aiogram can read downloaded files straight off disk
+      # instead of re-fetching them over HTTP. Read-only is enough.
+      - telegram-bot-api-data:/var/lib/telegram-bot-api:ro
+    networks: [apps]
+
+  # ─── yuksalish_bot (Telegram exercise tracker bot, long-polling — no port) ─
+  # Dockerfile does not exist upstream — copy the provided
+  # yuksalish_bot.Dockerfile to ./yuksalish_bot/Dockerfile before building.
+  yuksalish-bot:
+    build:
+      context: ./yuksalish_bot
+      dockerfile: Dockerfile
+    container_name: yuksalish-bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${YUKSALISH_BOT_TOKEN}
+      - ADMIN_IDS=${YUKSALISH_ADMIN_IDS}
+      - SUPERUSER_IDS=${YUKSALISH_SUPERUSER_IDS}
+    volumes:
+      - yuksalish-bot-data:/data
+    networks: [apps]
+
+  # ─── dorilar-istemol-bot (medication reminder Telegram bot, long-polling) ─
+  # Already has its own Dockerfile upstream — nothing to add before building.
+  dorilar-bot:
+    build:
+      context: ./dorilar-istemol-bot
+      dockerfile: Dockerfile
+    container_name: dorilar-bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${DORILAR_BOT_TOKEN}
+      - ANTHROPIC_API_KEY=${DORILAR_ANTHROPIC_API_KEY}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/dorilar.db
+      - ADMIN_IDS=${DORILAR_ADMIN_IDS}
+      - TZ=Asia/Tashkent
+    volumes:
+      - dorilar-bot-data:/app/data
+      - dorilar-bot-logs:/app/logs
+    networks: [apps]
+
+  # ─── svetyoq (Sveta.Net — elektr uzilishlari xaritasi, bormitok.uz) ────────
+  # Bu loyihaning O'ZIDA ham `sveta/docker-compose.yml` bor; quyidagi OLTITA
+  # xizmat o'shaning shu faylga moslashtirilgan nusxasi. Farqlari ataylab:
+  #
+  #   * xizmat nomlari `sveta-` prefiksi bilan — asl faylda ular `db`, `api`,
+  #     `migrate`, `bot`, `jobs`, `web` deb atalgan va bu yerda
+  #     `backend`/`frontend` bilan bir xil darajadagi umumiy nomlar to'qnashuv
+  #     xavfini tug'diradi;
+  #   * `DATABASE_URL` xost nomi ham `sveta-db` ga o'zgardi — u xizmat nomiga
+  #     bog'liq, ya'ni prefiksni qo'shib nomni tuzatmaslik konteynerni jimgina
+  #     ishlamaydigan qiladi;
+  #   * `sveta-api` ga `api` **tarmoq aliasi** berilgan: `sveta-web` ning
+  #     nginx konfiguratsiyasi (`deploy/nginx.locations.conf`) repo ichida
+  #     `proxy_pass http://api:8000/...` deb yozilgan va u lokal ishda ham,
+  #     shu yerda ham o'zgarishsiz ishlashi kerak. Alias — nom prefiksining
+  #     narxi, konfiguratsiya nusxasi emas;
+  #   * asl fayldagi `profiles: ["jobs"]` OLIB TASHLANDI (`jobs` siz xarita
+  #     bo'sh qoladi, bildirishnomalar yuborilmaydi, Coverage Index doim
+  #     `unknown`), `sveta-bot` da esa YANGI `profiles: ["polling"]` paydo
+  #     bo'ldi — sababi quyida, o'sha xizmat izohida.
+  #
+  # ⚠️ `context` YO'LINI TEKSHIRING. Bu fayl `./drone-site`, `./utilitybot`
+  # kabi qo'shni papkalarga qaraydi; svetyoq repo si `H:\tukhaev_s\svetyoq`
+  # da va kod uning `sveta/` ichida. Agar repo shu fayl yonida bo'lmasa,
+  # `./svetyoq/sveta` ni to'g'rilang (mutlaq yo'l ham bo'ladi).
+  sveta-db:
+    image: postgis/postgis:16-3.4
+    container_name: sveta-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${SVETA_POSTGRES_USER:-sveta}
+      - POSTGRES_PASSWORD=${SVETA_POSTGRES_PASSWORD:-sveta}
+      - POSTGRES_DB=${SVETA_POSTGRES_DB:-sveta}
+    ports:
+      # Xostdan `alembic`, `psql` va `tools/*` ni yurgizish uchun ochiq.
+      # 5432 emas, 5433 — xostda o'z Postgres i bo'lsa to'qnashmasin.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - sveta-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${SVETA_POSTGRES_USER:-sveta} -d ${SVETA_POSTGRES_DB:-sveta}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    networks: [apps]
+
+  # Migratsiyalar — bir marta yuriladi va to'xtaydi (`restart: "no"`).
+  # `api`, `jobs` va `bot` uning MUVAFFAQIYATLI tugashini kutadi: sxema
+  # yangilanmasdan turib ishga tushgan konteyner birinchi so'rovdayoq
+  # yiqilardi va sababi jurnalda migratsiya emas, SQL xatosi bo'lib ko'rinardi.
+  sveta-migrate:
+    build:
+      context: ./svetyoq/sveta
+      dockerfile: Dockerfile
+    container_name: sveta-migrate
+    restart: "no"
+    env_file: ./svetyoq/sveta/.env
+    environment:
+      # `env_file` dagi qiymatni ATAYLAB bosib o'tadi: loyihaning o'z `.env`
+      # ida `DATABASE_URL` xostga (`localhost`) qarab turadi, konteyner
+      # ichida esa u `sveta-db` bo'lishi shart. Compose da `environment`
+      # har doim `env_file` dan ustun.
+      DATABASE_URL: postgresql+asyncpg://${SVETA_POSTGRES_USER:-sveta}:${SVETA_POSTGRES_PASSWORD:-sveta}@sveta-db:5432/${SVETA_POSTGRES_DB:-sveta}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      sveta-db:
+        condition: service_healthy
+    networks: [apps]
+
+  sveta-api:
+    build:
+      context: ./svetyoq/sveta
+      dockerfile: Dockerfile
+    container_name: sveta-api
+    restart: unless-stopped
+    env_file: ./svetyoq/sveta/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${SVETA_POSTGRES_USER:-sveta}:${SVETA_POSTGRES_PASSWORD:-sveta}@sveta-db:5432/${SVETA_POSTGRES_DB:-sveta}
+    ports:
+      # Faqat lokal: tashqariga chiqish `sveta-web` (8080) va xost nginx
+      # orqali. To'g'ridan-to'g'ri so'rov kerak bo'lganda qulay
+      # (`curl 127.0.0.1:8000/api/v1/health`).
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      sveta-db:
+        condition: service_healthy
+      sveta-migrate:
+        condition: service_completed_successfully
+    networks:
+      apps:
+        # `sveta-web` ning konfiguratsiyasi (repo ichidagi
+        # `deploy/nginx.locations.conf`) `api:8000` ga murojaat qiladi —
+        # alias shuni ta'minlaydi. Aliassiz nginx `host not found in
+        # upstream "api"` bilan umuman ko'tarilmaydi.
+        aliases: [api]
+
+  # Fon vazifalari — bir xil kod bazasi, alohida konteyner (`05` §1):
+  # `evaluate_outages` (E5), `build_map_snapshot` (E9), `process_outbox` (E13),
+  # `refresh_coverage` (E14). Usiz xarita bo'sh, bildirishnoma yo'q,
+  # Coverage Index `unknown`.
+  sveta-jobs:
+    build:
+      context: ./svetyoq/sveta
+      dockerfile: Dockerfile
+    container_name: sveta-jobs
+    restart: unless-stopped
+    env_file: ./svetyoq/sveta/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${SVETA_POSTGRES_USER:-sveta}:${SVETA_POSTGRES_PASSWORD:-sveta}@sveta-db:5432/${SVETA_POSTGRES_DB:-sveta}
+    command: ["python", "-m", "app.jobs.runner"]
+    # Rasmning HEALTHCHECK i `curl /api/v1/health/live` qiladi, bu xizmat esa
+    # HTTP server ko'tarmaydi — natijada `docker ps` uni DOIM `unhealthy` deb
+    # ko'rsatadi va haqiqiy nosozlik shu shovqin ichida yo'qoladi. Fon
+    # jarayonining sog'lig'i boshqa joyda: `05` §10 ning `job_last_run_age`
+    # metrikasi va `ALERT_SNAPSHOT_AGE_S` ogohlantirishi.
+    healthcheck:
+      disable: true
+    depends_on:
+      sveta-migrate:
+        condition: service_completed_successfully
+    networks: [apps]
+
+  # Veb-xarita (E9): statik `web/` + API proksi bitta domenda.
+  # `web/README.md`: CORS yoqilmagan, ya'ni sahifa va API BIR domendan
+  # berilishi shart — shuning uchun statikani xost nginx dan emas, shu
+  # konteynerdan berish qulay: `/api/` va `/telegram/webhook` ni u o'zi
+  # `sveta-api` ga uzatadi, xost nginx esa bitta `proxy_pass` bilan
+  # cheklanadi.
+  #
+  # TLS bu yerda YO'Q: xostda allaqachon nginx bor (droneguard.uz,
+  # admin.droneguard.uz) va 80/443 portlari band. Sertifikat ham, HTTPS ham
+  # xostda — `deploy-server/bormitok.uz.nginx.conf` ga qarang.
+  sveta-web:
+    image: nginx:1.27-alpine
+    container_name: sveta-web
+    restart: unless-stopped
+    volumes:
+      - ./svetyoq/sveta/web:/usr/share/nginx/html:ro
+      - ./svetyoq/sveta/deploy/nginx.locations.conf:/etc/nginx/snippets/sveta-locations.conf:ro
+      - ./svetyoq/sveta/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8080:80"   # xost nginx (bormitok.uz) shu yerga proxy qiladi
+    depends_on:
+      sveta-api:
+        condition: service_started
+    networks: [apps]
+
+  # Bot long-polling rejimida (E3). `sveta-api` Telegram update larni OLMAYDI:
+  # `app/main.py` webhook ni faqat `TELEGRAM_MODE=webhook` da ro'yxatdan
+  # o'tkazadi, ya'ni polling da yagona iste'molchi shu konteyner. Ikkinchi
+  # nusxa ko'tarilsa Telegram update larni ikkiga bo'lib berardi —
+  # `replicas` ni oshirmang.
+  #
+  # ⚠️ `profiles: ["polling"]` — bu xizmat `docker compose up -d` da O'ZI
+  # ko'tarilmaydi. Sabab: `bormitok.uz` da HTTPS ko'tarilgandan keyin bot
+  # `sveta-api` ichida webhook bilan ishlaydi (`05` §6.3) va ikkalasi bir
+  # vaqtda ishlab qolsa nosozlik JIM bo'ladi — update lar ikki iste'molchi
+  # orasida tasodifiy bo'linadi, foydalanuvchi esa «bot goho javob bermaydi»
+  # deb ko'radi. Ataylab tanlash kerak:
+  #
+  #   polling (webhook gacha):
+  #       docker compose --profile polling up -d sveta-bot
+  #   webhook (domen tayyor bo'lgach):
+  #       docker compose stop sveta-bot && docker compose rm -f sveta-bot
+  #       # + ./svetyoq/sveta/.env: TELEGRAM_MODE=webhook,
+  #       #   TELEGRAM_WEBHOOK_URL=https://bormitok.uz/telegram/webhook,
+  #       #   TELEGRAM_WEBHOOK_SECRET=<tasodifiy>
+  #       docker compose up -d sveta-api
+  sveta-bot:
+    build:
+      context: ./svetyoq/sveta
+      dockerfile: Dockerfile
+    container_name: sveta-bot
+    restart: unless-stopped
+    profiles: ["polling"]
+    env_file: ./svetyoq/sveta/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${SVETA_POSTGRES_USER:-sveta}:${SVETA_POSTGRES_PASSWORD:-sveta}@sveta-db:5432/${SVETA_POSTGRES_DB:-sveta}
+      TELEGRAM_MODE: polling
+    command: ["python", "-m", "app.bot"]
+    # `sveta-jobs` bilan bir xil sabab: polling boti ham HTTP server emas.
+    healthcheck:
+      disable: true
+    depends_on:
+      sveta-migrate:
+        condition: service_completed_successfully
+    networks: [apps]
+
+networks:
+  apps:
+    driver: bridge
+
+volumes:
+  ikkiattor-db:
+  drone-admin-uploads:
+  drone-admin-jobs:
+  drone-admin-detections:
+  dorilar-bot-data:
+  dorilar-bot-logs:
+  utilitybot-data:
+  yuksalish-bot-data:
+  telegram-bot-api-data:
+  sveta-pgdata:

@@ -210,6 +210,56 @@ skipped**, yig'ilgan **3432** (mutatsiya qismidan keyin aynan +24),
 
 ---
 
+## 9. Uchinchi qism — serverdagi haqiqiy compose keldi, reja tuzatildi
+
+👤 serverdagi `~/deploy/docker-compose.yml` ni yubordi va manzara
+o'zgardi:
+
+* serverda **bitta ko'p loyihali stek** bor — ikkiattor, droneguard
+  (sayt + admin), telegram-bot-api, bgutil, utilitybot, yuksalish,
+  dorilar **va** Sveta.Net ning beshta xizmati;
+* **xostda nginx** allaqachon `droneguard.uz` va
+  `admin.droneguard.uz` ni xizmat qilyapti (konteynerlar
+  `127.0.0.1:5001` va `127.0.0.1:8765` ga chiqadi), ya'ni **80 va 443
+  band**.
+
+Demak 8-bo'limdagi konteyner-certbot yo'li **shu serverda
+ishlamaydi**: TLS xostda tugatiladi. Ikkinchi tuzatish — «ikkita stek
+bitta bazada» degan taxmin ham noto'g'ri: ular **ikkita alohida
+Postgres volume i** bilan ishlagan (`sveta-db` → 5433,
+`sveta-db-1` → 5432), ya'ni o'chirishdan oldin Samarqand importi
+qaysi bazada ekanini aniqlash **shart**.
+
+### 9.1. `deploy-server/` (repo ildizida)
+
+| Fayl | Nima |
+|---|---|
+| `docker-compose.yml` | serverdagi faylning repodagi nusxasi — ilgari u faqat serverda edi va `sveta/docker-compose.yml` dan jimgina ajralib ketardi |
+| `bormitok.uz.nginx.conf` | xost nginx sayti: faqat `proxy_pass 127.0.0.1:8080` |
+| `README.md` | ko'chirish tartibi, jumladan bazani tekshirish retsepti |
+
+Sveta.Net qismiga kiritilgan o'zgarishlar:
+
+* **`sveta-web`** qo'shildi (`127.0.0.1:8080`, TLS siz) — statik `web/`
+  va API bir domendan berilishi shart (CORS yoqilmagan);
+* **`sveta-api` ga `api` tarmoq aliasi** — repodagi snippet
+  `proxy_pass http://api:8000/...` deb yozilgan va ikkala joyda
+  o'zgarishsiz ishlashi kerak; aliassiz nginx `host not found in
+  upstream "api"` bilan **umuman** ko'tarilmaydi;
+* **`sveta-bot` ga `profiles: ["polling"]`** — webhook bilan bir
+  vaqtda ishlab qolsa nosozlik **jim** bo'ladi: Telegram update larni
+  ikki iste'molchi orasida tasodifiy bo'lib beradi va jurnalda xato
+  ko'rinmaydi;
+* `sveta-jobs`/`sveta-bot` ga `healthcheck: disable: true`.
+
+Kontrakt +9 test (33 ga yetdi): alias ↔ snippet bog'lanishi, snippet
+nusxa emas aynan repodan ulanishi, polling profili, baza portining
+bog'lanishi, xost saytining marshrutlashni takrorlamasligi.
+
+**Yashil:** **3209 passed, 232 skipped**, yig'ilgan **3441**.
+
+---
+
 **Keyingi qadam — 123-run:** (1) `stats/aggregate.py` va
 `stats/heatmap.py` — mutatsiyasiz qolgan oxirgi ikki mahsulot moduli;
 (2) 👤 `cleanup-sessions.ps1` (endi `requires_db` ni bloklaydi);

@@ -42,7 +42,7 @@ from app.stats import coverage
 #: Spravochnik umuman to'ldirilmaganda chiqadigan ogohlantirish
 #: (FR-S-802 degradatsiyasi). `stats.warning.low_coverage` dan alohida:
 #: u «o'lchadik, qamrov past» deydi, bu esa «o'lchay olmadik».
-WARNING_MISSING = "stats.warning.mahallas_missing"
+WARNING_MISSING = "stats.warning.mahalla_missing"
 
 #: Spravochnik bor, lekin mahallalarning katta qismida `territory_stats`
 #: qatori yo'q — indeks ular uchun `unknown` va o'rtacha ularni hisobga

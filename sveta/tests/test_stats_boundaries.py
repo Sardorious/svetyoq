@@ -89,6 +89,28 @@ def test_a_slice_closed_inside_the_period_counts_as_a_change() -> None:
     assert result.changed_in_period is True
 
 
+def test_a_slice_opened_exactly_at_the_period_start_is_not_a_change() -> None:
+    """Chegara sharti — qat'iy `>`, va aynan chegaraning o'zi sinaladi.
+
+    Davr boshida kuchga kirgan kesim davr **ichida** o'zgarish emas: butun
+    davr o'sha bitta rejim ostida o'tgan va uning boshi bilan oxirini
+    taqqoslash mumkin. `>=` bo'lsa, birinchi importdan keyingi **har**
+    so'rov (davr boshi = import sanasi) vitrinaga «chegaralar o'zgardi»
+    ogohlantirishini qo'yardi va u ma'nosini yo'qotardi.
+    """
+    assert summarize(fact("d1", valid_from=START)).changed_in_period is False
+
+
+def test_a_slice_closed_exactly_at_the_period_end_is_not_a_change() -> None:
+    """Yopilish sharti ham qat'iy: `valid_to == end` — davr ichida emas.
+
+    Kesim davr tugagan payt yopildi, ya'ni so'ralgan oynaning butun
+    davomida amalda edi. `<=` bo'lsa «hozir amal qilayotgan, ammo bugun
+    yopilgan» kesim o'tmishdagi oynani ham o'zgargan deb belgilardi.
+    """
+    assert summarize(fact("d1", valid_to=NOW)).changed_in_period is False
+
+
 def test_versions_can_exceed_districts_after_a_change() -> None:
     """Bitta tumanning ikki davri — ikki versiya, bitta tuman.
 
