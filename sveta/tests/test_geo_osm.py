@@ -199,3 +199,115 @@ def test_retry_hint_points_at_a_way_forward() -> None:
     # Mijoz rad etilganda esa boshqa maslahat — `User-Agent`.
     assert "User-Agent" in ib._status_hint(406)
     assert "--cache" not in ib._status_hint(406)
+
+
+# --- 127-run: mutatsiya qoldirgan bo'shliqlar --------------------------------
+
+
+#: Yuqoridagi `PAYLOAD` «to'g'ri» javob; bu yerdagisi — qirralari.
+#: Nomlar tartibi ataylab teskari (`Zomin` avval, `Angor` keyin).
+EDGE_PAYLOAD = {
+    "elements": [
+        {
+            "type": "relation",
+            "id": 201,
+            "tags": {"admin_level": "8", "name": "Zomin", "name:uz": "   "},
+            "members": [
+                {"type": "way", "role": "outer", "geometry": [{"lat": 39.6, "lon": 66.9}]},
+                _way([(66.90, 39.60), (66.95, 39.60), (66.90, 39.60)]),
+                {
+                    "type": "way",
+                    "role": "inner",
+                    "geometry": [
+                        {"lat": 39.61, "lon": 66.91},
+                        {"lat": 39.62, "lon": 66.92},
+                        {"lat": 39.61, "lon": 66.91},
+                    ],
+                },
+            ],
+        },
+        {
+            "type": "relation",
+            "id": 202,
+            "tags": {"admin_level": "8", "name:ru": "Ангорский район"},
+            "members": [],
+        },
+        {
+            "type": "relation",
+            "id": 203,
+            "tags": {"admin_level": "8;9", "name": "Ikkilangan daraja"},
+            "members": [],
+        },
+        {
+            "type": "relation",
+            "id": 204,
+            "tags": {"admin_level": "8", "name": "Angor"},
+            "members": [],
+        },
+    ]
+}
+
+
+def _edge(ref: str) -> osm.OsmBoundary:
+    return next(b for b in osm.parse_boundaries(EDGE_PAYLOAD) if b.source_ref == ref)
+
+
+def test_a_single_point_member_is_not_a_line() -> None:
+    """Bir nuqtali a'zo chiziq emas.
+
+    `MULTILINESTRING((66.9 39.6))` — sintaktik jihatdan WKT, lekin
+    yaroqsiz geometriya: PostGIS da `ST_Node` shu bitta a'zo tufayli
+    **butun** relationni rad etadi. Qorovul `>= 2` shuning uchun turadi va
+    shu paytgacha o'lchanmagan edi — bor testlarning hammasi to'g'ri
+    yopilgan halqalar berardi.
+    """
+    boundary = _edge("r201")
+    assert all(len(line) >= 2 for line in boundary.lines)
+    assert len(boundary.lines) == 2  # bir nuqtalisi tushib qoldi, ikkitasi qoldi
+
+
+def test_inner_rings_are_kept() -> None:
+    """`inner` — teshik, ya'ni chegaraning bir qismi.
+
+    Uni tashlab yuborish poligonni **kattalashtiradi**: hududga kirmaydigan
+    ichki anklav ham qamrovga tushardi va u yerdagi xabar noto'g'ri
+    tumanga biriktirilardi.
+    """
+    boundary = _edge("r201")
+    assert (66.91, 39.61) in boundary.lines[1], "inner halqa yo'qolgan"
+
+
+def test_blank_names_are_treated_as_missing() -> None:
+    """Bo'sh joydan iborat `name:uz` — nom emas.
+
+    Aks holda sifat tekshiruvi (`05` §5.3) uni «nomi bor» deb sanaydi va
+    import bloklanmasdan o'tadi; xaritada esa nomsiz hudud chiqadi.
+    """
+    assert _edge("r201").name_uz is None
+
+
+def test_non_numeric_admin_level_is_skipped_entirely() -> None:
+    """`admin_level=8;9` — OSM da uchraydigan noaniqlik.
+
+    Bunday relation **tashlab yuboriladi**. Uni `0` darajaga qo'yish eng
+    yomon yo'l: `05` §5.2 dagi ro'yxatda mavjud bo'lmagan daraja paydo
+    bo'lardi va operator uni tanlashi mumkin edi.
+    """
+    refs = [b.source_ref for b in osm.parse_boundaries(EDGE_PAYLOAD)]
+    assert "r203" not in refs
+    assert all(b.admin_level in osm.SURVEY_LEVELS for b in osm.parse_boundaries(EDGE_PAYLOAD))
+
+
+def test_display_name_falls_back_to_russian() -> None:
+    """`name:uz` yo'q, `name:ru` bor — ro'yxatda ruscha nom ko'rinadi."""
+    assert _edge("r202").display_name == "Ангорский район"
+
+
+def test_summarize_levels_sorts_names_inside_a_level() -> None:
+    """Daraja ichida ham tartib bor — odam shu ro'yxatga qarab tanlaydi.
+
+    `PAYLOAD` da nomlar tasodifan alifbo tartibida kelardi, ya'ni saralash
+    o'lchanmagan edi. Bu yerda javob tartibi ataylab teskari.
+    """
+    summary = osm.summarize_levels(osm.parse_boundaries(EDGE_PAYLOAD))
+    assert summary[8] == ["Angor", "Zomin", "Ангорский район"]

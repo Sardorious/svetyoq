@@ -39,6 +39,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import inspect
+import logging
 import re
 import sys
 from pathlib import Path
@@ -317,6 +318,148 @@ def test_the_script_entrypoint_runs_the_canonical_main(monkeypatch) -> None:
         "u bo'sh `JOBS` ni ko'radi va bironta vazifa ishlamaydi"
     )
     _registered()
+
+
+# --------------------------------------------------------------------------
+# Planlovchining o'z tsikli (`_run_job`, `main`)
+# --------------------------------------------------------------------------
+#
+# 130-run, mutatsiya o'lchovi. Yuqoridagi yigirma to'rt test **ro'yxatni**
+# tekshirardi — tsiklning o'zi umuman o'lchanmagan edi: `asyncio.sleep(0)`,
+# `await` ning yo'qolishi, `except` ning torayishi, `log.error` →
+# `log.debug`, bo'sh ro'yxat qorovulining teskarilanishi va `gather` ning
+# faqat birinchi vazifani olishi — oltalasi ham yashil qolardi. Ularning
+# hammasi prodda **jim**: konteyner tirik, chiqish kodi 0, jurnalda esa
+# hech narsa yo'q.
+
+
+class _LoopBreak(Exception):
+    """`_run_job` ning `while True` ini to'xtatish uchun sun'iy signal."""
+
+
+def _sleep_recorder(delays: list[float], *, stop_after: int = 2):
+    """`asyncio.sleep` o'rniga: kutilgan intervalni yozadi va tsiklni uzadi.
+
+    `try` bloki faqat handlerni o'raydi, ya'ni bu yerdan ko'tarilgan
+    istisno `except Exception` ga tushmaydi va tsikldan chiqadi.
+    """
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+        if len(delays) >= stop_after:
+            raise _LoopBreak
+
+    return fake_sleep
+
+
+async def test_run_job_awaits_the_handler_before_each_interval(monkeypatch) -> None:
+    """Handler **kutiladi** va `interval_s` hurmat qilinadi.
+
+    Uchta jim defektni birdan o'lchaydi: `await` ning yo'qolishi (korutina
+    yaratiladi, hech qachon bajarilmaydi — `RuntimeWarning` dan boshqa hech
+    narsa chiqmaydi), `sleep(job.interval_s)` → `sleep(0)` (olti vazifa
+    bazani uzluksiz so'roqqa tutadi) va uyqu bilan chaqiruvning o'rin
+    almashishi (`process_outbox` besh soniya, `daily_digest` bir sutka
+    kechikib boshlanardi).
+    """
+    delays: list[float] = []
+    ticks: list[int] = []
+
+    async def handler() -> None:
+        ticks.append(len(delays))
+
+    monkeypatch.setattr(runner.asyncio, "sleep", _sleep_recorder(delays))
+    job = runner.Job(name="probe", interval_s=1234, handler=handler)
+
+    with pytest.raises(_LoopBreak):
+        await runner._run_job(job)
+
+    assert ticks == [0, 1], "birinchi bajarilish uyqudan OLDIN bo'lishi kerak"
+    assert delays == [1234, 1234]
+
+
+async def test_a_failing_job_is_logged_at_error_and_the_loop_survives(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Bitta vazifaning istisnosi boshqasini yiqitmaydi va **ko'rinadi**.
+
+    `except Exception` torayib qolsa `asyncio.gather` butun planlovchini
+    yiqitadi (oltala vazifa birdan to'xtaydi); daraja `ERROR` dan pastga
+    tushsa prod jurnalida (`LOG_LEVEL=INFO`) hech narsa qolmaydi — vazifa
+    har intervalda yiqilib turadi va buni hech kim bilmaydi.
+    """
+    delays: list[float] = []
+    attempts: list[int] = []
+
+    async def handler() -> None:
+        attempts.append(1)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runner.asyncio, "sleep", _sleep_recorder(delays))
+    job = runner.Job(name="probe", interval_s=60, handler=handler)
+
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(_LoopBreak):
+            await runner._run_job(job)
+
+    assert len(attempts) == 2, "xato tsiklni to'xtatmasligi kerak"
+    failures = [r for r in caplog.records if r.msg == "job.failed"]
+    assert [r.levelno for r in failures] == [logging.ERROR, logging.ERROR]
+    assert failures[0].job == "probe"
+    assert "boom" in failures[0].error
+
+
+async def test_main_starts_every_registered_job(monkeypatch) -> None:
+    """`main()` ro'yxatdagi **hamma** vazifani ishga tushiradi.
+
+    `gather` faqat bittasini olsa qolgan beshtasi jimgina o'chib qolardi:
+    jurnalda `jobs.start` oltala nom bilan chiqaveradi, chunki u ro'yxatdan
+    yoziladi, ishga tushirishdan emas.
+    """
+    started: list[str] = []
+
+    async def fake_run_job(job: runner.Job) -> None:
+        started.append(job.name)
+
+    runner.JOBS.clear()
+    runner.register_jobs()
+    registered = sorted(j.name for j in runner.JOBS)
+
+    monkeypatch.setattr(runner, "_run_job", fake_run_job)
+    monkeypatch.setattr(runner, "setup_logging", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "register_jobs", lambda: None)
+    await runner.main()
+
+    assert sorted(started) == registered
+    assert len(started) == len(IMPLEMENTED)
+
+
+async def test_main_stops_when_nothing_was_registered(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Bo'sh ro'yxat — `jobs.empty` va chiqish, `jobs.start` emas.
+
+    56-sessiyada aynan shu satr prodda chiqqan edi; qorovul teskarilansa
+    bo'sh planlovchi o'zini normal ishlayotgandek ko'rsatardi (`jobs.start`
+    bo'sh ro'yxat bilan) va diagnostikaning yagona izi yo'qolardi.
+    """
+    started: list[str] = []
+
+    async def fake_run_job(job: runner.Job) -> None:
+        started.append(job.name)
+
+    monkeypatch.setattr(runner, "_run_job", fake_run_job)
+    monkeypatch.setattr(runner, "setup_logging", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "register_jobs", lambda: None)
+    runner.JOBS.clear()
+
+    with caplog.at_level(logging.INFO):
+        await runner.main()
+
+    assert started == []
+    assert [r.msg for r in caplog.records if r.msg in {"jobs.empty", "jobs.start"}] == [
+        "jobs.empty"
+    ]
 
 
 def test_the_scan_is_measuring_something() -> None:

@@ -22,7 +22,10 @@ import pytest
 from sqlalchemy import text
 
 from app.clustering import params
+from app.clustering import repository as repo
+from app.core.config import settings
 from app.db.session import session_scope
+from app.geo import queries as geo_q
 from app.geo.h3_cells import cell_of
 from app.jobs import refresh_coverage
 from app.stats import coverage, methodology
@@ -755,3 +758,151 @@ async def test_methodology_is_unknown_for_an_unknown_region(client) -> None:
     """Nomaʼlum mintaqa — `404`, standart mintaqaning metodologiyasi emas."""
     response = await client.get("/api/v1/stats/methodology", params={"region": "nowhere"})
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 143-run: `geo.queries.current_mahallas` ning uchta sharti.
+#
+# Uchalasi ham `/stats` javobiga bevosita chiqadi, lekin uchalasini ham
+# olib tashlash mavjud to'plamni **yashil** qoldirardi (143-run
+# mutatsiyasi: uchtasi ham `SURVIVED`). Sabab bitta: bor testlarda
+# mintaqada bir yoki ikkita joriy mahalla bo'ladi, ya'ni na kesish,
+# na tartib, na `valid_to` filtri ishga tushadi.
+# ---------------------------------------------------------------------------
+
+
+async def test_a_cancelled_mahalla_leaves_the_stats_listing(client, region) -> None:
+    """Bekor qilingan mahalla vitrinada sanalmaydi (`05` §2.1).
+
+    Eski qator o'chirilmaydi, `valid_to` bilan yopiladi. Filtr tushib
+    qolsa mahalla har bir versiyasi bilan qayta sanalardi: `total`
+    haqiqiy sondan katta chiqardi, `measured/total` nisbati esa
+    pasayib `stats.warning.mahallas_unmeasured` ni yolg'on yoqardi.
+
+    Mavjud `test_closed_mahalla_is_not_measured` buni ushlamaydi — u
+    `refresh_coverage` vazifasining `territory_stats` ga nima
+    yozganini tekshiradi, javobning o'zini emas.
+    """
+    region_id, code = region
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        await make_mahalla(session, district, "Eski", valid_to=NOW - timedelta(days=10))
+        await make_mahalla(session, district, "Yangi")
+
+    block = (await client.get("/api/v1/stats", params={"region": code})).json()["mahallas"]
+    assert block["available"] is True
+    assert block["total"] == 1
+    assert [item["name"] for item in block["items"]] == ["Yangi"]
+
+
+async def test_the_mahalla_listing_is_capped_and_says_so(
+    client, region, monkeypatch
+) -> None:
+    """`STATS_MAX_MAHALLAS` — kesish bor va u javobda **e'lon qilinadi**.
+
+    Mintaqada mahalla soni tumanlar sonidan ikki-uch daraja katta
+    (E17 dan keyin Samarqandda ~1500), ya'ni cheksiz ro'yxat javobni
+    o'zi bosib ketardi. Kesishning o'zi emas, **jimgina** kesish
+    xavfli: `truncated` bo'lmasa `bands` taqsimoti to'liq kesim deb
+    o'qilardi va mahalla qamrovi haqidagi xulosa yolg'on chiqardi.
+    """
+    region_id, code = region
+    monkeypatch.setattr(settings, "stats_max_mahallas", 2)
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        for name in ("Amir Temur", "Registon", "Zarafshon"):
+            await make_mahalla(session, district, name)
+
+    block = (await client.get("/api/v1/stats", params={"region": code})).json()["mahallas"]
+    assert block["truncated"] is True
+    assert block["total"] == 2
+    assert sum(block["bands"].values()) == 2
+
+
+async def test_the_cap_keeps_the_alphabetical_head(client, region, monkeypatch) -> None:
+    """Kesish **tartibli**: `mahallas` da `code` yo'q, tartib nom bo'yicha.
+
+    Tartibsiz `LIMIT` har so'rovda boshqa mahallalarni qoldirardi —
+    ya'ni o'zgarmagan ma'lumot ustidagi ikki so'rov ikki xil vitrina
+    berardi. Qatorlar ataylab teskari alifbo tartibida qo'yilgan.
+    """
+    region_id, code = region
+    monkeypatch.setattr(settings, "stats_max_mahallas", 2)
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        for name in ("Zarafshon", "Registon", "Amir Temur"):
+            await make_mahalla(session, district, name)
+
+    block = (await client.get("/api/v1/stats", params={"region": code})).json()["mahallas"]
+    assert [item["name"] for item in block["items"]] == ["Amir Temur", "Registon"]
+
+
+async def test_the_cap_is_applied_by_the_query_not_only_in_python(region) -> None:
+    """`LIMIT` **so'rovda** turadi — bu yagona qulf mumkin bo'lgan joy.
+
+    `service.mahalla_index` qatorlarni `limit + 1` so'raydi va keyin
+    Python da `rows[:limit]` bilan kesadi, ya'ni `SELECT` dan `.limit()`
+    ni olib tashlash javobga **umuman ta'sir qilmaydi**: `truncated`
+    ham, `total` ham, tartib ham o'zgarmaydi (143-run mutatsiyasi
+    endpoint orqali `SURVIVED`). Yo'qoladigan narsa faqat bittasi va u
+    javobda ko'rinmaydi — mintaqadagi **barcha** mahalla qatori
+    protsess xotirasiga o'qib olinardi. E17 dan keyin bu Samarqandda
+    ~1500 poligonsiz qator, keyingi mintaqalarda esa o'n minglab.
+
+    Shuning uchun qulf endpointda emas, so'rovning o'zida: bu — hajm
+    shartnomasi, mahsulot xatti-harakati emas.
+    """
+    region_id, _ = region
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        for name in ("Amir Temur", "Registon", "Zarafshon"):
+            await make_mahalla(session, district, name)
+
+    async with session_scope() as session:
+        rows = await geo_q.current_mahallas(session, region_id, limit=2)
+    assert len(rows) == 2, "kesish so'rovda emas — barcha qatorlar o'qildi"
+    assert [r.name_uz for r in rows] == ["Amir Temur", "Registon"]
+
+
+# ---------------------------------------------------------------------------
+# 143-run: `01` FR-S-901 ning «hodisa» ta'rifi.
+# ---------------------------------------------------------------------------
+
+
+async def test_a_closed_event_still_counts_as_observed(client, region, monkeypatch) -> None:
+    """Chuqurlik mezoni — `confirmed_at`, **joriy status emas** (`01` FR-S-901).
+
+    `count_confirmed_ever` ni `status = 'confirmed'` ga almashtirish
+    butun to'plamdan jimgina o'tardi (143-run mutatsiyasi: `SURVIVED`),
+    chunki fikstyuralarning birortasi ham `confirmed_at` yozmaydi va
+    hisob har doim `0` chiqadi — ya'ni mezon **umuman** o'lchanmagan edi.
+
+    Farq esa mahsulotning ma'nosida: tasdiqlangan va keyin tiklangan
+    uzilish — o'tmish **fakti**, u kuzatuv tarixidan yo'qolmaydi. Joriy
+    status bo'yicha sanaganda mintaqa uzilishlar tugagan sari «yosh»
+    holatga qaytib borardi va FR-S-901 pometasi hech qachon o'chmasdi.
+
+    Teskari tomoni ham shu yerda: tasdiqlanmasdan so'nib ketgan
+    (`pending`) hodisa sanalmaydi — u shovqin bo'lishi ham mumkin edi.
+    """
+    region_id, code = region
+    async with session_scope() as session:
+        district = await make_district(session, region_id, "d1")
+        closed = await make_outage(
+            session, region_id, district_id=district, status="resolved", reports=3
+        )
+        await make_outage(
+            session, region_id, district_id=district, status="pending", reports=3
+        )
+        await session.execute(
+            text("UPDATE outages SET confirmed_at = :at WHERE id = :id"),
+            {"at": NOW - timedelta(days=5), "id": closed},
+        )
+
+    async with session_scope() as session:
+        assert await repo.count_confirmed_ever(session, region_id) == 1
+
+    monkeypatch.setattr(settings, "stats_min_events", 1)
+    body = (await client.get("/api/v1/stats", params={"region": code})).json()
+    assert body["maturity"]["events"] == 1
+    assert "stats.maturity.reason.few_events" not in body["maturity"]["reason_keys"]

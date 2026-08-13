@@ -101,6 +101,62 @@ def test_failed_notifications_and_backlog_warn() -> None:
     assert "digest.warning.outbox_backlog" in warnings
 
 
+def test_warnings_keep_their_order_of_urgency() -> None:
+    """Ro'yxatning **tartibi** — `warnings` docstringidagi va'da.
+
+    Hamma mavjud test `in` bilan tekshirardi, ya'ni tartibni almashtirish
+    (129-run mutatsiyasi) hech narsani yiqitmasdi. Tartib esa Telegram
+    xabarining oxirida ko'rinadigan yagona ustuvorlik ishorasi: smenani
+    qabul qilgan moderator birinchi qatorni o'qiydi.
+
+    `no_reports` va `unassigned` bir vaqtda yonmaydi (`reports_total == 0`
+    da ulush `0.0`), shuning uchun ikkita to'plam alohida qulflanadi.
+    """
+    infra = _digest(
+        reports_total=0,
+        reporters=0,
+        queue_now=3,
+        notifications={"sent": 0, "failed": 2},
+        outbox_pending=7,
+    )
+    assert infra.warnings == [
+        "digest.warning.no_reports",
+        "digest.warning.queue",
+        "digest.warning.notifications_failed",
+        "digest.warning.outbox_backlog",
+    ]
+    busy = _digest(
+        reports_total=100,
+        reports_unassigned=40,
+        queue_now=3,
+        notifications={"sent": 1, "failed": 1},
+        outbox_pending=1,
+    )
+    assert busy.warnings == [
+        "digest.warning.queue",
+        "digest.warning.unassigned",
+        "digest.warning.notifications_failed",
+        "digest.warning.outbox_backlog",
+    ]
+
+
+def test_totals_add_the_counts_not_the_buckets() -> None:
+    """`outages_total` va `moderation_total` — **hodisalar** soni.
+
+    129-run mutatsiyasi `sum(...)` ni `len(...)` ga almashtirdi va omon
+    qoldi: mavjud fixture'larda chelaklar soni tasodifan yig'indiga yaqin
+    edi. Farq esa hisobotning birinchi qatorida turadi — «kecha 12 ta
+    uzilish» o'rniga «kecha 2 ta status» chiqardi va smena topshirish
+    aynan shu songa qaraladi.
+    """
+    loud = _digest(
+        outages={"confirmed": 7, "resolved": 5},
+        moderation={"outage.reject": 4, "outage.merge": 6},
+    )
+    assert loud.outages_total == 12
+    assert loud.moderation_total == 10
+
+
 # --- Payload ---
 
 
@@ -113,6 +169,20 @@ def test_payload_roundtrip_keeps_every_number() -> None:
 def test_payload_is_versioned() -> None:
     """Saqlangan qator qayta hisoblanmaydi — o'quvchi shaklni bilishi kerak."""
     assert _digest().to_payload()["version"] == digest.PAYLOAD_VERSION
+
+
+def test_payload_version_is_one() -> None:
+    """Versiya raqamining **o'zi** yozib qo'yiladi.
+
+    Yuqoridagi test refleksiv: ikkala tomon `PAYLOAD_VERSION` dan keladi,
+    ya'ni raqamni o'zgartirish (129-run mutatsiyasi) hech narsani
+    yiqitmasdi. Ammo `daily_digest.payload` **qayta hisoblanmaydi**
+    (`0006`): bugun yozilgan qatorlar abadiy `1` bo'lib qoladi va shaklni
+    o'zgartirmasdan raqamni surish arxivni ikkiga bo'lardi — o'quvchi
+    bir xil shaklni ikki xil deb o'qiydi. Raqamni oshirish `from_payload`
+    ga eski shaklning tarmog'ini qo'shish bilan **birga** bo'ladi.
+    """
+    assert digest.PAYLOAD_VERSION == 1
 
 
 def test_from_payload_tolerates_missing_sections() -> None:

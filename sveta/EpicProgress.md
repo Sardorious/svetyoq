@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-12 (124-run).
+**Oxirgi yangilanish:** 2026-08-13 (144-run).
 
 ---
 
@@ -54,11 +54,131 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
-* **Yashil holat:** **148** test fayli; butun to'plam **3452 yig'ildi**
-  (124-run: DB siz **3220 passed, 232 skipped** — 123 ning 3210 si +
-  aynan 10 mutatsiya qulfi testi; DB bilan oxirgi o'lchov — 121-run,
-  **3401 passed, 1 skipped**). ⛔ 122, 123 va 124 da `requires_db`
-  **yurgizilmadi** (ketma-ket uch run): `/` ham, `/sessions` ham 100%
+* **✅ 144-run: `clustering/repository.py` va `reports/queries.py` TO'LIQ
+  o'lchandi — 46 mutatsiya → 46 KILLED, 0 survivor.** 143 qoldirgan
+  tartibning (1) va (2) bandlari. Mahsulot kodi, test, migratsiya va
+  konfiguratsiya **tegilmadi** — qulflanmagan xossa topilmadi, ya'ni
+  yangi test kerak bo'lmadi. `count_open` va `list_rows` ning
+  `min_radius_m >=` shartlari (143 da anker ikki marta uchraganidan
+  `SKIP` bo'lgan) ankerni oldingi qatori bilan kengaytirib alohida
+  qulflandi. **Ikkita harness saboqi.** (1) 🔴 **Tor test tanlovi
+  yolg'on `SURVIVED` beradi**: oltita «tegishli» `*_db.py` fayli bilan
+  yurgizilgan partiya uchta survivor ko'rsatdi, to'liq
+  `-m requires_db` da uchalasi ham KILLED chiqdi — 8 soniya tejash
+  uchun run uchta **keraksiz** testni «qulf» deb yozardi. Endi partiya
+  faqat to'liq `requires_db` to'plamida. (2) 🔴 **`bash` limiti 180 s
+  emas, 120 s**: uzilgan partiya `repository.py` ni mutatsiyalangan
+  holda qoldirdi va uni `/tmp` etaloni bilan `diff` darhol ochdi
+  (143 da etalon yo'q edi va bu bir necha qadam olgan). Partiya endi
+  **2 mutantdan** oshmaydi. 🟢 **Nima uchun 0 survivor — yangi naqsh:**
+  144 nishonlari **birlamchi yozuv yo'lida** (`intake → assign →
+  evaluate → snapshot/stats/digest`), ya'ni har shart o'nlab
+  oxirigacha boradigan ssenariy orqali o'tadi; 142/143 ning
+  survivorlari esa `geo/queries` va `obs/collector` — **vitrina
+  yo'lida**, u yerda so'rovning yarmi javobda ko'rinmaydi. 120 ning
+  qoidasiga qo'shimcha: **yozuv yo'lidagi so'rov qarzsiz, o'qish
+  yo'lidagi so'rov qarzdor.** Yig'indi **3679 passed, 1 skipped**
+  (`requires_db` 247) — 143 ning raqami bilan aynan bir xil; `ruff`
+  toza.
+
+* **✅ 143-run: mahalla so'rovlari va `clustering/repository` qulflandi.**
+  142 qoldirgan tartibning (2) va (3) bandlari. **22 mutatsiya → 22
+  KILLED, 0 survivor** (birinchi o'tishda 10 KILLED / **10 survivor**;
+  o'ntasi ham haqiqiy va o'ntasi ham qulflandi). Mahsulot kodi,
+  migratsiya, konfiguratsiya **tegilmadi**; yangi test fayli ham yo'q —
+  +13 test beshta mavjud `*_db.py` fayliga qo'shildi.
+  **Bir naqsh, o'n marta:** qulf bor, lekin uni ajratadigan **holat**
+  fikstyurada yo'q. `(tuman kodi, nomi, davr boshi)` uchligining
+  ikkinchi va uchinchi a'zosi 27-sessiyadan beri o'lchanmagan edi,
+  chunki fikstyurada har mahalla o'z tumanida turadi va birinchi a'zo
+  yolg'iz o'zi tartibni to'liq aniqlaydi; `count_confirmed_ever` ning
+  `confirmed_at IS NOT NULL` mezoni o'lchanmagan edi, chunki birorta
+  fikstyura `confirmed_at` yozmasdi va hisob har doim `0` edi;
+  `status_counts_started_between` ning sutka chegarasi o'lchanmagan
+  edi, chunki bor test tutashgan lahzadan bir soat nariga qo'yardi.
+  Yangi `crowded_region` fikstyurasi (to'rtta joriy mahalla **bitta**
+  tumanda, ikkitasi **bir xil nomli**, teskari tartibda qo'yilgan) —
+  shu bo'shliqning to'g'ridan-to'g'ri javobi.
+  🔴 **Yangi infratuzilma bilimi:** mutatsiya harnessining `finally` si
+  SIGKILL dan omon qolmaydi — `bash` partiyani mutant qo'yilgan lahzada
+  uzsa fayl repoda **mutatsiyalangan** qoladi (bu run da aynan shunday
+  bo'ldi: `current_mahallas` dan `.limit(limit)` yo'qolgan edi va uni
+  faqat `Read` keshi bilan solishtirish ochib berdi). Endi harness har
+  partiya boshida faylni `/tmp` etalonidan tiklaydi va oxirida md5
+  solishtiradi; partiya 4 mutantdan oshmaydi.
+  **O'lchovlar:** `-m requires_db` **247 passed** (142: 234), butun
+  to'plam **3679 passed, 1 skipped** (baza tirik), `ruff` toza.
+* **✅ 142-run: 131 ro'yxati YOPILDI va chegara davri qulflandi.**
+  Uchta funksiya — `obs/collector._as_uuid`, `obs/collector._reading`,
+  `bot/service._label` — bazasiz testi umuman yo'q edi (ularga
+  chaqiruvchi faqat `requires_db` orqali yetardi), endi ikkita toza
+  fayl bor: `tests/test_obs_collector_rows.py` va
+  `tests/test_bot_subscription_labels.py` (+28 test). Baza tirik
+  bo'lgani uchun **birinchi marta** `requires_db` nishoni bilan ham
+  o'lchandi: `geo/queries._period_filter` (`05` §2.1 versiyalash sharti)
+  va `district_boundaries` — `tests/test_geo_api_db.py` ga uchta test
+  (+3). **30 mutatsiya → 30 KILLED, 0 survivor** (birinchi o'tishda
+  26 KILLED / 4 survivor; to'rtalasi ham haqiqiy va qulflandi).
+  Qimmatli to'rttasi: `geo_unmatched_ratio` to'sig'i **maxrajni**
+  himoya qiladi; `_period_filter` ning oralig'i **yarim ochiq**
+  `[valid_from, valid_to)` va uning ikkala chegarasi (`<=`→`<`,
+  `>`→`>=`) mavjud testlardan jimgina o'tardi — farq faqat almashuv
+  lahzasida ko'rinadi; `ST_AsGeoJSON` ning `precision` i esa sukutdagi
+  25 m soddalashtirish ostida umuman ko'rinmasdi (qulf `simplify_m=0`
+  so'raydi). Mahsulot kodi, migratsiya, konfiguratsiya **tegilmadi**.
+  🔴 **Yangi infratuzilma bilimi:** `conftest._db_reachable` **TCP**
+  soketiga qaraydi — Unix-soketli `DATABASE_URL` bilan Postgres tirik
+  bo'lsa ham `requires_db` ning hammasi **jimgina `skip`** bo'ladi;
+  server `listen_addresses=127.0.0.1` bilan ko'tarilishi shart.
+* **✅ 141-run: INFRA bloki yopildi va 131–140 ning butun ko'r ishi
+  o'lchandi.** Ketma-ket o'n bir rundan keyin `bash` ishladi. Blok sababi
+  uchinchi marta tuzatildi, bu safar `df` bilan: `/sessions` **100% to'la
+  (0 bayt)**, `/` esa **3.4 G bo'sh** — disk **qisman** to'la, sandbox esa
+  sukut bo'yicha hamma narsani (`HOME`, `TMPDIR`, `XDG_CACHE_HOME`,
+  `CONDA_PKGS_DIRS`) to'la mountga yozadi. Retsept: o'sha to'rttasini
+  `/tmp` ga burish; shundan keyin `micromamba` bilan `python=3.11` va
+  PostGIS **3.6** muammosiz ko'tariladi. `cleanup-sessions.ps1` bu blokka
+  **hech qachon aloqador emas edi** (122–140, o'n to'qqiz run, noto'g'ri
+  bloklovchi qayd etgan). Ikki yangi infratuzilma bilimi: `bash`
+  `timeout_ms` dan **qat'i nazar ~178 s** da uziladi (to'plam
+  partiyalanadi) va **fon jarayoni chaqiruvlar orasida yashamaydi**
+  (`nohup … &` log **0 bayt** qaytardi, `pgrep` esa oraliqda yolg'on
+  `YES` berdi). O'lchovlar: o'n bir **yurgizilmagan** test fayli —
+  **197 passed**, `ruff` toza; butun to'plam — **3404 passed, 232 skipped**
+  (140 ning bashorati **bit-aynan**); `alembic` `0001`→`0011` toza
+  PostGIS da; **`requires_db` 231 passed — 121-rundan beri birinchi
+  marta**, son 121 dagi bilan bir xil, ya'ni oradagi `0008`–`0011` va
+  122–140 ning ishi bazani buzmagan.
+  **Mutatsiya: 12 mutatsiya, 12 KILLED, 0 survivor.** Nishon 140 ning
+  rejasidan ataylab farq qildi — 138–140 tegilgan sakkiz test fayli
+  o'rniga **koordinata va moderatsiya qatori oilasi**
+  (`clustering/repository.py`, `reports/queries.py`,
+  `notifications/subscriptions.py`), chunki 133/140 ning qulflari
+  o'lchanmagan **gipoteza** edi. O'lchangani: ikkala ekstraktorning
+  `(ST_Y, ST_X)` tartibi; uchta `lat, lon = ...` **ochish** joyi;
+  `_outage_row_columns` da `distinct_users` ↔ `independent_reporters` va
+  `district_id` ↔ `mahalla_id`; `_to_outage_row` da o'sha ikki juftlikning
+  **indeks** almashuvi; `weighted_score=float(row[8])` → castsiz
+  (`numeric(6,1)` → `Decimal`). O'n ikkitasi ham
+  `tests/test_geo_sql_expressions.py` ning **yolg'iz o'zi** bilan ushlandi.
+  🔴 **Yangi bilim:** 133/140 ning ikki qavatli qulfi (`ast` reyestri +
+  semantik shakl) **empirik ishlaydi** — seriyada birinchi marta butun
+  test fayli o'zi hech qachon yurgizilmagan holda yozilib, nol survivor
+  berdi. 119/126 ning «yurgizilmagan harness o'lchov emas» qoidasi shu
+  bilan **toraydi**: yurgizilmagan qulf o'lchov emas, lekin manbadagi
+  aniq qatorga solishtirib yozilgan qulf o'lchovdan **keyin ham** o'z
+  kuchida qoladi. Mahsulot kodi, migratsiya, konfiguratsiya
+  **tegilmadi**; yagona o'zgargan fayl — `.gitignore` (uchta yangi
+  sandbox qoldig'i: `rm` mountda `Operation not permitted`,
+  `allow_cowork_file_delete` esa CLAUDE.md §1 bo'yicha taqiqlangan).
+* **Yashil holat:** **156** test fayli; butun to'plam **3667 test**
+  (142-run: **3432 passed, 235 skipped** DB siz — o'lchangan;
+  `-m requires_db` **234 passed** PostGIS bilan — 142-run).
+  <sub>Eskirgan o'lchov: butun to'plam **3555 yig'ildi**</sub>
+  (129-run: DB siz **3323 passed, 232 skipped** — o'lchangan, hisoblangan
+  emas. DB bilan oxirgi o'lchov — 121-run,
+  **3401 passed, 1 skipped**). ⛔ 122…129 da `requires_db`
+  **yurgizilmadi** (ketma-ket sakkiz run): `/` ham, `/sessions` ham 100%
   to'la, yangi `initdb` ga joy yo'q — 👤 `cleanup-sessions.ps1` endi
   **bloklovchi**. `-m requires_db` **231 passed** (121-run) (⚠️ `pg_ctl`
   **shartsiz `start`** bilan bitta bash chaqiruvida — server chaqiruv
@@ -197,11 +317,744 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `error_rate` maxrajidan `5xx` ning chiqib ketishi).
   ⚠️ Repodagi `tools/_mut.py` hali ham `returncode != 0` bilan
   hukm qiladi (119-run ning yolg'on `KILLED` i) — 124 harnessni
-  `/tmp` da qat'iy `rc == 1` bilan yozdi. 👤 `tools/_mut.py` ni
-  tuzatish yoki o'chirish kerak.
-  Mutatsiyasiz qolgan toza modullar: `geo/quality.py`,
-  `stats/mahalla_coverage.py`, `stats/maturity.py`,
-  `stats/boundaries.py`.
+  `/tmp` da qat'iy `rc == 1` bilan yozdi. ✅ **126-runda tuzatildi**
+  (yana ikkita shu sinfdagi xato bilan birga) va test bilan
+  qulflandi — 👤 savol yopildi.
+* **✅ 125-run: 124 sanagan qolgan TO'RTTA toza modul ham olindi —
+  toza modullarda mutatsiya qarzi qolmadi.** ✅ `app/stats/boundaries.py`
+  **15/15**, ✅ `app/stats/maturity.py` **15/15**, ✅
+  `app/stats/mahalla_coverage.py` **20/20**, ✅ `app/geo/quality.py`
+  **23/23**. Jami 73 mutatsiya: 49 birinchi o'tishda KILLED, 24
+  SURVIVED, ulardan **4 tasi yolg'on** (tor nishon to'plamidan
+  tashqarida ushlanadi: `test_i18n_key_contract`, `dependencies`,
+  `release_plan`), 20 tasi qulflandi (+19 test). **Ekvivalent mutant
+  yo'q** — seriyada birinchi marta. Mahsulot kodi tegilmadi.
+  Eng qimmatlari: `quality.check_coverage_ratio` ning
+  `if not reference_area` qorovuli — `SQL_COVERED_AREA` `COALESCE(…, 0)`
+  bilan yozilgan, ya'ni etalon qatorisiz `None` emas **`0.0`** keladi va
+  `is None` mutanti sifat darvozasini tushunarli blok o'rniga
+  `ZeroDivisionError` bilan yiqitardi (aynan prodda ko'rilgan holat);
+  `is_blocker`/`blockers` ning `blocking` bayrog'iga bog'liqligi
+  (`not passed` mutanti `degenerate` qoplash **ogohlantirishini**
+  bloklovchi qilardi — bitta tumanli mintaqa importi umuman o'tmasdi);
+  mahalla taqsimotining `raw_band` emas `band` bo'yicha sanalishi
+  (bitta javob ichida xarita va dashboard har xil pog'ona ko'rsatardi);
+  `boundaries` ning ikkala davr chegarasi (`>` va `<` — `>=`/`<=`
+  bo'lsa yangi mintaqa birinchi kundan «chegaralar o'zgardi»
+  ogohlantirishini olardi) va `maturity` ning `max(0, …)`/`max(1, …)`
+  qisqichlari.
+  ⚠️ Yangi bilim: 124 ning `alerts.py` da topilgan **refleksivlik**
+  sinfi bu yerda takrorlanmadi — ogohlantirish kalitlarining nomlari
+  i18n **katalogi** bilan qulflangan (`test_i18n_key_contract`).
+  Farq manbada: Prometheus yorlig'ining katalogi yo'q, i18n kalitiniki
+  bor. Ya'ni refleksivlik xavfi «konstanta tashqi shartnomaga chiqadimi
+  va uni **boshqa** fayl qayta sanaydimi» degan savolga bog'liq.
+* **🔴 127-run: yashil test — «shu holat tekshirilgan» degani emas.**
+  Foydalanuvchi ko'radigan uchta bazasiz modul o'lchandi:
+  ✅ `app/bot/reply.py` **12/12**, ✅ `app/notifications/render.py`
+  **12/12**, ✅ `app/geo/osm.py` **12/12** — 36 mutatsiya, 20 birinchi
+  o'tishda KILLED, 16 survivor (**1 yolg'on**, 15 haqiqiy va hammasi
+  qulflandi, +13 test), ekvivalent mutant yo'q, mahsulot kodi tegilmadi.
+  Survivorlarning aksariyati bitta sinfdan: **qorovullar faqat qirrali
+  kirishda ko'rinadi, fixture'lar esa qirrasiz edi** (`osm.py` ning
+  oltalasi ham shundan — `PAYLOAD` «to'g'ri» Overpass javobi).
+  Ikkinchi sinf — **sukut qiymatlar o'lchanmaydi**:
+  `Situation.coverage_ok` ni hamma test oshkora berardi, holbuki sukut
+  qiymat aynan chaqiruvchi **unutgan** holatdagi xulq-atvor va uni
+  `True` ga o'zgartirish `05` §6.2 ning 4-qatorini jimgina 3-qatoriga
+  aylantiradi. Uchinchi sinf — **qaror to'g'ri, matn kaliti boshqasiniki**
+  (`no_outage_covered` ↔ `not_enough_data`): `decide()` ning oltita testi
+  ham, 207 testli kengaytirilgan to'plam ham yashil qolardi.
+  ⚠️ Yolg'on survivor darsi: `"9" in text` raqamni emas, matndagi
+  **vaqtni** (`19:00`) ko'rgan — `in` bilan tekshirilgan har son uchun
+  «boshqa qayerdan chiqishi mumkin» degan savol berilsin.
+* **🔴 126-run: «toza modullarda qarz qolmadi» ham TOR xulosa edi — va
+  harnessning o'zi yana yolg'on gapirardi.** 125 ning yakuni 124 sanagan
+  **oltitalik ro'yxat** haqida edi; `app/` o'lchanganda esa bazasiz va
+  HTTP siz modul **92 ta**, mutatsiya bilan o'lchangani **28 ta**
+  (ro'yxat — §4). Ya'ni 123 → 124 → 125 → 126 zanjirida bir xil xato uch
+  marta takrorlandi: nishon to'plami sanalmasdan «tugadi» deb yozildi.
+  🔴 Repodagi `tools/_mut.py` uch joyda o'lchov o'rniga yolg'on berardi
+  (120–125 runlar buni `/tmp` dagi nusxa bilan aylanib o'tgan, ya'ni
+  qarz repoda qolgan edi): verdikt `rc != 0` (119 xatosi); `tests`
+  maydonining **bitta** argument sifatida berilishi — nishon ikki
+  fayldan oshsa `pytest` `rc=4` qaytaradi va eski verdikt uni `KILLED`
+  deb o'qirdi (bugun birinchi partiyadayoq otildi); qo'llanmagan
+  mutatsiyaning **survivor** deb qaytarilishi — tegilmagan kod «testlar
+  ushlamadi» degan xulosa berardi. Uchalasi tuzatildi va
+  `tests/test_mut_harness.py` (11 test) bilan qulflandi; endi `/tmp` da
+  nusxa yozish shart emas.
+  ✅ `app/core/etag.py` — **11/11** (5 KILLED, 6 survivor, hammasi
+  haqiqiy va qulflandi) va ✅ `app/admin/auth.py` — **11/11** (4 KILLED,
+  7 survivor: 6 qulflandi, 1 ekvivalent). Mahsulot kodi tegilmadi.
+  `etag` ning oltitasi ikki sinf: (a) algoritmning **parametrlari**
+  (`separators`, `ensure_ascii`, `DIGEST_SIZE`) umuman o'lchanmagan edi
+  — testlar hash ni faqat o'zi bilan solishtirardi, endi oltin qiymat
+  qulflaydi (parametr o'zgargan deployda mazmuni o'zgarmagan **har**
+  javob yangi `ETag` oladi va butun mijoz keshi bir vaqtda bekor
+  bo'ladi); (b) `If-None-Match` ni `RFC 9110` dan **torroq** o'qish —
+  `" * "` (OWS) tanilmasdi, `*` ichkarida uchraganda **yolg'on `304`**
+  berardi, bo'shliqsiz ro'yxat (`"a","b"`) esa bo'linmasdi.
+  ⚠️ `auth` da 124 ning **refleksivlik** sinfi xavfsizlik qatlamida
+  takrorlandi: `MIN_TOKEN_LENGTH` va `ACTOR_NAMESPACE` ni uchala test
+  fayli ham (`test_admin_auth`, `test_security_posture_contract`,
+  `test_region_audit_db`) konstantani import qilib **qayta hisoblardi**
+  — 24 → 8 ham, nomlar fazosining almashishi ham yashil qolardi,
+  holbuki `01` §20 kafolati aynan shu ikkovini parol siyosatining
+  o'rnini bosuvchi deb ataydi (`app/admin/security.py:
+  session_password_policy`). 125 ning «katalogi bor konstanta xavfsiz»
+  qoidasi shu bilan to'ldirildi: **prozadagi** kafolat katalog emas —
+  uni hech kim qayta sanamaydi. Ikkalasi absolyut qiymat bilan
+  qulflandi (`actor_id` — `audit_log` da saqlanadigan tarixiy ma'lumot:
+  nomlar fazosi o'zgarsa moderatorning eski yozuvlari uziladi).
+  Uchinchi qulf — vaqt bo'yicha oqishning **xulq-atvor** testi:
+  `compare_digest` chaqiruvlari sanaladi, ya'ni `==` ga almashtirish
+  ham, birinchi moslikda `return` qilish ham endi yiqiladi (manba
+  matnini o'qimasdan). Ekvivalent: bo'sh token qorovuli
+  `MIN_TOKEN_LENGTH` tekshiruvi bilan **to'liq soyalangan** (336
+  kirishda empirik) — farq faqat jurnal sababida.
+  ⛔ Disk ketma-ket **beshinchi** run to'la (`/` da 34 MB) — 125
+  qoldirgan servis/API nishoni bazaga tegadi va bugun ham olinmadi;
+  shu sababdan nishon bazasiz modullardan tanlandi.
+* **🔴 128-run: argument, sozlama va sukut tarmoq — o'lchanmaydigan uchlik.**
+  To'rtta bazasiz modul o'lchandi: ✅ `app/core/timeutil.py` **8/8**,
+  ✅ `app/geo/h3_cells.py` **11/11**, ✅ `app/obs/metrics.py` **11/11**
+  (+1 `pytest` o'lchay olmagan), ✅ `app/geo/mahallas.py` **10/10** —
+  40 o'lchangan mutatsiya, 27 birinchi o'tishda KILLED, 13 survivor
+  (12 haqiqiy va hammasi qulflandi, +13 test), 1 ekvivalent, mahsulot
+  kodi tegilmadi.
+  Survivorlarning aksariyati **uchta sinfdan**. (1) **Argument va
+  sozlama o'lchanmaydi:** `h3_cells` ning to'rtala survivori ham shundan —
+  `cell_of(…, res)`, `neighbours(…, k)`, `cell_area_m2(res)` va
+  `resolution()` ning `settings.h3_resolution` ga bog'liqligi. Hamma test
+  sukut qiymatni berardi, sukut qiymat esa konstanta bilan **teng**
+  (`DEFAULT_RESOLUTION == settings.h3_resolution == 9`) — ya'ni
+  sozlamani konstantaga qotirib qo'yish yashil qolardi va ADR-03 dan
+  chetlashish «ataylab» emas, **imkonsiz** bo'lardi. (2) **Funksiya
+  o'zining haqiqiy vazifasi bilan chaqirilmaydi:** `as_utc` butun
+  to'plamda faqat **naive** yoki **allaqachon UTC** vaqt oldi, ya'ni
+  o'girishning o'zi hech qachon sinalmadi; `astimezone` → `replace(tzinfo=…)`
+  mutanti +05:00 dagi hodisani xaritada va ommaviy API da besh soat
+  oldinga surardi. (3) **Bo'sh/sukut tarmoqning ogohlantirishdan boshqa
+  maydonlari:** `mahallas.summarize` ning bo'sh javobida `sources=()` va
+  `versions=0` o'lchanmagan edi — FR-S-802 degradatsiyasi ogohlantirish
+  bilan e'lon qilinib, o'sha javobning o'zi mavjud bo'lmagan manba va
+  qatorlar sonini ko'rsatib uni yolg'onga chiqarardi (dislaymer aynan
+  bo'sh `sources` ustiga qurilgan).
+  ⚠️ **Yangi bilim — `pytest` o'lchay olmaydigan mutatsiya bor.**
+  `metrics.FAMILY_BY_NAME` kalitini `full_name` ga almashtirish
+  `app/obs/monitoring.py` ning **import paytidagi** qorovuliga
+  (`_check_label_exemptions`) urildi: `conftest` yiqildi va `pytest`
+  `rc=4` qaytardi. 126-run tuzatgan harness buni to'g'ri ravishda
+  «xato» deb belgiladi (eski verdikt soxta `KILLED` yozardi). Xulosa:
+  **import vaqtidagi invariant test verdikti sifatida o'lchanmaydi** —
+  shartnoma alohida testda oshkora yozilishi kerak.
+  ⚠️ `cell_area_m2` ning birligi (`m^2` → `km^2`) — bazasiz to'plam
+  ko'ra olmaydigan defekt sinfi: yagona chaqiruvchisi `geo/queries.py`,
+  ya'ni `requires_db`. Qulf oltin son emas, **munosabat**
+  (`maydon ≈ 2.598 × qirra²`), chunki qiymat kutubxonaniki.
+* **🔴 129-run: qoida SEED ma'lumoti bilan soyalanishi mumkin — bu
+  ekvivalent mutant emas, o'lchanmagan xossa.** To'rtta bazasiz modul:
+  ✅ `app/reports/sources.py` **11/11**, ✅ `app/clustering/formulas.py`
+  **6/6**, ✅ `app/admin/roles.py` **5/5**, ✅ `app/admin/digest.py`
+  **12/12** — 34 mutatsiya, 25 birinchi o'tishda KILLED, 9 survivor,
+  **hammasi haqiqiy va hammasi qulflandi** (+9 test, yangi fayl
+  `tests/test_clustering_formulas.py`); ekvivalent mutant yo'q, yolg'on
+  survivor yo'q, mahsulot kodi tegilmadi.
+  Eng qimmati — **hech qachon otilmagan qorovullar**: `clamp` ning
+  `low > high` tekshiruvi (chaqiruvchilar konfiguratsiyani `06` §9 dan
+  oladi va bugungi qiymatlar to'g'ri; qorovulsiz teskari oyna **har
+  doim** `low` qaytaradi, ya'ni E11 sozlashida `N_min > N_max` yozilsa
+  tasdiqlash chegarasi butun mintaqada jimgina **poldan** hisoblanardi)
+  va `adaptive_threshold` dagi `max(0.0, x)` (docstring «manfiy `x` →
+  `floor`» deb va'da qiladi; `abs(x)` mutanti buni teskarisiga
+  aylantiradi).
+  Ikkinchi sinf — **qoida seed ma'lumoti bilan soyalangan**:
+  `freeze_weight` dan `06` §2.2 ning `is_authoritative` qorovulini
+  butunlay olib tashlash 94 testni yashil qoldirdi, chunki `official`
+  va `operator_api` ning og'irligi registrda **bugun** `0.0`. Nol —
+  qoida emas, seed: E11 og'irliklarni sozlaydi, E18 rasmiy manbani
+  qayta ta'riflaydi. 126 ning «soyalangan qorovul — ekvivalent» qoidasi
+  shu bilan **toraydi**: soya boshqa qorovuldan bo'lsa ekvivalent, soya
+  **o'zgaruvchi ma'lumotdan** bo'lsa — o'lchanmagan xossa (qulf
+  registrni patch qilib yoziladi).
+  Uchinchi sinf — 124 ning **refleksivligi** audit va arxiv qatlamida:
+  `Permission.DIGEST_READ` ning satr qiymati (`audit_log` ning tarixiy
+  yozuvi va `403` javobining tanasi) va `digest.PAYLOAD_VERSION`
+  (`0006` payload ni qayta hisoblamaydi) hech qayerda mutlaq qiymat
+  bilan yozilmagan edi — ikkala tomon bir vaqtda siljirdi.
+  To'rtinchi — **`in` bilan tekshirilgan ro'yxat**: `digest.warnings`
+  ning **tartibi** (docstringdagi «muhimlik tartibida») va
+  `outages_total`/`moderation_total` da `sum` → `len` (fixture'larda
+  chelaklar soni tasodifan yig'indiga yaqin edi; hisobotning birinchi
+  qatori «kecha 12 ta uzilish» o'rniga «kecha 2 ta status» ko'rsatardi).
+  ⚠️ Metodik eslatma: `tests/test_daily_digest.py` ga
+  `tests/test_i18n_key_contract.py` ni nishonga qo'shish bitta
+  mutatsiyani 10 s dan 27 s ga uzaytiradi va partiyani ~180 s limitiga
+  urgan — o'sha uzilish repoda mutatsiyalangan fayl qoldirdi (qo'lda
+  tiklandi). Nishon **tor** bo'lsin.
+* **🔴 130-run: ro'yxat testlangan, mexanizm testlanmagan — «kontrakt
+  bilan qoplangan» ≠ «o'lchangan».** Uchta bazasiz modul:
+  ✅ `app/notifications/params.py` **12/12**, ✅ `app/jobs/runner.py`
+  **9/9**, ✅ `app/notifications/events.py` **8/8** — 29 mutatsiya,
+  birinchi o'tishda atigi **11 KILLED**, **18 survivor, hammasi haqiqiy
+  va hammasi qulflandi** (+16 test), ekvivalent mutant yo'q, mahsulot
+  kodi tegilmadi. Bu seriyaning eng past birinchi o'tish natijasi
+  (38%; 129 da 74%, 128 da 68%).
+  Sabab `runner.py` da ko'rindi. `tests/test_jobs_registry.py` ning 24
+  testi butun `app/jobs/` oilasini **tuzilma** sifatida qamrab olardi:
+  `05` §8 jadvali hujjatdan qayta o'qiladi, har modul `JOB`/`register()`
+  juftini e'lon qiladi, har handler argumentsiz chaqiriladi, hatto
+  `python -m app.jobs.runner` ning ikki nusxali yuklanishi ham qulflangan.
+  Planlovchining **o'z tsikli** esa umuman o'lchanmagan edi va oltala
+  mutatsiya omon qoldi: `sleep(job.interval_s)` → `sleep(0)` (oltala
+  vazifa uzluksiz aylanadi), `await job.handler()` → `job.handler()`
+  (**hech bir vazifa bajarilmaydi**), `except Exception` → `except
+  ValueError` (bittasining istisnosi `gather` orqali hammasini yiqitadi),
+  `log.error` → `log.debug` (yiqilish `LOG_LEVEL=INFO` da izsiz),
+  `if not JOBS:` ning teskarilanishi (56-run diagnostikasining yagona izi
+  yo'qoladi) va `gather` ning faqat `JOBS[0]` ni olishi. Uchalasi prodda
+  **jim**: konteyner tirik, chiqish kodi `0`. Bu 56-runda oltita vazifani
+  o'chirib qo'ygan sinfning aynan o'zi — o'shandagi tuzatish faqat
+  **skript rejimiga** test yozgan edi, tsiklga emas. Qulf — to'rtta
+  xatti-harakat testi (`asyncio.sleep` o'rniga yozib boruvchi soxta
+  funksiya, ikkinchi chaqiruvda `_LoopBreak`; `try` faqat handlerni
+  o'raganligi uchun signal `except` ga tushmaydi).
+  🔴 **`events.py` — sakkizdan yettitasi survivor**, hammasi 128 ning
+  «funksiya o'z vazifasi bilan chaqirilmaydi» sinfidan: butun to'plam
+  payloadni faqat `as_payload()` orqali yasaydi, ya'ni `_iso` ga hech
+  qachon **UTC bo'lmagan aware** vaqt bermagan (`astimezone` →
+  `replace(tzinfo=utc)` `+05:00` dagi hodisani besh soatga surardi —
+  `core/timeutil.as_utc` topilmasi bildirishnoma tanasida takrorlandi),
+  `_parse_dt` ga esa `datetime` **obyekti** ham, zonasiz satr ham
+  berilmagan (ikkalasi ham naive qolsa `render` da `TypeError` →
+  bildirishnoma yuborilmasdi). Yana `if not value` ↔ `is None` (bo'sh
+  satrli tana `outbox` da **cheksiz** qayta urinish berardi) va uchta
+  **kamaytiruvchi** sukut qiymat (`status=""`, `confidence=0`,
+  `report_count=0`) — teskarisi tugallanmagan tanani «tasdiqlangan,
+  100% ishonchli» hodisa qilib obunachiga yuborardi.
+  🔴 **`params.py` — sozlash qiymati o'z formatida o'qilmaydi:**
+  `int(float(v))` → `int(v)` (`seed_values()` `region_config` ga
+  **float** yozadi, ya'ni `"500.0"` qaytishi mumkin va **sozlangan**
+  mintaqa jimgina global qiymatga tushardi); `seed_values` ning ikkala
+  **qiymati** almashtirilsa kalitlar to'plami o'zgarmaydi va 12 test
+  yashil qoladi (yangi mintaqa standart radius sifatida **yuqori
+  chegarani** olardi); ikkala ogohlantirishning **sharti** ham
+  o'lchanmagan edi, holbuki modulning o'z va'dasi — «zaxiraga tushadi,
+  lekin **jim** qolmaydi».
+  ⚠️ **Infratuzilma — yangi bilim.** `/` run o'rtasida **0 baytga**
+  tushdi va `pytest` umuman ko'tarilmadi (`No usable temporary
+  directory`); `/tmp` dagi hamma narsa oldingi sandboxlarning `nobody`
+  foydalanuvchisiniki (o'chirib bo'lmaydi), mount esa `tempfile` ning
+  yaratish → yozish → `unlink` tekshiruvidan o'tmaydi. Yechim —
+  **`TMPDIR=/dev/shm/tNNN`** (512 MB `tmpfs`), `mkdir -p` **har bash
+  chaqiruvida** takrorlanadi (`/dev/shm` chaqiruvlar orasida saqlanmaydi).
+* **⛔ 131-run: kod yurgizilmadi — sandbox umuman ko'tarilmadi.**
+  `bash` ning uchala urinishi ham `ensure user: useradd failed:
+  No space left on device` bilan yiqildi; 130 ning `TMPDIR=/dev/shm`
+  yechimi bu bosqichda yaramaydi (unga yetish uchun ham muhit kerak).
+  Run `Read`/`Grep` bilan **statik audit** rejimida o'tkazildi, kod va
+  testlar **tegilmadi**. 🔴 **Topilma — «toza modul» noto'g'ri
+  granularlik: tozalik modulning emas, funksiyaning xossasi.**
+  124–130 ning navbati `app/` ni modul kesimida sanaydi, shu sababdan
+  `stats/service.py` va `geo/queries.py` «bazaga tegadi» deb 125 dan
+  beri kutmoqda. Amalda `AsyncSession` ni import qiladigan **23**
+  modul ichida sinxron, bazasiz funksiyalar bor va ularning bir qismi
+  allaqachon bazasiz test bilan qoplangan — ya'ni **bugunoq
+  o'lchansa bo'ladi**: `stats/service.py` ning `floor_to`,
+  `resolve_period`, `_coverage_input`, `_index_for`, `region_index`,
+  `public_limits` (`tests/test_stats_service.py` — 18 test,
+  `requires_db` yo'q); `clustering/snapshot.py` ning `compute_etag`,
+  `empty_payload`, `_feature`; `geo/registry.py` ning `pick_for_point`,
+  `_from_row`; `notifications/outbox.py` ning `backoff_s`;
+  `notifications/subscriptions.py` ning `params_from_config`,
+  `_validated_radius`; `geo/pipeline.py` ning `validate_point`;
+  `reports/intake.py` ning `ensure_not_blocked`; `admin/audit.py` ning
+  `jsonable`, `cli_actor`; `clustering/lookup.py` ning `decide`, `text`.
+  🔴 **Teskari tomoni og'irroq — bazasiz testi UMUMAN yo'q toza
+  funksiyalar.** Ular faqat `requires_db` orqali bilvosita ishlaydi, u
+  esa 121-rundan beri yurmagan: `app/obs/collector.py` ning uchala
+  yordamchisi (`_age_s`, `_as_uuid`, `_reading` — butun repoda
+  `collector.` ga murojaat qiladigan yagona test
+  `tests/test_metrics_api_db.py`), `clustering/repository.py` ning
+  `_to_outage_row`/`geog_point`/`_lat_lon`/`_outage_row_columns`,
+  `reports/queries.py` ning `_position`, `bot/service.py` ning
+  `_label`, `notifications/subscriptions.py` ning `_point`/`_lat_lon`
+  va `notifications/outbox.py` ning `_age_s`. `collector._age_s` ning
+  naive tarmog'i (`value.tzinfo` bo'lmasa UTC deb o'qish) — 128 va 130
+  ikki marta topgan `as_utc` sinfining **uchinchi nusxasi**, va u
+  `/metrics` ning `snapshot_age_seconds` iga chiqadi.
+  ⚠️ **Statik bashorat (o'lchov emas, 132 da tekshiriladi)** —
+  `app/jobs/daily_digest.py` ning bazasiz yarmi (`chat_ids`,
+  `deliver`; 5 test): `deliver` dagi `except PermanentSendError`
+  tarmog'i hech qachon otilmagan (`_Recorder` faqat `SendError`
+  tashlaydi, `PermanentSendError` esa uning avlodi — blokni olib
+  tashlash sanoqni o'zgartirmaydi, farq faqat jurnal kalitida);
+  `chat_ids()` ning `raw is None` tarmog'i (`settings.digest_chat_ids`
+  faqat `requires_db` testida patch qilinadi — 128 ning `h3_cells`
+  sinfi); `log.warning` darajasi (130 ning sinfi). Kutilayotgan
+  ekvivalent — bo'sh `entry` qorovuli, uni `int("")` ning `ValueError`
+  i soyalaydi (126 ning `auth` dagi holati).
+* **⛔ 132-run: kod yana yurgizilmadi — sandbox ketma-ket IKKINCHI run
+  ko'tarilmadi** (`useradd failed: No space left on device`, ikkala
+  urinishda ham). Run yana statik audit; kod, test, migratsiya
+  **tegilmadi**. 🔴 **Topilma — PostGIS koordinata primitivi: 10 nusxa,
+  0 bazasiz test.** `(lat, lon)` ↔ SQL nuqta o'girishi repoda o'n joyda
+  takrorlanadi: **6 konstruktor** (`clustering/repository.geog_point`,
+  `reports/intake._point`, `notifications/subscriptions._point`,
+  `geo/pipeline._point` — geometry, ataylab, `ST_Contains` uchun;
+  `reports/queries.py:445` va `tools/region_admin._point`) va
+  **4 ekstraktor** (`repository._lat_lon`, `subscriptions._lat_lon`,
+  `reports/queries._position`, `reports/intake.py:206`). Ikkitasi —
+  `queries.py:445` va `intake.py:206` — o'z modulidagi yordamchini ham
+  chetlab o'tib, ifodani joyida qaytadan yozadi. **O'nnalasi bugun
+  to'g'ri** (`ST_MakePoint(lon, lat)`, `ST_Y`→lat, `ST_X`→lon), ya'ni
+  defekt yo'q — muammo shundaki, **ertangisini hech narsa ushlamaydi**:
+  o'nnalasi faqat `requires_db` orqali bilvosita ishlaydi, u esa
+  121-rundan beri (ketma-ket 11-run) yurmagan. Almashuvning narxi
+  oilaning eng yuqorisi va u **jim**: `lat 39.65 / lon 66.96` almashsa
+  natija baribir **yaroqli** koordinata bo'ladi (`|lat| ≤ 90` — Muz
+  okeani), PostGIS xato bermaydi va `pipeline.validate_point` ham
+  ko'rmaydi, chunki u Python `float` larni ifoda qurilishidan **oldin**
+  tekshiradi; yagona alomat — prodda `geo_unmatched_ratio` ning
+  ko'tarilishi (`ST_Contains` tuman topmaydi). Bu 128 ning
+  `cell_area_m2` sinfi («yagona chaqiruvchisi `requires_db`»), faqat
+  kattaroq: bitta funksiya emas, **o'nta nusxali oila**, va nusxa
+  ko'payishining o'zi risk — bitta nusxani tuzatgan odam qolgan
+  to'qqiztasini ko'rmaydi. ⚙️ Muhimi: bu funksiyalar bazaga **umuman
+  tegmaydi** (imzosida `AsyncSession` yo'q), ular SQLAlchemy ifoda
+  daraxtini quradi — ya'ni 131 ning «tozalik funksiyaning xossasi»
+  qoidasi bo'yicha **bugunoq bazasiz o'lchansa bo'lardi**. Test
+  **yozilmadi**, chunki uni yurgizib bo'lmaydi va repoda bu naqshning
+  (`literal_binds` / daraxtni o'qish) birorta namunasi yo'q —
+  119 va 126 ning saboqi aynan shu: **yurgizilmagan harness o'lchov
+  emas**, tekshirilmagan test fayli esa `push.ps1` ni yiqitardi.
+  🔴 **Ikkinchi topilma — `_age_s` ning «uchinchi nusxasi» aslida ikkita
+  va ular ataylab har xil.** `collector._age_s` `None` da
+  `AGE_UNKNOWN = float("inf")`, `outbox._age_s` esa `0.0`. Farq
+  **to'g'ri**: `outbox` da `None` — «navbat bo'sh», `collector` da esa
+  «snapshot umuman yo'q», va `0` yozish «xarita yangi» degan yolg'on
+  signal berardi (`readings.py:30`); `+Inf` ning eksport yo'li ham butun
+  (`metrics._format_value` uni Prometheus yozuviga o'giradi, `alerts` esa
+  `max_snapshot_age_s` orqali yoqadi). Lekin **hech bir bazasiz test bu
+  ikki tarmoqni ajratmaydi** — ikkalasi ham faqat `requires_db` orqali
+  chaqiriladi, ya'ni `AGE_UNKNOWN` ni `0.0` ga tenglashtirish (masalan
+  «ikki nusxani birlashtiraylik» degan niyat bilan) `05` §10 ning
+  «snapshot 5 daqiqadan eski» ogohlantirishini **butunlay jim qiladi**
+  va to'plam yashil qoladi. 124 ning refleksivlik sinfi yangi shaklda:
+  kafolat kodda emas, faqat **prozada** (modul izohida) yozilgan.
+  ⚠️ Kichikroq ikkitasi: `collector.py:123` dagi `if lag_unknown:` —
+  kechikishi aynan `0.0` bo'lgan `unknown` qatori tushib qoladi, holbuki
+  `readings.py:42` izohi «bunday qator jimgina tashlanmaydi» deb va'da
+  beradi (izoh ↔ kod farqi; tuzatish bepul emas — doimiy `unknown`
+  qatori paydo bo'ladi, 133 hal qiladi); `tools/region_admin._point`
+  docstringi `geography(Point,4326)` deydi, tanasi esa `geometry`
+  qaytaradi — PostGIS ning implitsit casti tufayli ishlaydi, ya'ni
+  **docstring xatosi**, defekt emas.
+  **133 uchun tartib:** (1) yangi `tests/test_geo_sql_expressions.py` —
+  o'nnala nusxaning argument tartibi **ajratib turadigan absolyut**
+  sonlar bilan (teng sonlar almashuvni yashiradi) va nusxalar sonining
+  reyestri (yangi nusxa qo'shilsa test yiqilib, uni reyestrga qo'shishga
+  majbur qilsin); avval **bitta** ifodada naqshni sinab ko'ring;
+  (2) `AGE_UNKNOWN` shartnomasi; (3) shundan keyin 131 ning ro'yxati.
+* **⚠️ 133-run: 132 ni to'xtatgan sabab noto'g'ri edi — test yozildi, lekin
+  YURGIZILMADI.** Sandbox ketma-ket **uchinchi** run ko'tarilmadi
+  (`useradd failed: No space left on device`), shuning uchun `pytest` ham,
+  `ruff` ham ishlamadi. 🔴 **Tuzatish:** 132 «repoda `literal_binds` /
+  ifoda daraxtini o'qish naqshining birorta namunasi yo'q» deb yozgan edi —
+  amalda ikkita bor: `tests/test_privacy_jitter_contract.py:461`
+  (`.compile(dialect=postgresql.dialect(), compile_kwargs={literal_binds})`,
+  o'sha yerda `assert "ST_MakePoint" not in compiled`) va
+  `tests/test_schema_spatial_nullability.py:88` (`CreateTable(...).compile`).
+  Ya'ni to'xtash uchun texnik sabab yo'q edi. Yozilgani (mahsulot kodi
+  **tegilmadi**): ✅ `tests/test_geo_sql_expressions.py` — 10 funksiya /
+  **21 test**. O'nnala nusxaning argument tartibi `LAT = 39.6542` va
+  `LON = 66.9597` bilan qulflandi (ikkalasi ham **yaroqli kenglik** —
+  almashuv PostGIS uchun xato emas, shuning uchun sonlar ataylab ajratib
+  turadi); sakkiz chaqiriladigan yordamchi ifoda **daraxti** bo'yicha,
+  ikkita funksiyasiz nusxa (`reports/queries.py:445`,
+  `reports/intake.py:206`) esa `ast` bo'yicha o'qiladi. Qo'shimchasiga
+  nusxalarning **reyestri** (6 fayl) va **soni** (`14` = 6 `ST_MakePoint` +
+  4 `ST_Y` + 4 `ST_X`) muzlatildi — o'n birinchi nusxa qo'shilsa test
+  yiqiladi va uni reyestrga yozishga majbur qiladi.
+  ⚙️ **Uslubiy qaror:** daraxt ichma-ich kortejga aylantiriladi
+  (`shape()`), ya'ni natija na dialektga, na `float` ning matn
+  ko'rinishiga bog'liq. **Barg ustunning nomi solishtirilmaydi** (`LEAF`):
+  SQLAlchemy 2.x da ORM atributining `str()` i `Report.geom_public`,
+  kompilyatsiya natijasi esa `reports.geom_public` — ya'ni barg nomi bu
+  qatlamda barqaror shartnoma emas; ustun aynan qaysiligi
+  `compile(dialect=postgresql.dialect())` bilan alohida tekshiriladi.
+  ✅ `tests/test_obs_age_contract.py` — **8 test**.
+  🔴 **132 ning ikkinchi topilmasi ham toraytirildi.** «`AGE_UNKNOWN` ni
+  `0.0` ga tenglashtirish to'plamni yashil qoldiradi» — **noto'g'ri**:
+  `tests/test_obs_alerts.py:79` (`test_missing_snapshot_counts_as_stale`)
+  ham, `tests/test_obs_metrics.py:62` (`+Inf` renderi) ham yiqiladi, ya'ni
+  konstanta ikki joyda qulflangan. Haqiqiy bo'shliq **torroq va boshqa
+  joyda**: qulflanmagani — **funksiyaning o'zi**. `collector._age_s` ni
+  `return 0.0` ga o'zgartirish `AGE_UNKNOWN` ga tegmaydi va butun bazasiz
+  to'plam yashil qolardi, chunki `collector.` ga murojaat qiladigan yagona
+  test — `requires_db` li `test_metrics_api_db.py`. Shuning uchun yangi
+  faylning ogohlantirish testi qiymatni **funksiyadan** oladi, konstantadan
+  emas — 124 ning refleksivlik sinfiga qarshi qurilgan qulf.
+  ⚠️⚠️ **Ikkala fayl ham o'lchov emas, taklif:** 119 va 126 ning saboqi
+  aynan shu. Push dan **oldin** birinchi tirik sandboxda
+  `pytest tests/test_geo_sql_expressions.py tests/test_obs_age_contract.py -q`
+  va `ruff check tests/` majburiy (`PROGRESS.md` «Ochiq savollar», 🔴).
+  Test fayllari soni 150 → **152**, kutilayotgan qo'shimcha ~29 test —
+  **o'lchanmagan**, oxirgi haqiqiy o'lchov 130-run: 3339 passed, 232
+  skipped.
+* **⚠️ 134-run: statik verifikatsiya — «yozilgan» bilan «o'lchangan»
+  orasidagi oraliq holat.** Sandbox ketma-ket **to'rtinchi** run
+  ko'tarilmadi (`useradd failed: No space left on device`), ya'ni 133
+  qoldirgan ikkita fayl bugun ham yurgizilmadi. Kod, test, migratsiya va
+  konfiguratsiya **tegilmadi**. Run ularning CI xavfini `pytest` siz
+  kamaytirdi: har bir tasdiq, imzo, konstanta va AST sanog'i manbadagi
+  aniq qatorga solishtirildi va **133 sanagan uchala nozik joy ham toza
+  chiqdi.** (a) `shape()` — `ClauseList` `__iter__` ni e'lon qiladi;
+  `func.geography`/`func.geometry` oddiy `Function` va `.name` yozilganidek;
+  `float`/`int` argumentlar `BindParameter.value` da asl qiymatini
+  saqlaydi. (b) `Report` jadvali `reports` va geoalchemy2 ning
+  `Geography.column_expression` (`ST_AsEWKB`) faqat **SELECT ustunlar
+  ro'yxatida** qo'llanadi, alohida `element.compile()` da emas — natija
+  `ST_Y(geometry(reports.geom_public))`. (v) Reyestr **bit-aynan** mos:
+  `app/` + `tools/` da 6 fayl / **14 chaqiruv**, va repo bo'ylab
+  testlardan tashqari boshqa nusxa yo'q (`alembic/`, `scripts/`,
+  `deploy/`, `web/` toza) — ya'ni reyestrning `app/` + `tools/` bilan
+  cheklanishi bo'shliq qoldirmaydi. 133 sanamagani ham tekshirildi:
+  `ruff` ning `E501`/`F401`/`I` qoidalari buzilmaydi (`line-length = 100`,
+  eng uzun qator **95**; `tools` nomfazoviy paketi `app` bilan bitta
+  isort blokida — naqsh `tests/test_simulate.py:22` da yashil).
+  ⚠️ **Yagona tuzatish — docstring, kod emas:**
+  `test_both_respect_a_non_utc_offset` «haqiqiy o'girish» deydi, amalda
+  ikkala `_age_s` ham `astimezone` ni chaqirmaydi va +05:00 to'g'ri
+  chiqayotgani `datetime` ayirmasining o'zi ofsetni ko'rgani; test
+  baribir haqiqiy mutantni o'ldiradi (qorovulni olib tashlash
+  `0.0 != 60.0` beradi), ya'ni u `value.tzinfo` **qorovulini** o'lchaydi.
+  ⚠️⚠️ **Bu hali ham o'lchov emas:** tekshirilmay qolgan yagona taxmin —
+  geoalchemy2 ning `func.ST_*` obyekti (`GenericFunction` ↔ `Function`)
+  va uning `.name` registri. Bashorat (135 tekshiradi): **+29 test,
+  3368 passed, 232 skipped**.
+* **🔴 139-run: ikkita to'g'ri javob bir xil natija bersa, ularni
+  ajratadigan kirish topilmaguncha tanlov o'lchanmaydi.** Sandbox
+  ketma-ket **to'qqizinchi** run ko'tarilmadi (`useradd failed: No space
+  left on device`), ya'ni `pytest`/`ruff`/`_mut.py` bandlari yana
+  bajarilmadi. Yangi test fayli **yaratilmadi** (136 ning chegarasi);
+  o'zgargan to'rt fayl — `tests/test_geo_bbox.py` (+2),
+  `tests/test_clustering_lookup.py` (+2 test, +1 modul konstantasi),
+  `tests/test_admin_audit.py` (+3) va `tests/test_region_audit.py` (+3).
+  Mahsulot kodi, migratsiya, konfiguratsiya **tegilmadi**. Nishon — 131
+  ro'yxatining oxirgi to'rtligi (`geo/pipeline.validate_point`,
+  `reports/intake.ensure_not_blocked`, `admin/audit.jsonable`/`cli_actor`,
+  `clustering/lookup.decide`/`text`).
+  🔴 **(1) `validate_point` mintaqaning o'z bbox ini e'tiborsiz qoldirsa,
+  to'plam yashil qolardi.** Ikkala mavjud tasdiq ham mamlakat bbox i bilan
+  **bir xil** javob beradi (`MOSCOW` O'zbekistondan ham tashqarida,
+  `SAMARKAND` ikkalasining ichida), ya'ni `contains(region.bbox, …)` →
+  `contains(None, …)` mutanti jimgina o'tardi va Toshkentdan kelgan har
+  xabar Samarqandning xaritasiga tushardi. 137 ning `pick_for_point`
+  topilmasi bilan bir sinf, faqat quvurning **birinchi** qadamida
+  (`05` §3); ajratuvchi yagona kirish — mamlakat ichida, mintaqadan
+  tashqaridagi nuqta.
+  🔴 **(2) `MESSAGE_KEYS` ning qiymatlari hech qayerda qulflanmagan edi.**
+  Bitta test jadvalning **kalitlarini** (`set(MESSAGE_KEYS) ==
+  set(AreaVerdict)`), ikkinchisi **katalogning** ikki yozuvini
+  solishtiradi — qiymatlarga ikkovi ham tegmaydi. `NO_OUTAGE` ↔
+  `NOT_ENOUGH_DATA` ni almashtirish yashil qolardi va mahsulot aynan
+  `lookup.py` docstringi ogohlantirgan xatoni qilardi: past zichlikdagi
+  hududda «uzilish qayd etilmagan» deyish, ya'ni bilmaslikni bilishdek
+  ko'rsatish (`05` §4.6). **127 ning uchinchi sinfi** (qaror to'g'ri,
+  matn kaliti boshqasiniki) endi E7 ning o'zagida. Qulf qo'lda yozilgan
+  jadval **va** uning `text()` orqali bergan natijasi.
+  🔴 **(3) `cli_actor` ning `USERNAME` tarmog'i umuman yurgizilmagan edi.**
+  Ikkala test ham uni yo o'chiradi, yo `USER` to'ldirilgan holda
+  qoldiradi. Narxi Linuxda emas, operatorning ish stolida: `tools/` ning
+  ikkala CLI si **Windows** dan ishga tushiriladi, u yerda `USER` yo'q —
+  tarmoqsiz har bir operator `unknown` ga tushardi va `audit_log` da
+  hammasi bitta `actor_id` ga qo'shilardi, ya'ni `cli:` prefiksi
+  qochmoqchi bo'lgan holat kattaroq miqyosda. `USER` ning ustunligi va
+  `.strip()` ning **normallashtirish** roli ham qulflandi (`["", "   "]`
+  parametrlari faqat `or "unknown"` tarmog'ini o'lchardi).
+  **(4) `jsonable`** ning uchta tarmog'i: `date` (`datetime` ning avlodi
+  **emas** — munosabat teskari), `tuple` (farq faqat rekursiyada
+  ko'rinadi) va `{str(k): …}` (`uuid` kalitli lug'at). **(5)**
+  `OutOfRegionError` ning `region` konteksti (138 ning `min_m` sinfi) va
+  **(6)** `text()` ning sukut tili — `"uz" == DEFAULT_LANGUAGE` bo'lgani
+  uchun sukut yo'l hech qachon yurmagan (128 ning `h3_cells` sinfi).
+  ⚠️ **Qulflanmagani:** `validate_point` dagi `is_plausible` — ekvivalent,
+  `0005` migratsiyasining CHECK i bbox ni ±90/±180 bilan chegaralaydi
+  (`0005_region_bbox.py:62-63`), ya'ni undan o'tmaydigan nuqta `contains`
+  dan ham o'tmaydi (`NaN` ikkovidan ham tushadi) — soya boshqa
+  **qorovuldan**, o'zgaruvchi ma'lumotdan emas (129 ning tarafi);
+  `intake.ensure_not_blocked` — ikkala tarmog'i allaqachon qoplangan,
+  **bo'shliq topilmadi** (qayta ochilmasin).
+* **🔴 140-run: qulf ishlab chiqaruvchi tomonda to'xtab qolgan bo'lsa,
+  uni ISTE'MOLCHI bekor qiladi.** Sandbox ketma-ket **o'ninchi** run
+  ko'tarilmadi (`useradd failed: No space left on device`), ya'ni
+  `pytest`/`ruff`/`_mut.py` bandlari yana bajarilmadi. 131 ning ro'yxati
+  139 da tugagani uchun nishon — 132 ning koordinata oilasi, lekin uning
+  **ikkinchi qavati**. O'zgargan yagona fayl —
+  `tests/test_geo_sql_expressions.py` (+7 test, 21 → **28**); yangi test
+  fayli **yo'q** (136 ning chegarasi), mahsulot kodi, migratsiya va
+  konfiguratsiya **tegilmadi**.
+  🔴 **(1) Sakkizta ochish joyi qulflanmagan edi.** 133 `_lat_lon` va
+  `_position` ning `(ST_Y, ST_X)` **qaytarishini** qulfladi, lekin har bir
+  chaqiruvchi uni `lat, lon = _lat_lon(...)` deb **ochadi** —
+  `clustering/repository.py` da to'rtta (`find_candidate`,
+  `_outage_row_columns`, `load_evaluation_state`, `fingerprint_rows`),
+  `reports/queries.py` da uchta, `notifications/subscriptions.py` da
+  bitta. `lon, lat = ...` deb yozish ekstraktorga umuman tegmaydi va
+  133 ning **yigirma bir** testidan birortasi ham yiqilmasdi: funksiya
+  baribir `(ST_Y, ST_X)` qaytaradi, faqat chaqiruvchi ularni teskari
+  nomlaydi. Bu 132 ning «o'n nusxa, nol bazasiz test» topilmasi bilan bir
+  sinf, faqat bir qavat yuqorida — va nusxalar soni ham o'sha tartibda.
+  Qulf ikki qavatli: `ast` bo'yicha (birinchi nom `lat` bilan tugaydi,
+  ikkinchisi `lon`; reyestr va sanoq muzlatilgan) **va** semantik
+  (`_outage_row_columns()[4]` ning shakli aynan `ST_Y`) — ikkinchisi
+  o'zgaruvchilarni birga qayta nomlash bilan aylanib o'tilmaydi.
+  🔴 **(2) O'n yettita ustunli ikki ro'yxat qo'lda hamqadam yuritiladi.**
+  `_outage_row_columns()` `SELECT` ustunlarini beradi, `_to_outage_row()`
+  esa ularni `row[0]`…`row[16]` bo'yicha `OutageRow` ga yozadi. O'rtada
+  faqat **raqamli indeks** turadi, ya'ni bir ro'yxatdagi almashuv
+  ikkinchisiga ko'chmasa hech qanday xato chiqmaydi: `distinct_users` ↔
+  `independent_reporters` ikkalasi ham `int` (`05` §4.3 mustaqillik
+  mezoni aynan shu ikkovini solishtiradi), `district_id` ↔ `mahalla_id`
+  ikkalasi ham `uuid` — hodisa boshqa tumanga yozilardi. Ikkalasi ham
+  faqat `requires_db` orqali yuradi, u esa 121-rundan beri yurgizilmagan.
+  Qulf uch tomonlama: ustunlar ro'yxati **qo'lda** yozilgan jadval bilan,
+  `OutageRow` maydonlari tartibi o'sha jadval bilan (ikkala tomon bir
+  vaqtda siljimasin — 124 ning refleksivligi) va `_to_outage_row` **har
+  bir qiymati boshqasidan farq qiladigan** qator bilan.
+  ⚙️ **Mustaqil guvoh:** ustunlar `.key` (ORM atributi) bo'yicha ham,
+  `select(...).compile(postgresql.dialect())` matni bo'yicha ham
+  o'qiladi — ikkita test bir manbaga tayanib qolmasin.
+  ⚙️ **Uchinchi qulf — `numeric` normalizatsiyasi:** `weighted_score`
+  `numeric(6,1)`, koordinatalar esa `ST_Y`/`ST_X` natijasi, ya'ni drayver
+  `Decimal` qaytarishi mumkin; `float()`/`int()` castlarini olib tashlash
+  bazasiz to'plamda ko'rinmasdi, javob JSON ga o'girilganda esa `Decimal`
+  seriyalanmasdi. Test `Decimal` beradi va **tipni** tekshiradi.
+  ⚠️⚠️ **Bu o'lchov emas:** fayl 133-rundan beri **hech qachon
+  yurgizilmagan**, ya'ni endi unda 28 ta tekshirilmagan test bor. Har
+  tasdiq manbadagi aniq qatorga solishtirildi (`repository.py:35-38,
+  74, 200-242, 350, 525`, `queries.py:80, 265, 347, 387`,
+  `subscriptions.py:71-73, 100`), yangi importlar to'rttasi
+  (`uuid`, `dataclasses.fields`, `datetime`, `decimal.Decimal`,
+  `sqlalchemy.select`) isort blokiga alifbo bo'yicha qo'yildi, eng uzun
+  yangi qator ~93 belgi (`line-length = 100`). Bashorat: **+7 test →
+  3404 passed, 232 skipped**; test fayllari soni **152** (o'zgarmadi).
+  ⚠️⚠️ **O'lchov emas:** har tasdiq manba qatoriga solishtirildi
+  (`pipeline.py:170-178`, `bbox.py:104-116`, `errors.py:19-25, 40-44`,
+  `lookup.py:59-64, 115-120`, `i18n/__init__.py:43-44, 177-206`,
+  `audit.py:91-116`, `locales/*.json:37-40`). 138 dan farqli o'laroq
+  **ikkita yangi import** qo'shildi (`date`, `DEFAULT_LANGUAGE` — mavjud
+  qatorlarga, alifbo tartibida, ikkalasi ishlatiladi). Push navbati —
+  **o'n bir** fayl. Bashorat: **+10 test → 3397 passed, 232 skipped**;
+  test fayllari soni **152** (o'zgarmadi).
+* **🔴 138-run: kafolat PROZADA yozilgan bo'lsa, uni hech kim qayta
+  sanamaydi — va chaqiruvchisi bor funksiyaning testi bo'lmasligi
+  mumkin.** Sandbox ketma-ket **sakkizinchi** run ko'tarilmadi
+  (`useradd failed: No space left on device`), ya'ni «138 uchun tartib»
+  ning `pytest`/`ruff`/`_mut.py` bandlari yana bajarilmadi. Yangi test
+  fayli **yaratilmadi** (136 ning chegarasi saqlandi); o'zgargan uch fayl
+  — `tests/test_notify_params.py` (+4 test, +1 tasdiq),
+  `tests/test_notifications_outbox.py` (+2 test) va
+  `tests/test_map_snapshot.py` (+1 test). Mahsulot kodi, migratsiya,
+  konfiguratsiya **tegilmadi**. Nishon — 131 ro'yxatining qolgan qismi
+  (`outbox.backoff_s`, `subscriptions.params_from_config` /
+  `_validated_radius`, `clustering/snapshot`).
+  🔴 **(1) `MIN_RADIUS_M` (200 m) — kafolat faqat prozada.** Butun to'plam
+  uni `MIN = subs.MIN_RADIUS_M` orqali **o'zidan** o'qiydi (124 ning
+  refleksivligi), `app/` da unga murojaat qiladigan yagona boshqa joy esa
+  `channels.py:478` ning `why` **matni** («`MIN_RADIUS_M` jitterdan
+  katta»), uning `evidence` i esa `find_matching` ga ishora qiladi —
+  konstantaga emas. Chegarani 50 ga tushirish jimgina o'tardi va obuna
+  doirasi hodisa markazining o'z siljishidan (`05` §3.1,
+  `jitter_max_m = 60`) kichik bo'lib qolardi: obunachi o'z uyidagi uzilish
+  haqida jitter yo'nalishiga qarab xabar olardi yoki olmasdi. Qulf —
+  mutlaq `== 200` **va** munosabat `> settings.jitter_max_m`. Bu 126 ning
+  `auth` dagi holatining aynan takrori (**proza katalog emas**), endi
+  maxfiylik ↔ bildirishnoma chegarasida.
+  🔴 **(2) `params_from_config` ni chaqiradigan test umuman yo'q edi** —
+  holbuki `add()` ning `params` berilmagan **har** chaqiruvi shu yerdan
+  o'tadi. `min_radius_m=0` ham, `values` ni tashlab yuborish ham yashil
+  qolardi: birinchisi ma'nosiz kichik radiusni qabul qilardi, ikkinchisi
+  **sozlangan** mintaqani sozlanmagan qilib ko'rsatardi. Yangi sinf:
+  «chaqiruvchisi bor» ≠ «testi bor» — bir qatorli delegatsiya funksiyasi
+  navbatdan tushib qoladi, chunki u «shunchaki uzatadi».
+  🔴 **(3) Chegaraning o'zi — `<` ↔ `<=`** (`subscriptions.py:152`).
+  Mavjud tasdiqlar `MIN - 1` (rad) va 300/800 (qabul) bilan turardi. Narxi
+  bir metr emas: yuqori chegarasi polga qisilgan mintaqada (`from_mapping`
+  ning `max < min` tarmog'i) **standart radiusning o'zi** MIN ga teng
+  bo'ladi va o'sha mintaqada radiussiz **har** `add()` chaqiruvi
+  `SubscriptionRadiusError` bilan yiqilardi — obuna umuman ochilmasdi.
+  Qulf ikkala chegarani ham ushlaydi.
+  🔴 **(4) `max(attempts, 0)`** (`outbox.py:115`) — 129 ning «hech qachon
+  otilmagan qorovul» sinfi: qorovulsiz manfiy `attempts` `2 ** -1 = 0.5`
+  beradi, kechikish `base_s` dan **qisqa** va natija `float`, holbuki imzo
+  `int` va'da qiladi. **(5) `MAX_BACKOFF_S` refleksiv edi** —
+  `test_backoff_is_capped` konstantani o'zi bilan solishtiradi va repoda
+  boshqa murojaat yo'q, ya'ni shipni 60 s ga tushirish o'tardi; endi
+  `== timedelta(hours=1).total_seconds()` va qisish **qadami** (`base=30`
+  da 6→1920, 7→3600). **(6) `is not None` ↔ truthiness:** `0` — ikkovini
+  ajratadigan yagona kirish; mutant botda `0` yozgan odamga xatolik
+  o'rniga **jimgina** 300 metrlik obuna ochib berardi. **(7)
+  `empty_payload` ning `region` QIYMATI** — kalitlar to'plami ikki joyda
+  qulflangan, qiymat esa hech qayerda; sovuq startda ikki mintaqaning
+  payloadi bit-aynan bir xil bo'lib qolardi va bitta `ETag` ikkita javobni
+  belgilardi. **(8) Xato tanasidagi `min_m`** — faqat `max_m`
+  tekshirilardi, mutant foydalanuvchiga «5000 dan 800 gacha» deb
+  ko'rsatardi (`errors.to_dict` uni javobga chiqaradi).
+  ⚠️ Qulflanmagani: `_validated_radius` dagi `int()` casti — imzo
+  `int | None` va `params.default_radius_m` allaqachon `int`, ya'ni
+  e'lon qilingan kontrakt doirasida **ekvivalent**; `retry_later` ning
+  `backoff_s(row.attempts)` off-by-one tanlovi — `async` va soxta sessiya
+  qatlami kerak (133 ning riski).
+  ⚠️⚠️ **O'lchov emas:** har tasdiq manbadagi aniq qatorga solishtirildi
+  (`outbox.py:33, 115`, `subscriptions.py:38, 41-43, 150-154`,
+  `params.py:107-130`, `snapshot.py:88-90`, `config.py:140, 162-163`,
+  `errors.py:19-25`), yangi import qo'shilmadi, eng uzun yangi qator ~86
+  belgi. Push dan oldingi majburiy navbat endi **sakkiz** fayl. Bashorat:
+  **+7 test → 3387 passed, 232 skipped**; test fayllari soni **152**
+  (o'zgarmadi).
+* **⚠️ 137-run: mavjud tasdiqlarning TASODIFIY moslиgi — «ikki test bor»
+  ≠ «tartib o'lchangan».** Sandbox ketma-ket **yettinchi** run
+  ko'tarilmadi, ya'ni «137 uchun tartib» ning to'rttala bandi ham
+  bajarilmadi. Yangi test fayli **yaratilmadi** (136 ning chegarasi
+  saqlandi); o'zgargan ikki fayl — `tests/test_region_registry.py` va
+  `tests/test_geo_bbox.py` (+8 test). Mahsulot kodi, migratsiya,
+  konfiguratsiya **tegilmadi**. Nishon 131 ning ro'yxatidan
+  (`geo/registry.pick_for_point`) olindi va qo'shni `geo/bbox.py` ga
+  kengaydi: `pick_for_point` ning butun mantiqi o'sha ikki primitivda
+  (`BBox.contains`, `BBox.span`).
+  🔴 **(1) Solishtirish kalitining TARTIBI** (`registry.py:175`,
+  `key=(r.bbox.span, r.code)`) — ikkala mavjud test ham uni ajratmaydi:
+  ustma-ust tushgan holatda kichik bbox **tasodifan** alifboda ham oldinda
+  (`samarkand` < `wide`), teng holatda esa span lar teng. Ya'ni
+  `key=(code, span)` mutanti to'plamni yashil qoldirardi va alifboda
+  birinchi turgan **keng** mintaqa aniqroq qo'shnisining hamma nuqtasini
+  o'ziga tortardi — aynan `registry.py:30-36` ogohlantirgan «bir
+  uzilishning xabarlari ikki mintaqaga bo'linadi» holati. Qulf:
+  `aaa`/span 3.0 ↔ `zzz`/span 0.05, ya'ni ikki mezon **teskari**
+  yo'nalishda. Bu 129 ning «qoida seed ma'lumoti bilan soyalangan»
+  sinfining qo'shnisi: soya bu safar **fikstyura nomlarining alifbo
+  tartibidan**.
+  🔴 **(2) `and` → `or` butun to'plamda omon qolardi** (`bbox.py:33`):
+  `TASHKENT` ham, `MOSCOW` ham **ikkala** o'q bo'yicha tashqarida, ya'ni
+  bitta o'q yetarli bo'lib qolgan mutant hech qayerda otilmasdi
+  (Buxoro uzunligidagi nuqta Samarqandga qabul qilinardi). Qulf — ikkita
+  **bir o'qli** nuqta. 127 ning «fikstyuralar qirrasiz» sinfi.
+  **(3) `bbox.py:33` ning to'rtala `<=` si** — barcha mavjud tasdiqlar
+  to'rtburchakning o'rtasida yoki undan uzoqda; chegaraning o'zi
+  tekshirilmagan (to'rt qirra + burchak). ⚙️ Sonlar `SAMARKAND_BOX` bilan
+  **bit-aynan** bir xil literaldan olindi — tasdiq suzuvchi nuqta
+  yaxlitlashiga bog'liq emas.
+  **(4) `parse_bbox` ning ikkala qorovuli — chegarasiz va yarim**
+  (`bbox.py:97-100`): `min < max` ning **qat'iyligi** va diapazon
+  tekshiruvining uch tomoni (`min_lat < -90`, `max_lat > 90`,
+  `min_lon < -180`) parametrizatsiyada yo'q edi — faqat `max_lon > 180`
+  bor. Yassi bbox ayniqsa qimmat: `span == 0.0` **har doim** eng kichigi,
+  ya'ni bitta chiziq ustma-ust tushgan qo'shnisidan butun mintaqani
+  tortib olardi (1-band bilan bir xil oqibat, boshqa sabab).
+  ⚠️ Qulflanmagani: `make_bbox` dagi `float()` castlari (`bbox.py:80`) —
+  `_from_row` bazadan `Decimal` beradi, Python esa `Decimal` ↔ `float` ni
+  to'g'ri solishtiradi, ya'ni ehtimoliy **ekvivalent**; empirik dalil
+  `requires_db` ni talab qiladi.
+  ⚠️⚠️ **O'lchov emas:** har tasdiq manbadagi aniq qatorga solishtirildi
+  (`bbox.py:32-33, 50, 97-100, 109-116`, `registry.py:165-175`), yangi
+  import qo'shilmadi, eng uzun yangi qator ~70 belgi. Push dan oldingi
+  majburiy navbat endi **besh** fayl. Bashorat: **+8 test → 3380 passed,
+  232 skipped**; test fayllari soni **152** (o'zgarmadi).
+* **⚠️ 136-run: 135 ning to'rtta bashorati QULFLANDI — sozlamani testda
+  ajratish, `tz` qorovuli, sifat aralashmasi va yaxlitlash.** Sandbox
+  ketma-ket **oltinchi** run ko'tarilmadi, ya'ni `pytest`, `ruff` va
+  `_mut.py` bandlarining hech biri bajarilmadi. Yangi test fayli
+  **yaratilmadi** (135 ning chegarasi saqlandi); o'zgargan yagona fayl —
+  `tests/test_stats_service.py` (+4 tasdiq bloki). Mahsulot kodi,
+  migratsiya, konfiguratsiya **tegilmadi**.
+  (1) **Ikki sozlamaning ajrimi** — `monkeypatch.setattr(settings,
+  "stats_default_period_days", 14)` va `period.days == 14`; qo'shni
+  `coverage_window_days` ning 30 bo'lib qolgani ham oshkora tasdiqlanadi.
+  Shu bilan 135 topgan **ikki qavat soya** yoriladi: `service.py:205` da
+  sozlamani qo'shnisiga almashtirish ham, `timedelta(days=30)` deb
+  qotirib qo'yish ham (128 ning `h3_cells` sinfi) endi o'ladi. ⚙️ Eski
+  refleksiv tasdiq (`:25`) **ataylab qoldirildi**, absolyut `== 30` esa
+  rad etildi: 30 raqami spetsifikatsiyada emas, **sozlamada** yashaydi —
+  uni testga qotirish odam sukut qiymatni o'zgartirgan kuni soxta
+  yiqilish berardi. Qoida shaklida: refleksiv tasdiqni **olib tashlash**
+  emas, uning yoniga **sozlamani ajratadigan** tasdiq qo'yish.
+  (2) **`floor_to` ning `tz=timezone.utc` si** — `early.end.tzinfo ==
+  timezone.utc`; `as_utc` sinfining to'rtinchi joyi yopildi.
+  (3) **`min(qualities)` ↔ `max`** — `{measured, estimated}` aralashmasi
+  endi oshkora: natija `estimated`, pog'ona esa `HIGH` bo'lib qoladi
+  (ikkinchi tasdiq `cap` tarmog'ining tegmaganini o'lchaydi; usiz mutant
+  faqat sifat maydonida ushlanardi).
+  (4) **`round` ↔ kesish** — `[50, 51, 51]` (152/3 = 50.67 → **51**),
+  `sufficiency` ning o'rtachasi va `limiting_factor == "region_mean"`
+  (u ilgari faqat **bo'sh** holatda, ya'ni `no_territory_stats` sifatida
+  o'qilardi). ⚙️ Fikstyura `.5` dan ataylab qochadi — `[50, 51]` da
+  Python ning bank yaxlitlashi 50 beradi va kesish bilan farq qolmasdi.
+  Qoldirilgani va sababi: `_index_for`/`_coverage_input` — yangi
+  fikstyura qatlami (`TerritoryStatsRow`, `Params`) kerak va yurgizilmagan
+  holda bu 133 ning riskini oshiradi; `resolve_period` chegaralari va
+  `floor_to` ning `int` ↔ `round` i — ular **o'lchanadigan** gipoteza,
+  `_mut.py` bilan tekshiriladi.
+  ⚠️⚠️ **O'lchov emas:** har tasdiq manbadagi aniq qatorga solishtirildi
+  (`service.py:168-173, 205, 282-296`, `scale.py:47-50`, `config.py:45-50,
+  156, 174`), lekin yurgizilmadi. Push dan oldingi majburiy navbat endi
+  **uchta** fayl. Bashorat: **+4 test → 3372 passed, 232 skipped**.
+* **⛔ 135-run: qulf o'rnini ikki sozlamaning TASODIFIY tengligi bosib
+  turibdi.** Sandbox ketma-ket **beshinchi** run ko'tarilmadi
+  (`useradd failed: No space left on device`) — `pytest` ham, `ruff` ham
+  yurmadi, ya'ni 133 ning ikki fayli bugun ham o'lchanmadi. Yagona
+  o'zgargan fayl — `tests/test_obs_age_contract.py` (**docstring**):
+  `test_both_respect_a_non_utc_offset` «haqiqiy o'girish» deb yozgan edi,
+  amalda ikkala `_age_s` ham `astimezone` ni chaqirmaydi
+  (`collector.py:57` = `outbox.py:217`) va test `value.tzinfo`
+  **qorovulini** o'lchaydi. Mahsulot kodi, migratsiya, konfiguratsiya
+  **tegilmadi**.
+  `shape()` ning `.name` taxmini **ataylab o'zgartirilmadi**: `tests/` dagi
+  barcha `ST_MakePoint` uchrashuvlari — `requires_db` fikstyuralaridagi
+  **xom SQL satrlari**, ya'ni Python `func.ST_*` obyektini birorta yashil
+  test qurmagan va `geoalchemy2` manbasi repoda yo'q, demak statik dalil
+  yo'q; nomni `func` dan qayta olish esa tasdiqni **refleksiv** qilardi.
+  Asosiy ish — 131 ro'yxatidan `stats/service.py` ning bazasiz yarmi
+  (⚠️ **bashorat, o'lchov emas**; uchinchi yurgizilmagan test fayli
+  yozilmadi). 🔴 Eng qimmati: `stats_default_period_days` (`config.py:174`)
+  va `coverage_window_days` (`config.py:156`) — **ikkalasi ham 30**, yagona
+  tasdiq esa qiymatni **o'sha sozlamadan** o'qiydi
+  (`test_stats_service.py:25`), ya'ni `service.py:205` da birini
+  ikkinchisiga almashtirish **ikki qavat soyalangan**, holbuki
+  `region_coverage` docstringi qamrov oynasining so'ralgan davrdan
+  **mustaqilligini** kafolatlaydi — 126 ning «prozadagi kafolatni hech kim
+  qayta sanamaydi» sinfi, yangi shaklda: soya **boshqa sozlamaning teng
+  qiymatidan**. 🔴 Ikkinchisi: `floor_to` dan `tz=timezone.utc` ni olib
+  tashlash **jim** — `tick` o'sha funksiyadan olinadi (naive == naive) va
+  `int(end.timestamp()) % quantum == 0` naive vaqtda ham bajariladi
+  (Toshkentda ham: `18000 % 900 == 0`), natijada `Period.end` naive holda
+  `timestamptz` so'roviga tushardi: 128/130 ning `as_utc` sinfining
+  **to'rtinchi** joyi. Qolganlari: `resolve_period` ning `begin >= finish`
+  va `.days > max` chegaralari; `region_index` da `round` ↔ kesish,
+  **`min(qualities)` ↔ `max`** (`{measured, estimated}` aralashmasi umuman
+  testlanmagan, va `min()` ning to'g'riligi **alifbo tasodifi** —
+  `unknown` shu sababdan alohida qorovulda), o'qilmaydigan `sufficiency`
+  (qo'shni agregatorda bu qulf **bor**: `test_stats_mahalla_coverage.py:181`)
+  va yozilmagan `"region_mean"`; `_index_for`/`_coverage_input` ga `tests/`
+  da **birorta murojaat yo'q**. ✅ `public_limits` bashorati **rad etildi** —
+  `test_stats_methodology.py:480` olti maydonni nomi bo'yicha alohida
+  sozlamaga bog'laydi va oltala qiymat farq qiladi (`9/3/5/30/0.02/120`).
+  ⚙️ Umumiy saboq: 129 ning «soya o'zgaruvchi ma'lumotdan bo'lsa —
+  o'lchanmagan xossa» qoidasi **kengaydi** — soya boshqa **sozlamaning
+  sukut qiymatidan** ham bo'lishi mumkin, va bu holda mutant ham,
+  refleksiv tasdiq ham bir vaqtda jim qoladi.
+  ✅ **132 ning `lag_unknown` savoli YOPILDI — defekt emas.**
+  `outbox.lag_seconds_by_region` so'rovni `available_at <= moment` bilan
+  cheklaydi, ya'ni kechikish har doim ≥ 0 va aynan `0.0` bo'lishi uchun
+  mikrosekundgacha tenglik kerak; ogohlantirish esa
+  `max_outbox_lag_s > 120`, ya'ni nol kechikishli qator hech qanday
+  sharoitda signal bermaydi. `readings.py:42` ning kafolati **tiqilib
+  qolgan** navbat haqida, uning kechikishi esa ta'rifan `> 0` — tushib
+  qoladigan yagona qator barcha metrikalari nol bo'lgan, ma'lumot
+  tashimaydigan qator. Qoldiq faqat o'qilishida
+  (`if lag_unknown > 0.0:`) — 👤 kosmetik.
 * **👤 Qarorlar (2026-08-11):** moliyaviy tomon loyihani
   **bloklamaydi** (`CLAUDE.md` §2); RACI «Homiy + BA» bilan tuzatildi
   (`02` §6); Faza 0 kalendari amalda yuritilmaydi — hujjat qatlami;
@@ -277,11 +1130,18 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 
 ## 2. Testlar epiclar bo'yicha
 
-Jami **148 ta `tests/test_*.py` fayli**. Joriy yashil holat: butun
-to'plam **3441 yig'iladi** — 122-run da DB siz **3209 passed, 232
+Jami **152 ta `tests/test_*.py` fayli** (133-run ikkitasini qo'shdi —
+`test_geo_sql_expressions`, `test_obs_age_contract`; ⚠️ **ikkalasi ham
+yurgizilmagan** — 134-run ularni faqat **statik** verifikatsiyadan
+o'tkazdi, quyidagi sanoqlar ularni hisobga olmaydi; kutilayotgani
++29 test). ⚠️ 136-run **uchinchi yurgizilmagan** o'zgarishni qo'shdi —
+yangi fayl emas, mavjud `tests/test_stats_service.py` ga +4 tasdiq bloki
+(kutilayotgani +4 test, ya'ni jami bashorat **3372 passed, 232
+skipped**). Joriy yashil holat: butun
+to'plam **3555 yig'iladi** — 129-run da DB siz **3323 passed, 232
 skipped**, DB bilan oxirgi o'lchov 121-run da **3401 passed, 1
-skipped** edi (+6 qulf testi). `-m requires_db`
-**231 passed** (121-run; 122 da disk to'lgani uchun yurgizilmadi) — ⚠️ `pg_ctl start`, `alembic upgrade head` va
+skipped** edi. `-m requires_db`
+**231 passed** (121-run; 122–129 da disk to'lgani uchun yurgizilmadi) — ⚠️ `pg_ctl start`, `alembic upgrade head` va
 `pytest` **bitta bash chaqiruvida** bo'lishi shart, aks holda server
 chaqiruv oxirida o'ladi; ⚠️ **`pg_ctl status` ga ishonmang** — o'lgan
 serverdan keyin ham `postmaster.pid` qoladi va `status || start`
@@ -291,22 +1151,22 @@ serverdan keyin ham `postmaster.pid` qoladi va `status || start`
 
 | Epic | Test fayllari |
 |---|---|
-| E1 | `test_health`, `test_errors`, `test_config`, `test_migrations`, `test_schema`, `test_core_etag`, `test_env_example_parity`, `test_transaction_boundaries`, `test_api_commit_contract`, `test_schema_index_parity` |
-| E2 | `test_geo_osm`, `test_geo_quality`, `test_geo_h3`, `test_geo_jitter`, `test_geo_bbox`, `test_geo_mahallas`, `test_geo_pipeline_db`, `test_purge_exact_geom`, `test_privacy_jitter_contract`, `test_schema_spatial_nullability` |
-| E3 | `test_bot_reply`, `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
+| E1 | `test_core_etag` — **13 test**: mutatsiya 11/11 (126-run — olti qulf: algoritm parametrlarining oltin qiymati (`sort_keys`/`separators`/`ensure_ascii`), `DIGEST_SIZE` ning sarlavha uzunligi, `If-None-Match` da `" * "`, `*` ning faqat butun sarlavha bo'lgandagi kuchi va bo'shliqsiz ro'yxat). `test_mut_harness` — **11 test**: `tools/_mut.py` verdiktining o'z qorovuli (`KILLED` faqat `rc == 1`, nishon bo'shliq bo'yicha bo'linadi, qo'llanmagan mutatsiya xato). `test_timeutil` — **9 test**: mutatsiya 8/8 (128-run — uch qulf: `as_utc` ning aware non-UTC tarmog'i (butun to'plam faqat naive yoki UTC berardi), `public_iso` dagi `as_utc` (faqat naive kirishda ko'rinadi — bazadan `timestamp without time zone` sifatida o'qilgan qator), `step <= 1` tarmog'ida mikrosoniyaning tozalanishi). Qolganlari: `test_health`, `test_errors`, `test_config`, `test_migrations`, `test_schema`, `test_env_example_parity`, `test_transaction_boundaries`, `test_api_commit_contract`, `test_schema_index_parity` |
+| E2 | `test_geo_quality` — **24 test**: `05` §5.3 sifat darvozasi; mutatsiya 23/23 (125-run — sakkiz qulf: `not reference_area` qorovuli `COALESCE(…,0)` bilan, `is_blocker` ning `blocking` ga bog'liqligi, nomdagi `strip()`, ko'p nuqta chegarasi, bo'sh partiyadagi nolga bo'linish, `{total - invalid}` matni, `source_ref` ustuvorligi; ikkita yolg'on survivor `dependencies`/`release_plan` kontraktlarida ushlanadi). `test_geo_h3` — **13 test**: mutatsiya 11/11 (128-run — to'rt qulf, hammasi bitta sinfdan: `resolution()` ning sozlamaga bog'liqligi (sukut qiymat konstanta bilan teng bo'lgani uchun ajratib bo'lmasdi), `cell_of` va `cell_area_m2` ning `res` argumenti, `neighbours` ning `k` si (`3k²+3k+1` bilan), `cell_area_m2` ning **birligi** — yagona chaqiruvchisi `requires_db` bo'lgani uchun `m^2` → `km^2` bazasiz to'plamda ko'rinmasdi; qulf oltin son emas, `maydon ≈ 2.598 × qirra²` munosabati). Qolganlari: `test_geo_osm` (**36 test**, mutatsiya 12/12 — 127-run: oltala survivor `PAYLOAD` fixture'ining **qirrasiz** bo'lganidan omon qolgan, yangi `EDGE_PAYLOAD` bir nuqtali a'zo (`ST_Node` **butun** relationni rad etadi), `inner` halqa (uni tashlash poligonni kattalashtiradi), bo'sh joydan iborat `name:uz`, `admin_level=8;9`, `name_ru` ga tushish va daraja ichida saralashni qulfladi), `test_geo_h3`, `test_geo_jitter`, `test_geo_bbox`, `test_geo_mahallas`, `test_geo_pipeline_db`, `test_purge_exact_geom`, `test_privacy_jitter_contract`, `test_schema_spatial_nullability`, `test_geo_sql_expressions` — **28 test** (133 + 140-run, ⚠️ yurgizilmagan): `(lat, lon)` ↔ PostGIS nuqtasining o'nnala nusxasi — sakkiztasi ifoda daraxti bo'yicha, ikkita funksiyasiz nusxa `ast` bo'yicha; nusxalar reyestri va soni (14) muzlatilgan. **140-run qo'shgani (+7):** iste'molchilar qatlami — sakkizta `lat, lon = _lat_lon(...)` ochish joyi (`ast` + reyestr) va moderatsiya qatorining butun zanjiri: `_outage_row_columns()` ning 4/5-o'rni semantik (`ST_Y`/`ST_X` shakli), o'n yettita ustunning tartibi qo'lda yozilgan jadval bilan, `OutageRow` maydonlari o'sha jadval bilan, kompilyatsiya matni mustaqil guvoh sifatida, `_to_outage_row` ning indeks xaritasi barcha qiymatlari **farq qiladigan** qator bilan va `Decimal` → `float`/`int` normalizatsiyasi |
+| E3 | `test_bot_reply` — **19 test**: `05` §6.2 verdiktlari; mutatsiya 12/12 (127-run — uch qulf: `Situation.coverage_ok` ning **sukut** qiymati (hamma test uni oshkora berardi, ya'ni §6.2 ning 4-qatori jimgina 3-qatoriga aylanardi), `MESSAGE_KEYS` da verdikt ↔ kalit muvofiqligi (qaror to'g'ri, javob teskari — 207 testli to'plam ham yashil qolgan), `tzinfo` qorovuli; bitta yolg'on survivor — `"9" in text` matndagi **vaqtni** ko'rgan). Qolganlari: `test_bot_keyboards`, `test_bot_webhook`, `test_bot_flow_db`, `test_bot_handlers_transaction`, `test_bot_location_routing`, `test_bot_subscription_keyboard`, `test_reports_intake` |
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry` — **17 test**: `05` §4.2 ning inkremental markazi va radiusi; mutatsiya 13/13 (122-run — besh qulf: `grow_radius` ning hech qachon tanlanmagan `max` tarmog'i va markaz siljishi, `clamp_radius` chegarasining o'zi va yaxlitlash, `EARTH_RADIUS_M` ning chorak meridian bilan qulflanishi; ikki ekvivalent — `min(1.0, h)` va `attached <= 0`, ikkalasi ham empirik isbot bilan). Qolganlari: `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
-| E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). `test_scale` — **32 test**: `scale.py` mutatsiyasi 12/12 (121-run — to'rt qulf: `households > 0` va `populated_cells <= 0` qorovullari, mahalla `w >= T` va `ratio >= 0.15` chegaralarining o'zi; ikki ekvivalent mutant sababi bilan qoldirildi). Qolganlari: `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_report_sources_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
+| E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). `test_scale` — **32 test**: `scale.py` mutatsiyasi 12/12 (121-run — to'rt qulf: `households > 0` va `populated_cells <= 0` qorovullari, mahalla `w >= T` va `ratio >= 0.15` chegaralarining o'zi; ikki ekvivalent mutant sababi bilan qoldirildi). `test_report_sources_contract` — **37 test**: mutatsiya 11/11 (129-run — ikki qulf: `freeze_weight` dagi `06` §2.2 qorovuli (registrdagi `0.0` **seed** bilan soyalangan edi — qulf `SOURCE_BY_CODE` ni patch qilib, «qoida songa bog'liq emas» deb yozildi) va yaxlitlashning `numeric(3,1)` bilan mosligi (hamma test `trust_score = TRUST_DIVISOR` berardi, ya'ni `user_factor == 1.0` va ko'paytma allaqachon bitta kasr xonasida)). `test_clustering_formulas` — **17 test**, yangi fayl: `formulas.py` mutatsiyasi 6/6 (129-run — ikkala qulf ham **hech qachon otilmagan qorovul**: `clamp` ning `low > high` tekshiruvi va `adaptive_threshold` dagi `max(0.0, x)` qisqichi). Qolganlari: `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
 | E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db` |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
-| E8 | `test_admin_auth`, `test_admin_roles`, `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
+| E8 | `test_admin_auth` — **21 test**: mutatsiya 11/11 (126-run — olti qulf: `MIN_TOKEN_LENGTH` va `ACTOR_NAMESPACE` ning **absolyut** qiymati (ikkovi ham refleksiv tekshirilardi), `compare_digest` chaqiruvlarining sanog'i — `==` va erta chiqish, rad etish sababining ikki holati, ikki nuqta atrofidagi bo'shliq; bitta ekvivalent — bo'sh token qorovuli `MIN_TOKEN_LENGTH` bilan soyalangan). `test_admin_roles` — **13 test**: mutatsiya 5/5 (129-run — bitta qulf ikkita sinfni yopdi: `Permission` va `Role` ning **satr qiymatlari** oshkora jadval bilan yozildi; ilgari hamma test enum a'zosining o'zini import qilib solishtirardi, ya'ni qiymat o'zgarganda ikkala tomon bir vaqtda siljirdi — 124-run ning refleksivlik sinfi, bu safar `audit_log` va `403` javobi qatlamida). `test_daily_digest` — **30 test**: `digest.py` mutatsiyasi 12/12 (129-run — to'rt qulf: ogohlantirishlar **tartibi** (mavjud testlar `in` bilan tekshirardi), `outages_total`/`moderation_total` da `sum` → `len` (fixture'da chelaklar soni tasodifan yig'indiga yaqin edi) va `PAYLOAD_VERSION` ning mutlaq qiymati (`0006` payload ni qayta hisoblamaydi — raqamni shaklsiz surish arxivni ikkiga bo'lardi)). Qolganlari: `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
 | E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **33 test** (122-run): nginx ↔ ilova ↔ compose ↔ serverdagi ko'p loyihali stek; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi; `deploy-server/` — `api` aliasi ↔ snippet, polling profili, xost saytining marshrutlashni takrorlamasligi |
-| E13 | `test_notifications_outbox`, `test_notifications_render`, `test_notifications_db`, `test_notify_params`, `test_notification_domain_contract`, `test_notification_channels_contract` |
-| E14 | `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_boundaries`, `test_stats_maturity`, `test_stats_mahalla_coverage`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
-| E15 | `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
+| E13 | `test_notifications_render` — **12 test**: mutatsiya 12/12 (127-run — uch qulf: `started_at` ↔ `ended_at` ning o'rni (testlar vaqtni umuman o'qimasdi), `None` vaqtning zaxirasi (`OutageEvent.started_at` — `datetime | None`, zaxirasiz `process_outbox` **ichida** `AttributeError`), `tzinfo` qorovuli). `test_notifications_outbox` — **17 test**: `app/notifications/events.py` mutatsiyasi 8/8 (130-run — sakkizdan **yettitasi** survivor edi: butun to'plam payloadni faqat `as_payload()` orqali yasagani uchun `_iso` ga UTC bo'lmagan aware vaqt, `_parse_dt` ga esa `datetime` obyekti ham, zonasiz satr ham hech qachon berilmagan; qo'shimchasiga `if not value` ↔ `is None` va uchta **kamaytiruvchi** sukut qiymat — `status=""`, `confidence=0`, `report_count=0`). `test_notify_params` — **24 test**: `app/notifications/params.py` mutatsiyasi 12/12 (130-run — besh qulf: `int(float(v))` (`seed_values` bazaga float yozadi), `seed_values` ning **qiymatlari** (kalitlar to'plami o'zgarmaydi, yangi mintaqa esa standart sifatida yuqori chegarani olardi) va ikkala ogohlantirishning **sharti** — jim zaxira va `max == min` chegarasi). Qolganlari: `test_notifications_db`, `test_notification_domain_contract`, `test_notification_channels_contract` |
+| E14 | `test_stats_boundaries` — **9 test**, mutatsiya 15/15 (125-run: ikkala davr chegarasining o'zi qulflandi); `test_stats_maturity` — **14 test**, mutatsiya 15/15 (`max(0/1, …)` qisqichlari, `min_events` chegarasi, `elif` — tarixsiz mintaqaning yagona sababi); `test_stats_mahalla_coverage` — **19 test**, mutatsiya 20/20 (`MIN_MEASURED_RATIO` va uning `<` chegarasi, `round`↔kesish, aralash sifatda `min`, `sufficiency` o'rtachasi, taqsimotning `band` bo'yicha sanalishi; ikkita yolg'on survivor i18n kalit kontraktida). Qolganlari: `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
+| E15 | `test_geo_mahallas` — **10 test**: mutatsiya 10/10 (128-run — bitta qulf ikkita survivorni yopdi: bo'sh javobning ogohlantirishdan boshqa **hamma** maydoni (`sources=()`, `versions`/`mahallas`/`districts` = 0) o'lchanmagan edi, ya'ni FR-S-802 degradatsiyasi e'lon qilinib, o'sha javobning o'zi mavjud bo'lmagan manba va qatorlar sonini ko'rsatardi). `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E19 | `test_region_registry`, `test_regions_api_db` |
-| TEST/OBS/ANL/JOBS | `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_metrics`, `test_obs_alerts`, `test_obs_latency`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_jobs_registry`, `test_logging_setup` |
+| TEST/OBS/ANL/JOBS | `test_obs_metrics` — **16 test**: mutatsiya 11/11 + **1 o'lchanmagan** (128-run — uch qulf: `_escape_help` (bugungi izohlarda slesh ham, qator uzilishi ham yo'q — qorovul faqat kelajakdagi izoh uchun), `-Inf` (bitta namuna butun **scrape** ni rad ettirardi) va `render` ning oila **ichidagi** tartibi; bitta ekvivalent — `if not rows` → `if rows is None`, `setdefault(…, []).append(…)` bo'sh ro'yxat qoldirmaydi; **o'lchanmagani** — `FAMILY_BY_NAME` kaliti: mutant `app/obs/monitoring.py` ning import-vaqt qorovuliga urilib `conftest` ni yiqitadi va `pytest` `rc=4` beradi, ya'ni verdikt yo'q; shartnoma `test_registry_is_keyed_by_the_bare_name` da). `test_jobs_registry` — **28 test**: `05` §8 jadvali hujjatdan, `JOB`/`register()` juftlari, skript rejimi (56-run) va **130-rundan** planlovchining o'z tsikli; `app/jobs/runner.py` mutatsiyasi 9/9 (olti survivor — `sleep(interval)`, `await`, `except Exception`, `log.error` darajasi, `if not JOBS` va `gather` ning to'liq ro'yxati; hammasi to'rtta yangi xatti-harakat testi bilan qulflandi). `test_obs_age_contract` — **8 test** (133-run, ⚠️ yurgizilmagan): `collector._age_s` ↔ `outbox._age_s` ajrimi (`inf` ↔ `0.0`), naive va `+05:00` tarmoqlari, kelajakdagi vaqtning nolga qisilishi; ogohlantirish qiymati **funksiyadan** olinadi, konstantadan emas. Qolganlari: `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_alerts`, `test_obs_latency`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_logging_setup` |
 | REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract`, `test_roadmap_contract` |
 | SEC | `test_security_posture_contract` |
 | DATA | `test_data_model_contract` |
@@ -392,9 +1252,12 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 
 | Nima | Kimni bloklaydi |
 |---|---|
-| 🟡 **`tools/_mut.py` verdiktni `returncode != 0` bilan chiqaradi** — bu aynan 119-run ni bekor qilgan xato (usage-error `rc=4` ham `KILLED` deb o'qiladi). 120–124 runlar o'z harnessini `/tmp` da yozib ishlatdi. Fayl tuzatilsinmi (`rc == 1`) yoki o'chirilsinmi — agent `allow_cowork_file_delete` ni chaqira olmaydi | keyingi mutatsiya runlari |
+| 🟡 **Mutatsiya bilan o'lchanmagan toza modullar** (130-run sanog'i: 92 toza moduldan **42 tasi** o'lchangan — bugun `notifications/params.py`, `jobs/runner.py`, `notifications/events.py` qo'shildi). Bazasiz nishonlar navbati: `app/notifications/{sender,channels}.py`, `app/analytics/{track,catalogue}.py`, `app/obs/{readings,latency,monitoring}.py`, `app/stats/methodology.py`, `app/core/{i18n,config,logging,errors}.py`, `app/db/spatial.py` va `app/release/` ning o'lchanmagan reyestrlari (`risks`, `scope`, `roadmap`, `success`, `functional_requirements`, `plan`, `acceptance`, `gates`, `dependencies`, `measures`, `channels`). ⚠️ 130 ning qoidasi: reyestr/kontrakt testi bor modul **o'lchangan hisoblanmaydi** — `app/jobs/*.py` ning `_tick` o'ramlari va `app/obs/collector.py` shu savol bilan qayta ko'riladi. ⚠️ **131 ning tuzatishi: ro'yxatning granularligi noto'g'ri.** Tozalik modulning emas, **funksiyaning** xossasi: `AsyncSession` ni import qiladigan 23 modul ichida bazasiz sinxron funksiyalar bor va bir qismi allaqachon bazasiz test bilan qoplangan, ya'ni **bugunoq o'lchansa bo'ladi** — `stats/service.py` (`floor_to`, `resolve_period`, `_coverage_input`, `_index_for`, `region_index`, `public_limits`; `tests/test_stats_service.py`, 18 test), `clustering/snapshot.py` (`compute_etag`, `empty_payload`, `_feature`), `geo/registry.py` (`pick_for_point`, `_from_row`), `notifications/outbox.py` (`backoff_s`), `notifications/subscriptions.py` (`params_from_config`, `_validated_radius`), `geo/pipeline.py` (`validate_point`), `reports/intake.py` (`ensure_not_blocked`), `admin/audit.py` (`jsonable`, `cli_actor`), `clustering/lookup.py` (`decide`, `text`). Ya'ni «servis nishoni bazaga tegadi» degan 125 dan beri turgan sabab faqat **modul nomiga** tayangan edi. ⚠️ `app/jobs/daily_digest.py` ning bazasiz yarmi (`chat_ids`, `deliver`) uchun 131 statik bashorat yozdi — 132 uni o'lchov bilan tekshiradi | keyingi mutatsiya runlari (bazasiz — lekin `pytest` kerak, ya'ni **131 dan boshlab diskka bog'liq**) |
 | 🟡 `make lint` ning `ruff format --check` qadami repo bilan mos emas (124 fayl `0.16.2` da, 130 fayl `0.8.6` da — repo hech qachon `ruff format` bilan formatlanmagan). CI faqat `ruff check` ni yurgizadi, reliz bloklanmaydi. Uch yo'l: bir marta formatlash + versiyani qulflash / qadamni olib tashlash / farqni qayd etib qoldirish | REL (`03` §6), butun repo |
-| ⛔ **`cleanup-sessions.ps1` — bloklovchi, ketma-ket UCHINCHI run.** 122 da `/` da 62 MB, 123 da 52 MB, 124 da 44 MB bo'sh qoldi; `/sessions` uchalasida ham **0**. Yangi `initdb` ga joy yo'q, `requires_db` ning 232 testi uchala runda ham jimgina `skip` bo'ldi (oxirgi haqiqiy o'lchov — 121-run, 231 passed). Sandbox PostGIS retsepti (§6) disk bo'shamaguncha ishlamaydi | butun `requires_db` qatlami: E2, E3, E5, E8, E9, E13, E14, E15, E19 |
+| 🔴🔴 **2026-08-13, 140-run dan keyin — 122-rundan beri yozilgan DIAGNOZ NOTO'G'RI.** 👤 odam `cleanup-sessions.ps1` ni ishga tushirdi va natija: `[=] topilmadi: C:\Users\5\AppData\Roaming\Claude\local-agent-mode-sessions`, `0 ta papka o'chirildi`, **`C: bo'sh joy 8.5 GB`**. Ya'ni (a) skriptning yo'li **eskirgan** — u qaraydigan papka umuman yo'q; (b) Windows tomonda **disk to'la emas**. Shundan keyin `bash` yana uch marta chaqirildi — bir xil `useradd failed: /etc/passwd.NNNNN: No space left on device`. **Xulosa: `No space left on device` sandboxning O'Z Linux VM ida, foydalanuvchining C diskida emas** — `cleanup-sessions.ps1` uni hech qachon tuzata olmasdi. 122–140 runlar (19 ta) noto'g'ri bloklovchini qayd etib kelgan. Endi yagona ma'lum yo'l — **yangi sandbox VM** (Cowork ni qayta ishga tushirish / yangi sessiya) yoki Anthropic tomonidagi tiklash; skriptning o'zi ham 👤 tuzatilishi kerak (yangi yo'l topilsin yoki skript olib tashlansin) | butun `pytest`/`ruff`/`requires_db`/mutatsiya qatlami |
+| ⛔⛔ ~~**`cleanup-sessions.ps1` — 131-runda BUTUN RUN bloklandi.**~~ (yuqoridagi qator buni **bekor qiladi** — sabab boshqa joyda edi; quyidagi matn tarix uchun qoldirilgan) `bash` ning uchala urinishi ham `ensure user: useradd failed: /etc/passwd.NNNNN: No space left on device` bilan yiqildi: sandbox foydalanuvchisi yaratilmaydi, ya'ni `df`/`ls` ham bajarilmaydi va 130 ning `TMPDIR=/dev/shm/tNNN` yechimi yaramaydi (unga yetish uchun ham muhit kerak). Bosqichma-bosqich: 122–129 — `initdb` ga joy yo'q (`requires_db` skip); 130 — `pytest` faqat `/dev/shm` bilan; **131 — hech narsa**. Bugun na `pytest`, na `ruff` yurdi; run statik audit rejimida o'tkazildi | endi **hamma narsa**: mutatsiya seriyasi ham (bazasiz nishonlar ham `pytest` talab qiladi), `requires_db` ham, `ruff` ham |
+| 🟡 **Bazasiz testi umuman yo'q toza funksiyalar** (131-run topilmasi). Faqat `requires_db` orqali bilvosita ishlaydi, u esa 121-rundan beri yurmagan: `obs/collector.py` — ~~`_age_s`~~ (133), `_as_uuid`, `_reading`; `clustering/repository.py` — ~~`_to_outage_row`~~, ~~`geog_point`~~, ~~`_lat_lon`~~, ~~`_outage_row_columns`~~ (133 + 140); `reports/queries.py` — ~~`_position`~~ (133); `bot/service.py` — `_label`; `notifications/subscriptions.py` — ~~`_point`~~, ~~`_lat_lon`~~ (133); `notifications/outbox.py` — ~~`_age_s`~~ (133). **Qolgani uchtasi:** `collector._as_uuid` (JSONB dan kelgan buzuq matn butun `/metrics` ni yiqitmasligi), `collector._reading` (bitta mintaqa qatorining yig'ilishi — `0` bilan to'ldirish qoidasi va `time_to_confirm` ning istisnosi) va `bot/service._label` (bo'sh yorliqning tartib raqamli zaxirasi). ⚠️ 140 ning eslatmasi: `_age_s`/`_lat_lon` sinfida qulf **ishlab chiqaruvchida** to'xtab qolmasin — iste'molchi (ochish joyi, indeks xaritasi) ham o'lchansin | OBS, E14, E5, E3, E13 |
+| ⛔ ~~**`cleanup-sessions.ps1` — bloklovchi, ketma-ket O'NINCHI run.**~~ (👤 2026-08-13: **bekor** — yuqoridagi 🔴🔴 qatorga qarang, C da 8.5 GB bo'sh; quyidagi disk raqamlari sandboxning **o'z** VM iga tegishli, Windows ga emas) 122 da `/` da 62 MB, 123 da 52 MB, 124 da 44 MB, 125 da 43 MB, 126 da 34 MB, 127 da 25 MB, 128 da 15 MB, 129 da yana 15 MB, **130 da 5 MB va run o'rtasida 0** bo'sh qoldi; `/sessions` to'qqizalasida ham **0**. 130-run dagi vaqtinchalik yechim: `TMPDIR=/dev/shm/tNNN` (512 MB tmpfs, `mkdir -p` har bash chaqiruvida) — `pytest` shu bilan ishlaydi, lekin `initdb` uchun bu ham yetmaydi. Yangi `initdb` ga joy yo'q, `requires_db` ning 232 testi sakkizala runda ham jimgina `skip` bo'ldi (oxirgi haqiqiy o'lchov — 121-run, 231 passed). Sandbox PostGIS retsepti (§6) disk bo'shamaguncha ishlamaydi. ⚠️ Mutatsiya seriyasining **servis/API** nishoni (`stats/service.py`, `geo/queries.py`) bazaga tegadi va shu blok tufayli 125 dan beri kutmoqda; seriya bazasiz modullar bilan davom etyapti (§4 ning 🟡 qatori) | butun `requires_db` qatlami: E2, E3, E5, E8, E9, E13, E14, E15, E19 |
 | ⛔ **`.git/index.lock`** — `del .git\index.lock`. Sandboxdan chaqirilgan `git status` qoldirgan; mountda faylni o'chirib bo'lmaydi. Agent repoda `git` ni umuman chaqirmasligi kerak | push |
 | Serverda `git pull` → `docker compose build sveta-api sveta-bot sveta-jobs` → `up -d`; keyin `alembic upgrade head` (`0010`) | prod: SQL jurnali, `purge_exact_geom`, Overpass `User-Agent` |
 | ⛔ **Serverda ikkita parallel stek** ishlayapti (`docker ps`, 2026-08-12): ko'p loyihali `~/deploy/` (`sveta-*`) va repodagi `sveta/docker-compose.yml` (`sveta-*-1`). Ikkala `jobs` runner yuradi va ⚠️ **ikkita alohida Postgres volume i** bor — o'chirishdan oldin Samarqand importi qaysi bazada ekani tekshirilsin (`deploy-server/README.md` §0) | E13, E9, E14, E2, JOBS |
@@ -478,13 +1341,30 @@ ma'lumot bo'lmasligi kerak. Ziddiyat chiqsa — `PROGRESS.md` haq.
 ## 6. Sandboxda PostGIS ko'tarish (retsept)
 
 Cheklovlar: `/sessions` (`$HOME`) to'la bo'lishi mumkin → hamma narsa
-`/tmp` ga; bitta `bash` chaqiruvining haqiqiy chegarasi ~180 s
-(`timeout_ms` dan qat'i nazar); server chaqiruv oxirida o'ladi →
+`/tmp` ga; bitta `bash` chaqiruvining haqiqiy chegarasi **120 s**
+(`timeout_ms` dan qat'i nazar; 144-run o'lchadi — eski «~180 s»
+yozuvi noto'g'ri, mutatsiya partiyasi 2 mutantdan oshmasin); server chaqiruv oxirida o'ladi →
 `pg_ctl start` va `pytest` **bitta** chaqiruvda; `/tmp` dagi eski
 `pgdata*` **va `mamba/envs`** boshqa sandbox foydalanuvchisiniki
 bo'lishi mumkin (`nobody:755` — o'qish mumkin, yozish yo'q) → yangi
 muhit **yangi prefiksga** (`/tmp/svNN/…`), yangi
 `initdb -D /tmp/svNN/pgdata` va yangi port.
+
+⚠️ **`/` **butunlay** to'lganda (130-run): `TMPDIR=/tmp` ham yaramaydi —
+`pytest` `No usable temporary directory` bilan **ko'tarilmaydi**.
+`/tmp` dagi hamma narsa oldingi sandboxlarning `nobody` foydalanuvchisiniki,
+ya'ni joy bo'shatib bo'lmaydi; mount (`/sessions/<s>/mnt/…`) esa
+`tempfile` ning yaratish → yozish → `unlink` tekshiruvidan o'tmaydi.
+Ishlaydigan yagona yo'l — **`/dev/shm`** (512 MB `tmpfs`):
+
+```bash
+cd …/sveta && mkdir -p /dev/shm/tNNN \
+  && export PATH=/tmp/mamba/envs/py311/bin:$PATH TMPDIR=/dev/shm/tNNN \
+  && pytest -q -p no:cacheprovider tests/…
+```
+
+`mkdir` **har bash chaqiruvida** takrorlanadi: `/dev/shm` chaqiruvlar
+orasida saqlanmaydi. `initdb` uchun bu joy yetmaydi — faqat `pytest`.
 
 ⚠️ **`pg_ctl status` ga ishonmang.** O'lgan serverdan keyin ham
 `postmaster.pid` qoladi → `status` `0` qaytaradi → keng tarqalgan

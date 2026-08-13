@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import text
 
+from app.clustering import repository as repo
 from app.clustering.service import ReportRef, assign, evaluate
 from app.db.session import session_scope
 from app.geo.h3_cells import cell_of
@@ -439,3 +440,50 @@ async def test_idempotent_evaluate_does_not_duplicate_events(region_id) -> None:
             "outage.confirmed",
             "outage.resolved",
         ]
+
+
+async def test_the_evaluation_queue_starts_from_the_stalest_outage(region_id) -> None:
+    """`open_outage_ids` — eng **eskirgan** hodisadan boshlaydi (`05` §8).
+
+    Tartibni teskarisiga aylantirish butun to'plamdan jimgina o'tardi
+    (143-run mutatsiyasi: `SURVIVED`), chunki bor testlarda ochiq
+    hodisalar soni `limit` dan kichik va tartib natijaga umuman ta'sir
+    qilmaydi. Chegaradan oshgach esa farq mahsulotning o'zida ko'rinadi:
+    `evaluate_open` bir yurishda faqat `limit` tasini oladi va
+    `last_report_at` bo'yicha **kamayish** tartibida eng yangilari
+    aylanaveradi — ya'ni xabar kelmay qolgan eski uzilish `timeout`
+    bo'yicha hech qachon yopilmasdi. `05` §8 vazifasining butun ma'nosi
+    aynan shu eski qatorlarda.
+    """
+    async with session_scope() as session:
+        for age_h in (1, 5, 9):
+            await session.execute(
+                text(
+                    "INSERT INTO outages (id, region_id, status, layer, centroid, "
+                    "radius_m, independent_reporters, confidence, started_at, "
+                    "last_report_at, updated_at) VALUES (:id, :region, 'confirmed', "
+                    "'crowd', ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, "
+                    "120, 3, 70, :at, :at, :at)"
+                ),
+                {
+                    "id": uuid.uuid4(),
+                    "region": region_id,
+                    "lat": LAT,
+                    "lon": LON,
+                    "at": NOW - timedelta(hours=age_h),
+                },
+            )
+
+    async with session_scope() as session:
+        ids = await repo.open_outage_ids(session, limit=2, region_id=region_id)
+        ages = [
+            (
+                await session.execute(
+                    text("SELECT last_report_at FROM outages WHERE id = :id"), {"id": oid}
+                )
+            ).scalar_one()
+            for oid in ids
+        ]
+    assert len(ids) == 2
+    assert ages == sorted(ages), "navbat eng eskisidan boshlanmayapti"
+    assert ages[0] == NOW - timedelta(hours=9)

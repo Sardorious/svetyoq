@@ -25,6 +25,23 @@ def test_default_period_is_the_last_n_days() -> None:
     assert period.days == settings.stats_default_period_days
 
 
+def test_default_period_reads_its_own_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sukut davr **o'z** sozlamasidan olinadi, qo'shnisidan emas.
+
+    `stats_default_period_days` va `coverage_window_days` ning bugungi
+    qiymati bir xil (ikkalasi ham 30), shuning uchun yuqoridagi test
+    ikkovini almashtirib qo'yishni **ko'ra olmaydi**: u sozlamani
+    o'shanday o'qiydi (refleksiv tasdiq). `region_coverage` ning
+    docstringi esa aynan ikkovining **mustaqilligini** kafolatlaydi —
+    qamrov oynasi so'ralgan davrga bog'liq emas. Kafolat faqat prozada
+    qolmasligi uchun bu yerda sozlama **ajratiladi**.
+    """
+    monkeypatch.setattr(settings, "stats_default_period_days", 14)
+    period = stats.resolve_period(None, None, now=NOW)
+    assert period.days == 14
+    assert settings.coverage_window_days == 30, "qo'shni sozlama tegilmadi"
+
+
 def test_future_end_is_clamped_to_now() -> None:
     """«Ertangi kunga statistika» degan savol ma'noga ega emas."""
     period = stats.resolve_period(None, NOW + timedelta(days=10), now=NOW)
@@ -66,6 +83,12 @@ def test_quantum_makes_the_open_end_stable() -> None:
     late = stats.resolve_period(None, None, now=tick + timedelta(seconds=899), quantum_s=quantum)
     assert early.end == late.end == tick
     assert int(early.end.timestamp()) % quantum == 0
+    # Panjara natijasi **aware** bo'lib qolishi shart: `Period.end`
+    # `timestamptz` so'roviga tushadi, naive vaqt esa u yerda serverning
+    # mahalliy zonasi sifatida o'qilardi. Yuqoridagi ikki tasdiq buni
+    # ko'rmaydi — ular naive vaqtda ham bajariladi (Toshkentda ham:
+    # 18000 soniyalik ofset 900 ga qoldiqsiz bo'linadi).
+    assert early.end.tzinfo == timezone.utc
 
     beyond = stats.resolve_period(None, None, now=tick + timedelta(seconds=900), quantum_s=quantum)
     assert beyond.end > early.end, "panjara muzlatmaydi — u faqat qadaydi"
@@ -108,6 +131,36 @@ def test_region_index_takes_the_worst_data_quality() -> None:
 def test_region_index_keeps_the_band_when_quality_is_known() -> None:
     result = stats.region_index([index(90, QUALITY_ESTIMATED), index(90, QUALITY_ESTIMATED)])
     assert result.band is coverage.CoverageBand.HIGH
+
+
+def test_region_index_lowers_measured_to_estimated() -> None:
+    """`{measured, estimated}` aralashmasi — mintaqa `estimated` bo'ladi.
+
+    Mavjud testlar sifatni faqat `unknown` bilan yoki bir xil qiymatdan
+    tekshirardi, ya'ni «eng past sifat» qoidasining o'zi ikki **haqiqiy**
+    qiymat orasida hech qachon sinalmagan. `min()` bugun to'g'ri javob
+    beradi, lekin **alifbo tasodifi** tufayli (`estimated` < `measured`);
+    `max()` ga almashtirilsa yarim o'lchangan mintaqa o'zini to'liq
+    o'lchangandek ko'rsatardi va buni birorta test ushlamasdi.
+    """
+    result = stats.region_index([index(90, QUALITY_MEASURED), index(90, QUALITY_ESTIMATED)])
+    assert result.data_quality == QUALITY_ESTIMATED
+    # Sifat `unknown` emas — pog'ona pasaytirilmaydi (`cap` tegmaydi).
+    assert result.band is coverage.CoverageBand.HIGH
+
+
+def test_region_index_rounds_the_mean_and_averages_sufficiency() -> None:
+    """O'rtacha **yaxlitlanadi**, `sufficiency` ham o'rtachadan chiqadi.
+
+    Mavjud fikstyuralarda o'rtacha har doim butun songa tushardi, ya'ni
+    yaxlitlash ↔ kesish farqi ko'rinmasdi; `sufficiency` va
+    `limiting_factor` esa bo'sh holatdan boshqa joyda umuman
+    o'qilmagan edi.
+    """
+    result = stats.region_index([index(50), index(51), index(51)])
+    assert result.index == 51, "152/3 = 50.67 — kesish 50 berardi"
+    assert result.sufficiency == pytest.approx((0.50 + 0.51 + 0.51) / 3)
+    assert result.limiting_factor == "region_mean"
 
 
 def test_region_index_without_districts_says_unknown() -> None:

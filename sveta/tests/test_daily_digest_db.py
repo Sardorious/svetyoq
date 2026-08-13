@@ -35,6 +35,9 @@ DAY = date(2026, 8, 7)
 #: Toshkent (UTC+5) bo'yicha 7-avgust: `[2026-08-06 19:00Z, 2026-08-07 19:00Z)`.
 INSIDE = datetime(2026, 8, 7, 6, 0, tzinfo=timezone.utc)
 AFTER = datetime(2026, 8, 7, 20, 0, tzinfo=timezone.utc)
+#: Sutkalarning aynan **tutashgan** lahzasi: `DAY` ning `end` i va
+#: `DAY + 1` ning `start` i — bir xil nuqta.
+BOUNDARY = datetime(2026, 8, 7, 19, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -265,3 +268,40 @@ async def test_mark_delivered_sets_the_timestamp(region_id) -> None:
         ).scalar_one()
 
     assert delivered is not None
+
+
+async def test_the_midnight_instant_belongs_to_the_next_day(region_id) -> None:
+    """Davr **yarim ochiq**: `[start, end)` — tutashgan lahza ertangi kunniki.
+
+    `status_counts_started_between` ning `started_at < until` sharti
+    `<=` ga aylansa, aynan yarim tunda boshlangan uzilish **ikkala**
+    kunning hisobotiga tushardi: kunlar yig'indisi umumiy natijadan
+    katta chiqardi va `05` §8 ning «kunlar yig'indisi umumiyga teng»
+    xossasi buzilardi. Nuqson jim — hodisa ikkala hisobotda ham
+    ishonarli ko'rinadi.
+
+    Mavjud `test_counts_respect_the_local_day_boundary` buni ushlay
+    olmaydi: uning `AFTER` i (20:00Z) chegaradan bir soat **narida** va
+    ikkala shart ostida ham keyingi kunga tushadi. Farq faqat aniq
+    chegarada ko'rinadi — 142-run ning `_period_filter` dagi to'rt
+    survivori bilan bir xil naqsh.
+    """
+    async with session_scope() as session:
+        await _outage(session, region_id=region_id, status="confirmed", at=BOUNDARY)
+
+    async with session_scope() as session:
+        today = await digest_service.collect(
+            session,
+            region_id=region_id,
+            region_code="test",
+            period=digest_mod.period_for(DAY),
+        )
+        tomorrow = await digest_service.collect(
+            session,
+            region_id=region_id,
+            region_code="test",
+            period=digest_mod.period_for(DAY + timedelta(days=1)),
+        )
+
+    assert today.outages == {}, "tutashgan lahza kechagi kunga ham tushdi"
+    assert tomorrow.outages == {"confirmed": 1}

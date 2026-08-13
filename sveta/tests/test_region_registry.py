@@ -72,6 +72,23 @@ def test_equal_bboxes_break_the_tie_by_code() -> None:
     assert pick_for_point((b, a), *SAMARKAND).code == "aaa"
 
 
+def test_span_outranks_code_when_the_two_disagree() -> None:
+    """`code` — faqat **teng** bbox uchun ajratuvchi, birlamchi mezon emas.
+
+    Yuqoridagi ikki test kalitning tartibini ajratmaydi: ustma-ust
+    tushgan holatda kichik bbox tasodifan alifboda ham oldinda
+    (`samarkand` < `wide`), teng holatda esa span lar teng. Ya'ni
+    `key=(code, span)` ikkalasini ham yashil qoldirardi — va alifboda
+    birinchi turgan **keng** mintaqa aniqroq qo'shnisining hamma
+    nuqtasini o'ziga tortardi (`registry.py` §«Ustma-ust tushgan
+    bbox lar»: bir uzilishning xabarlari ikki mintaqaga bo'linadi).
+    """
+    big_a = make("aaa", BBox(39.0, 66.0, 40.5, 68.0))  # span 3.0
+    small_z = make("zzz", BBox(39.55, 66.85, 39.75, 67.10))  # span 0.05
+    assert pick_for_point((big_a, small_z), *SAMARKAND) is small_z
+    assert pick_for_point((small_z, big_a), *SAMARKAND) is small_z
+
+
 def test_name_follows_language() -> None:
     row = RegionInfo(
         id=uuid.uuid4(),

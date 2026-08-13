@@ -65,9 +65,33 @@ def test_infinite_age_is_written_as_prometheus_infinity() -> None:
     assert 'sveta_snapshot_age_seconds{region="samarkand"} +Inf' in text
 
 
+def test_negative_infinity_is_written_as_prometheus_infinity() -> None:
+    """128-run mutatsiyasi: `-inf` qorovuli omon qolgan.
+
+    `+Inf` o'lchangan edi, `-Inf` esa yo'q — holbuki qorovuldan tushib qolgan
+    qiymat `f"{value:.6f}"` ga borardi va `-inf` deb chiqardi. Prometheus buni
+    parse qila olmaydi: bitta namuna butun **scrape** ni rad ettiradi, ya'ni
+    boshqa metrikalar ham jim qolardi.
+    """
+    text = m.render([m.Sample(m.OUTBOX_LAG.name, float("-inf"))])
+    assert text.splitlines()[-1] == "sveta_outbox_lag_seconds -Inf"
+
+
 def test_label_values_are_escaped() -> None:
     text = m.render([m.Sample(m.OUTAGES_OPEN.name, 1, (("region", 'a"b\\c'),))])
     assert 'region="a\\"b\\\\c"' in text
+
+
+def test_help_text_is_escaped() -> None:
+    """128-run mutatsiyasi: `_escape_help` ni butunlay olib tashlash omon qolgan.
+
+    Registrda bugun na teskari slesh, na qator uzilishi bor izoh yo'q, shuning
+    uchun ekranlash faqat **kelajakdagi** izoh uchun ishlaydi — va aynan
+    shunday izoh qo'shilgan kuni `# HELP` qatori ikkiga bo'linib, ikkinchi
+    yarmi Prometheus uchun noma'lum qator bo'lardi. Qorovul funksiyaning
+    o'zida qulflanadi.
+    """
+    assert m._escape_help("ikki\nqator\\va slesh") == "ikki\\nqator\\\\va slesh"
 
 
 def test_families_keep_the_declared_order() -> None:
@@ -79,6 +103,40 @@ def test_families_keep_the_declared_order() -> None:
         ]
     )
     assert text.index("reports_received_total") < text.index("outbox_lag_seconds")
+
+
+def test_samples_inside_a_family_keep_the_input_order() -> None:
+    """128-run mutatsiyasi: oila ichidagi tartibning teskarilanishi omon qolgan.
+
+    `to_samples` mintaqalarni kod bo'yicha saralaydi va u alohida testda
+    qulflangan, lekin `render` ning **o'z** tartibi hech qayerda o'lchanmagan
+    edi: `append` → `insert(0)` bilan eksport matni saralangan kirishdan
+    teskari chiqardi. `render` docstringi esa tartibni barqarorlik va `diff`
+    bilan solishtirish sharti deb ataydi.
+    """
+    text = m.render(
+        [
+            m.Sample(m.OUTAGES_OPEN.name, 1, (("region", "bukhara"),)),
+            m.Sample(m.OUTAGES_OPEN.name, 2, (("region", "samarkand"),)),
+        ]
+    )
+    assert text.splitlines()[2:] == [
+        'sveta_outages_open{region="bukhara"} 1',
+        'sveta_outages_open{region="samarkand"} 2',
+    ]
+
+
+def test_registry_is_keyed_by_the_bare_name() -> None:
+    """Kalit — prefikssiz nom (`05` §10 dagi yozuv), qiymat — oila.
+
+    128-run: kalitni `full_name` ga almashtirish `pytest` uchun **o'lchanmadi** —
+    `app.obs.monitoring` ning import paytidagi qorovuli (`_check_label_exemptions`)
+    `conftest` ni yiqitadi va `pytest` `rc=4` (buyruq qatori xatosi) qaytaradi,
+    ya'ni verdikt «ushladi» ham, «survivor» ham emas. Shartnoma shu yerda
+    oshkora yoziladi, toki keyingi o'lchov uni test darajasida ko'rsin.
+    """
+    assert set(m.FAMILY_BY_NAME) == {f.name for f in m.FAMILIES}
+    assert not [name for name in m.FAMILY_BY_NAME if name.startswith(m.PREFIX)]
 
 
 def test_readings_become_samples_with_region_labels() -> None:

@@ -101,6 +101,24 @@ def test_empty_payload_is_valid_geojson() -> None:
     assert payload["features"] == []
 
 
+def test_empty_payload_carries_the_region_it_was_asked_for() -> None:
+    """Kalitlar to'plami qulflangan, `region` ning **qiymati** esa yo'q edi.
+
+    Yuqoridagi test `type` va `features` ni,
+    `test_region_acceptance_contract` esa faqat kalitlar to'plamini
+    tekshiradi — ya'ni qiymatni qotirib qo'yish yoki bo'sh qoldirish
+    bazasiz to'plamda ko'rinmasdi. Oqibati `ETag` ga chiqadi: sovuq
+    startda (`read()` ning `snapshot_missing` tarmog'i) ikkala
+    mintaqaning payloadi bit-aynan bir xil bo'lib qolardi va bitta
+    hisoblangan `ETag` ikkita har xil javobni belgilardi.
+    """
+    assert snapshot.empty_payload("samarkand")["region"] == "samarkand"
+    assert snapshot.empty_payload("tashkent")["region"] == "tashkent"
+    samarkand = snapshot.compute_etag(snapshot.empty_payload("samarkand"))
+    tashkent = snapshot.compute_etag(snapshot.empty_payload("tashkent"))
+    assert samarkand != tashkent
+
+
 def test_public_min_reports_is_three() -> None:
     """`05` §7.3 chegarasi konfiguratsiyada qulflangan."""
     assert settings.public_min_reports == 3

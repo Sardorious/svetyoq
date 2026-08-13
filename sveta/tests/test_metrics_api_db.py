@@ -329,3 +329,42 @@ async def test_endpoint_renders_prometheus_text(client, monkeypatch, only_our_re
     assert f'sveta_geo_unmatched_ratio{{region="{code}"}}' in body
     # To'rtala ogohlantirish ham chiqadi — jim qoladiganlari `0` bilan.
     assert body.count("sveta_alert_active{") == 4
+
+
+async def test_the_latency_window_is_half_open(only_our_region) -> None:
+    """Oyna `[since, until)` — ikkala chegara ham qulflanadi (`05` §10).
+
+    Chegaralarni surish (`>=`→`>`, `<`→`<=`) butun to'plamdan jimgina
+    o'tardi (143-run mutatsiyasi: ikkalasi ham `SURVIVED`). Sabab
+    ikkita va ular boshqa-boshqa:
+
+    * `since` — mavjud testlar tasdiqlash paytini oynaning **o'rtasiga**
+      qo'yadi, ya'ni farq faqat aniq chegarada ko'rinadi (142-run ning
+      `_period_filter` dagi survivorlari bilan bir xil naqsh);
+    * `until` — o'lchov qatlami uni **umuman bermaydi** (`collector`
+      «hozirgacha» degan oynani so'raydi), ya'ni argument faqat shu
+      yerdan o'lchanishi mumkin.
+
+    Yarim ochiqlik `05` §8 dagi kunlik hisobot bilan bitta shartnoma:
+    ketma-ket oynalar qo'shni hodisani ikki marta sanamaydi.
+    """
+    region_id = only_our_region
+    since = OLD
+    until = OLD + timedelta(hours=2)
+    async with session_scope() as session:
+        # Aynan chegaralarda: `since` — ichkarida, `until` — tashqarida.
+        await _outage(
+            session, region_id=region_id, status="confirmed",
+            at=since - timedelta(minutes=10), confirmed_at=since,
+        )
+        await _outage(
+            session, region_id=region_id, status="confirmed",
+            at=until - timedelta(minutes=10), confirmed_at=until,
+        )
+
+    async with session_scope() as session:
+        result = await outages_repo.confirm_latency_by_region(
+            session, since=since, quantiles=QUANTILES, until=until
+        )
+    _, count = result[region_id]
+    assert count == 1, "chegaralar yarim ochiq emas"

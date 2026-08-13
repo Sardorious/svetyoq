@@ -18,7 +18,19 @@ from app.clustering.lookup import (
     text,
 )
 from app.core.config import settings
-from app.core.i18n import SUPPORTED_LANGUAGES, t
+from app.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, t
+
+#: Verdikt → katalog kaliti, **qo'lda** yozilgan.
+#:
+#: Ataylab `MESSAGE_KEYS` dan olinmaydi: shu faylning qolgan tasdiqlari
+#: jadvalni o'zidan o'qiydi (124-run ning refleksivlik sinfi), ya'ni ikki
+#: kalitni **joyini almashtirish** hech qayerda ko'rinmasdi.
+EXPECTED_KEYS = {
+    AreaVerdict.CONFIRMED: "area.confirmed",
+    AreaVerdict.PENDING: "area.pending",
+    AreaVerdict.NO_OUTAGE: "area.no_outage",
+    AreaVerdict.NOT_ENOUGH_DATA: "area.not_enough_data",
+}
 
 
 def cov(active: int, required: int = 5) -> Coverage:
@@ -78,3 +90,41 @@ def test_not_enough_data_and_no_outage_texts_differ() -> None:
     """Ikkala javob bir xil bo'lib qolsa E7 ning ma'nosi yo'qoladi."""
     for lang in SUPPORTED_LANGUAGES:
         assert t("area.no_outage", lang) != t("area.not_enough_data", lang)
+
+
+def test_each_verdict_renders_its_own_catalog_entry() -> None:
+    """🔴 Jadvalning **qiymatlari** hech qayerda qulflanmagan edi.
+
+    `test_every_verdict_has_a_key_in_every_language` faqat «har verdiktda
+    kalit bor va u bo'sh emas» ni tekshiradi, `test_not_enough_data_…`
+    esa katalogning ikki **kalitini** solishtiradi — `MESSAGE_KEYS` ga
+    umuman tegmaydi. Ya'ni `NO_OUTAGE` va `NOT_ENOUGH_DATA` ning
+    kalitlarini joyini almashtirish butun to'plamni yashil qoldirardi va
+    mahsulot aynan modul docstringi ogohlantirgan xatoni qilardi: past
+    zichlikdagi hududda «uzilish qayd etilmagan» deyish — bilmaslikni
+    bilishdek ko'rsatish (`05` §4.6, §6.2 to'rtinchi qatori). Qaror
+    (`decide`) to'g'ri, matn boshqasiniki — 127-run ning uchinchi sinfi.
+
+    Qulf ikki qavatli: jadvalning o'zi va u **`text()` orqali** beradigan
+    natija (mutant `text` ni boshqa jadvalga o'tkazsa ham otiladi).
+    """
+    assert MESSAGE_KEYS == EXPECTED_KEYS
+
+    for lang in SUPPORTED_LANGUAGES:
+        for verdict, key in EXPECTED_KEYS.items():
+            status = AreaStatus(verdict=verdict, coverage=cov(9), total_reports=7)
+            assert text(status, lang) == t(key, lang, count=7), (lang, verdict)
+
+
+def test_text_without_a_language_falls_back_to_the_default() -> None:
+    """Sukut argument o'lchanmaydi (128-run ning `h3_cells` sinfi).
+
+    Barcha mavjud chaqiruvlar tilni oshkora `"uz"` deb beradi, `"uz"` esa
+    `DEFAULT_LANGUAGE` bilan **teng** — ya'ni sukut yo'lning o'zi hech
+    qachon yurmagan. Botda tili noma'lum foydalanuvchi aynan shu yo'ldan
+    o'tadi.
+    """
+    status = AreaStatus(verdict=AreaVerdict.NOT_ENOUGH_DATA, coverage=cov(1))
+
+    assert text(status) == text(status, DEFAULT_LANGUAGE)
+    assert text(status) != text(status, "ru")

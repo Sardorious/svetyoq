@@ -51,6 +51,7 @@ from __future__ import annotations
 import re
 from dataclasses import fields
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -434,6 +435,48 @@ def test_spec_weight_reaches_freeze_weight(row: tuple[str, float, bool, str]) ->
     """
     code, weight, _authoritative, _description = row
     assert s.freeze_weight(code, int(s.TRUST_DIVISOR)) == weight
+
+
+def test_freeze_weight_rounds_to_the_column_scale() -> None:
+    """Yaxlitlash `WEIGHT_DECIMALS` bo'yicha **bajariladi**, e'lon qilinmaydi.
+
+    129-run mutatsiyasi: `round(…, WEIGHT_DECIMALS)` ni olib tashlash butun
+    to'plamni yashil qoldirardi. Sabab — barcha mavjud testlar `trust_score`
+    ni `TRUST_DIVISOR` ga teng beradi, ya'ni `user_factor` aynan `1.0` va
+    ko'paytma allaqachon bitta kasr xonasida. Yaxlitlanmagan qiymat
+    `numeric(3,1)` ustuniga tushganda **baza** uni yaxlitlaydi, ya'ni
+    `reports.weight` da turgan son `freeze_weight` qaytargan sondan farq
+    qilardi — `06` §10 ning butun ma'nosi (og'irlik qotiriladi va audit
+    shunga tayanadi) shu farqda yo'qoladi.
+    """
+    trust = 53  # user_factor = 1.06 — hujjatdagi `[0.4 … 1.6]` ichida
+    raw = s.SOURCE_BY_CODE["moderator"].weight * s.user_factor(trust)
+    assert round(raw, s.WEIGHT_DECIMALS) != raw, (
+        "sinov nuqtasi yaxlitlashni ajratmaydi — boshqa `trust_score` tanlang"
+    )
+    assert s.freeze_weight("moderator", trust) == 3.2
+
+
+def test_authoritative_weight_is_zeroed_by_the_rule_not_by_the_seed() -> None:
+    """§2.2 qoidasi registrdagi songa **bog'liq emas**.
+
+    Bugun `official` va `operator_api` ning og'irligi `SOURCES` da `0.0`,
+    ya'ni `freeze_weight` dagi `is_authoritative` qorovulini olib tashlash
+    natijani o'zgartirmaydi va 129-run da survivor bo'ldi. Lekin nol —
+    **seed ma'lumoti**, qoida emas: E11 og'irliklarni sozlaydi va E18
+    rasmiy manbani qayta ta'riflaydi. Qorovulsiz o'sha kuni rasmiy xabar
+    og'irlikli hisobga qo'shilib ketardi (`06` §2.2 ni buzib) va bu yerda
+    hech narsa yiqilmasdi.
+    """
+    loud = s.ReportSource("official", 3.0, True, "seed qayta sozlangan holat")
+    patched = dict(s.SOURCE_BY_CODE) | {"official": loud}
+    with mock.patch.object(s, "SOURCE_BY_CODE", patched):
+        assert s.freeze_weight("official", int(s.TRUST_DIVISOR)) == 0.0
+        # Qorovul aynan `is_authoritative` da: rasmiy bo'lmagan manba
+        # o'sha og'irlik bilan hisobga to'liq kiradi.
+        quiet = s.ReportSource("bot", 3.0, False, "solishtirish uchun")
+        with mock.patch.object(s, "SOURCE_BY_CODE", patched | {"bot": quiet}):
+            assert s.freeze_weight("bot", int(s.TRUST_DIVISOR)) == 3.0
 
 
 def test_unknown_source_falls_back_to_a_documented_non_authoritative_code() -> None:

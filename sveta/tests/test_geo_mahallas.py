@@ -63,6 +63,23 @@ def test_an_empty_slice_of_a_filled_registry_is_a_different_warning() -> None:
     assert registry.warnings == (WARNING_EMPTY_SLICE,)
 
 
+def test_an_empty_registry_counts_and_sources_are_all_empty() -> None:
+    """128-run: bo'sh tarmoqning ogohlantirishdan boshqa hamma maydoni o'lchanmagan edi.
+
+    `sources=()` → `("osm",)` va `versions=0` → `1` mutatsiyalari omon qolgan:
+    ikkala test ham faqat `available`, `warnings` va `version` ni o'qirdi.
+    Amalda bu javobda mavjud bo'lmagan **manba** va mavjud bo'lmagan
+    **qatorlar soni** ko'rinardi — ya'ni FR-S-802 degradatsiyasi
+    ogohlantirish bilan e'lon qilinib, o'sha javobning o'zi uni yolg'onga
+    chiqarardi. Dislaymer bo'sh `sources` ustiga qurilgan (modul
+    docstringining 2-bandi).
+    """
+    for available in (True, False):
+        registry = summarize([], available=available)
+        assert (registry.versions, registry.mahallas, registry.districts) == (0, 0, 0)
+        assert registry.sources == ()
+
+
 def test_a_non_empty_slice_has_no_warnings() -> None:
     assert summarize([_fact()], available=True).warnings == ()
 

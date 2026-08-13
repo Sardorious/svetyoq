@@ -271,3 +271,50 @@ def test_cli_actor_reads_the_environment(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("USER", "sardor")
 
     assert audit.cli_actor().name == "sardor"
+
+
+def test_cli_actor_reads_username_when_user_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🔴 `USERNAME` tarmog'i umuman yurgizilmagan edi.
+
+    Yuqoridagi ikkala test ham `USERNAME` ni yo o'chiradi, yo `USER`
+    to'ldirilgan holda qoldiradi — ya'ni `or os.environ.get("USERNAME")`
+    ni butunlay olib tashlash **yashil** qolardi. Narxi Linuxda emas,
+    aynan operatorning ish stolida: `tools/region_admin.py` va
+    `tools/import_boundaries.py` ni odam **Windows** dan ishga tushiradi,
+    u yerda esa `USER` yo'q va `USERNAME` bor. Tarmoqsiz har bir operator
+    `unknown` ga tushardi va `audit_log` da hammasi bitta `actor_id` ga
+    qo'shilib ketardi — `SystemActor` ning `cli:` prefiksi qochmoqchi
+    bo'lgan holatning aynan o'zi, faqat kattaroq miqyosda.
+    """
+    monkeypatch.delenv("USER", raising=False)
+    monkeypatch.setenv("USERNAME", "sardor")
+
+    assert audit.cli_actor().name == "sardor"
+
+
+def test_user_takes_precedence_over_username(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ikkalasi ham bo'lsa — `USER`. Tartibni almashtirish `git-bash` /
+    WSL da ishlaydigan operatorga Windows hisobining nomini berardi, ya'ni
+    bitta odam ikkita `actor_id` ostida jurnalga tushardi."""
+    monkeypatch.setenv("USER", "sardor")
+    monkeypatch.setenv("USERNAME", "boshqa")
+
+    assert audit.cli_actor().name == "sardor"
+
+
+def test_surrounding_whitespace_does_not_create_a_second_actor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`.strip()` bo'sh nomni ushlash uchun emas, **nomni** normallashtirish uchun.
+
+    `["", "   "]` parametrlari faqat `or "unknown"` tarmog'ini o'lchaydi:
+    `strip()` ni olib tashlash ham o'sha holatda `"   "` ni haqiqiy nom
+    deb qabul qilardi, lekin test `unknown` kutgani uchun otilardi —
+    holbuki asosiy narx boshqa joyda. `" sardor "` va `"sardor"` har xil
+    `uuid5` beradi, ya'ni bitta operator muhitidagi tasodifiy bo'shliq
+    tufayli jurnalda ikkita odamga bo'linardi.
+    """
+    monkeypatch.setenv("USER", "  sardor  ")
+    monkeypatch.delenv("USERNAME", raising=False)
+
+    assert audit.cli_actor().id == audit.SystemActor(name="sardor").id

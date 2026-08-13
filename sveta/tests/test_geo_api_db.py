@@ -152,6 +152,53 @@ async def test_a_moment_between_versions_never_returns_duplicates(client, region
         assert len(codes) == len(set(codes)), moment
 
 
+async def test_the_switchover_instant_belongs_to_the_new_version(client, region) -> None:
+    """Davr **yarim ochiq**: `[valid_from, valid_to)` — chegara nuqtasi yangisiniki.
+
+    `b` ning eski versiyasi aynan `NOW` da yopiladi, yangisi aynan `NOW`
+    da ochiladi. Almashuv lahzasi ikkalasiga ham tegishli bo'lgani uchun
+    bu — `_period_filter` ning yagona xavfli nuqtasi va u **ikki
+    tomonlama** qulflanadi:
+
+    * `valid_from <= at` → `<` bo'lsa, yangi versiya o'z ochilish
+      kunida umuman ko'rinmasdi (chegara importi kuni xarita bo'sh);
+    * `valid_to > at` → `>=` bo'lsa, o'sha kuni **ikkala** versiya
+      qaytardi — modul docstringidagi «xaritada ikkita ustma-ust
+      poligon» aynan shu.
+
+    Ikkala nuqson ham `?at=` ni **oraliq** nuqtada so'raydigan mavjud
+    testlardan jimgina o'tardi: farq faqat aniq chegarada ko'rinadi.
+    """
+    _, code = region
+    body = (
+        await client.get(
+            "/api/v1/geo/districts", params={"region": code, "at": NOW.isoformat()}
+        )
+    ).json()
+    codes = [f["properties"]["code"] for f in body["features"]]
+    assert codes == ["a", "b"], "almashuv lahzasida ham bitta `b` bo'lishi kerak"
+    assert body["count"] == 2
+    assert all(f["properties"]["valid_to"] is None for f in body["features"])
+
+
+async def test_the_opening_instant_is_already_inside_the_period(client, region) -> None:
+    """`at == valid_from` — versiya allaqachon kuchda (`<=`, `<` emas).
+
+    Reyestrning eng birinchi kuni: `a` va `b` ning eski versiyasi
+    o'sha kuni ochilgan. `valid_from < at` bilan javob **bo'sh**
+    bo'lardi va «o'sha sanada spravochnik yo'q edi» degan yolg'on
+    xulosa chiqardi.
+    """
+    _, code = region
+    body = (
+        await client.get(
+            "/api/v1/geo/districts", params={"region": code, "at": LAST_YEAR.isoformat()}
+        )
+    ).json()
+    assert body["count"] == 2
+    assert sorted(f["properties"]["code"] for f in body["features"]) == ["a", "b"]
+
+
 async def test_geometry_is_valid_geojson(client, region) -> None:
     _, code = region
     body = (await client.get("/api/v1/geo/districts", params={"region": code})).json()
@@ -159,6 +206,33 @@ async def test_geometry_is_valid_geojson(client, region) -> None:
     assert geometry["type"] == "MultiPolygon"
     # `[[[ [lon, lat], ... ]]]` — MultiPolygon → Polygon → ring → nuqta.
     assert len(geometry["coordinates"][0][0][0]) == 2
+
+
+async def test_coordinates_are_rounded_to_the_configured_precision(client, region) -> None:
+    """`ST_AsGeoJSON` ning ikkinchi argumenti — konfiguratsiyadan (`geo_boundaries_precision`).
+
+    Yaxlitlash **javob hajmining** yarmi: PostGIS sukut bo'yicha 15
+    xonagacha yozadi, ya'ni har bir nuqta ikki barobar uzunroq bo'lardi.
+    Nuqson jim: geometriya baribir to'g'ri, GeoJSON baribir yaroqli va
+    soddalashtirish testlari ham o'tib ketardi — o'sib ketgani faqat
+    trafik. 6 xona ≈ 0.1 m, ya'ni ommaviy xarita uchun ortiqchasi yo'q.
+
+    `simplify_m=0` ataylab: sukutdagi 25 m soddalashtirish poligondan
+    faqat «yumaloq» burchaklarni qoldiradi (`_square_wkt` ning oraliq
+    nuqtalari yo'qoladi) va yaxlitlash umuman ko'rinmay qolardi — ya'ni
+    to'liq geometriyasiz bu qulf jimgina yolg'on bo'lardi.
+    """
+    _, code = region
+    body = (
+        await client.get(
+            "/api/v1/geo/districts", params={"region": code, "simplify_m": 0}
+        )
+    ).json()
+    limit = settings.geo_boundaries_precision
+    ring = body["features"][0]["geometry"]["coordinates"][0][0]
+    decimals = [len(f"{v!r}".partition(".")[2]) for point in ring for v in point]
+    assert decimals, "koordinatalar topilmadi"
+    assert max(decimals) <= limit, f"{max(decimals)} xona — yaxlitlash yo'qolgan"
 
 
 async def test_geometry_false_is_a_light_listing(client, region) -> None:

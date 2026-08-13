@@ -58,6 +58,100 @@ def test_validity_and_rings() -> None:
     assert not quality.check_closed_rings(total=5, unclosed=2).passed
 
 
+def test_whitespace_only_name_is_missing() -> None:
+    """Bo'sh joydan iborat nom — nom emas.
+
+    OSM tagida `name:ru=" "` uchraydi va `strip()` siz u to'liq deb
+    hisoblanardi: keyin bot javobida «  tumanida» bo'lib chiqardi, ya'ni
+    darvoza aynan o'zi to'sishi kerak bo'lgan holatni o'tkazib yuborardi.
+    """
+    check = quality.check_names([{"source_ref": "r3", "name_uz": "  ", "name_ru": "Сиёб"}])
+    assert not check.passed
+    assert "r3:name_uz" in check.detail
+
+
+def test_missing_names_are_referenced_by_source_ref_first() -> None:
+    """Havola OSM identifikatori bo'yicha: qo'lda tuzatish o'shandan boshlanadi.
+
+    `id` — bizning ichki UUID imiz va u import qilinayotgan faylda yo'q.
+    Ikkalasi ham bo'lganda `source_ref` yutadi.
+    """
+    check = quality.check_names([{"source_ref": "rel/123", "id": "uuid-1", "name_uz": ""}])
+    assert "rel/123:name_uz" in check.detail
+    assert "uuid-1" not in check.detail
+
+
+def test_exactly_ten_missing_names_are_listed_without_an_ellipsis() -> None:
+    """Ko'p nuqta faqat ro'yxat **kesilganda** qo'yiladi.
+
+    Aynan o'nta yetishmasa hammasi ko'rinadi va ko'p nuqta «yana bor»
+    degan yolg'on bo'lardi: import qiluvchi odam ro'yxatni to'liq deb
+    o'qishi kerak.
+    """
+    rows = [{"source_ref": f"r{i}", "name_uz": "Nom", "name_ru": ""} for i in range(10)]
+    detail = quality.check_names(rows).detail
+    assert "…" not in detail
+    assert detail.count(":name_ru") == 10
+
+    rows.append({"source_ref": "r10", "name_uz": "Nom", "name_ru": ""})
+    assert "…" in quality.check_names(rows).detail
+
+
+def test_empty_batch_does_not_look_like_total_overlap() -> None:
+    """Bo'sh partiyada nisbat `0.0` — ustma-ustlik tekshiruvi bloklamaydi.
+
+    Nolga bo'linish qorovuli `1.0` qaytarsa, bo'sh import «100% ustma-ust»
+    deb bloklanardi va sabab butunlay noto'g'ri joyni ko'rsatardi: bo'sh
+    to'plamning haqiqiy muammosi qoplash tekshiruvida, o'z nomi bilan
+    aytiladi.
+    """
+    check = quality.check_overlap_ratio(overlap_area=0.0, total_area=0.0)
+    assert check.passed
+    assert not check.is_blocker
+
+
+def test_zero_reference_area_is_treated_as_absent_not_divided_by() -> None:
+    """Etalon maydoni `0` — `None` bilan bir xil, `ZeroDivisionError` emas.
+
+    `SQL_COVERED_AREA` `COALESCE(…, 0)` bilan yozilgan, ya'ni etalon qatori
+    bo'lmasa `reference_area` **`None` emas, `0.0`** bo'lib qaytadi —
+    `is None` qorovuli bu holatni o'tkazib yuborardi va import darvoza
+    o'rniga izsiz istisno bilan yiqilardi.
+    """
+    check = quality.check_coverage_ratio(covered_area=5.0, reference_area=0.0)
+    assert check.is_blocker
+    assert "berilmagan" in check.detail
+
+
+def test_validity_detail_counts_the_good_ones() -> None:
+    """`4/5 haqiqiy` — yaxshi geometriyalar soni, yaroqsizlar emas.
+
+    Ikkala son ham hisobotda bir xil shaklda ko'rinadi, ya'ni almashib
+    ketsa import qiluvchi odam «1/5 haqiqiy» ni «4 ta buzuq» deb emas,
+    teskarisicha o'qishi mumkin.
+    """
+    detail = quality.check_validity(total=5, invalid=1).detail
+    assert detail.startswith("4/5 haqiqiy")
+    assert quality.check_closed_rings(total=5, unclosed=2).detail.startswith("3/5")
+
+
+def test_a_failed_warning_is_not_a_blocker() -> None:
+    """Bloklovchilik `blocking` bayrog'idan keladi, `passed` dan emas.
+
+    `is_blocker` shunchaki `not passed` bo'lsa, ogohlantirish darajasidagi
+    har bir tekshiruv importni to'xtatardi — `05` §5.3 esa ikki darajani
+    ataylab ajratadi (bloklovchi mezon va ogohlantirish).
+    """
+    warning = quality.CheckResult(name="Ogohlantirish", passed=False, blocking=False)
+    report = quality.QualityReport()
+    report.add(warning)
+
+    assert not warning.is_blocker
+    assert report.blockers == []
+    assert report.ok
+    assert report.as_lines() == ["[OGOH] Ogohlantirish: "]
+
+
 def test_report_collects_blockers() -> None:
     report = quality.QualityReport()
     report.add(quality.check_validity(total=3, invalid=0))

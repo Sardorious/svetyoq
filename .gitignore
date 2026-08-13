@@ -33,11 +33,19 @@ data/tmp/
 *.geojson.tmp
 
 # --- Sandbox qoldiqlari ---
-# 74-run: `/tmp` to'lib qolganda pytest vaqtinchalik faylni repo ichiga
-# yozdi (`sveta/4wpi2gpv`, 4 bayt). Agent uni o'chira olmaydi
-# (`Operation not permitted` mountda, `allow_cowork_file_delete` esa
-# rejalashtirilgan runni to'xtatadi — CLAUDE.md §1). 👤 qo'lda o'chiring.
+# `/tmp` to'lib qolganda `tempfile` yozuvchanlik sinovini repo ichiga
+# yozadi: 8 belgili tasodifiy nom, 4 bayt (`blat`), rejim 700. Agent
+# ularni o'chira olmaydi (`Operation not permitted` mountda,
+# `allow_cowork_file_delete` esa rejalashtirilgan runni to'xtatadi —
+# CLAUDE.md §1). 👤 qo'lda o'chiring.
+#
+# Namuna bilan yozib bo'lmaydi: `sveta/????????` `sveta/Makefile` ni ham
+# tutadi, ya'ni haqiqiy fayl jimgina commitdan tushib qolardi. Shuning
+# uchun nomlar birma-bir sanaladi.
 sveta/4wpi2gpv
+sveta/4hs3xo8b
+sveta/58pozfd9
+sveta/klc5pety
 
 # --- Muhit ---
 .DS_Store

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -34,9 +34,49 @@ def test_as_utc_treats_naive_as_utc() -> None:
     assert as_utc(naive) == datetime(2026, 8, 7, 12, 0, tzinfo=timezone.utc)
 
 
+def test_as_utc_converts_an_aware_non_utc_moment() -> None:
+    """128-run mutatsiyasi: `astimezone` → `replace(tzinfo=…)` omon qolgan.
+
+    Butun to'plamda `as_utc` faqat **naive** yoki **allaqachon UTC** vaqt bilan
+    chaqirilardi — ikkala holatda ham ikki tarmoq bir xil natija beradi. Ya'ni
+    modulning yagona haqiqiy vazifasi (o'girish) o'lchanmagan edi: zonasini
+    almashtirish +05:00 dagi hodisani besh soat oldinga surardi va xaritada
+    «hali boshlanmagan» uzilish ko'rinardi.
+    """
+    tashkent = timezone(timedelta(hours=5))
+    aware = datetime(2026, 8, 7, 12, 0, tzinfo=tashkent)
+    converted = as_utc(aware)
+
+    assert converted == aware  # bir xil lahza
+    assert converted.tzinfo == timezone.utc
+    assert (converted.hour, converted.minute) == (7, 0)  # devor soati o'girildi
+
+
+def test_round_down_step_one_clears_microseconds() -> None:
+    """`step <= 1` tarmog'i ham aniq vaqtni yashirishi kerak (`05` §7.3).
+
+    Mavjud testlar bu tarmoqda mikrosoniyasiz vaqt berardi, ya'ni
+    `microsecond=0` ni olib tashlash sezilmasdi: `public_time_rounding_min = 1`
+    bilan ommaviy javobga `12:03:00.123456` chiqardi.
+    """
+    moment = datetime(2026, 8, 7, 12, 7, 33, 123456, tzinfo=timezone.utc)
+    assert round_down(moment, minutes=1) == datetime(2026, 8, 7, 12, 7, tzinfo=timezone.utc)
+
+
 def test_public_iso_is_utc_and_rounded() -> None:
     moment = datetime(2026, 8, 7, 12, 3, 47, tzinfo=timezone.utc)
     assert public_iso(moment) == "2026-08-07T12:00:00Z"
+
+
+def test_public_iso_marks_a_naive_moment_as_utc() -> None:
+    """`as_utc` ni tashlab yuborish faqat naive kirishda ko'rinadi.
+
+    Bazadan `timestamp without time zone` sifatida o'qilgan qator naive keladi;
+    `as_utc` siz `isoformat()` da `+00:00` bo'lmaydi va `Z` ham qo'shilmaydi —
+    mijoz vaqtni o'z zonasida o'qib, uzilishni besh soat siljitardi.
+    """
+    naive = datetime(2026, 8, 7, 12, 3, 47)
+    assert public_iso(naive) == "2026-08-07T12:00:00Z"
 
 
 def test_bot_reply_still_exports_the_helpers() -> None:

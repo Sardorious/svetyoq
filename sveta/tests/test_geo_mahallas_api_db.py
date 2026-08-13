@@ -428,3 +428,151 @@ async def test_the_answer_carries_no_identifiers(client, region) -> None:
     raw = (await client.get("/api/v1/geo/mahallas", params={"region": code})).text
     for forbidden in ("geom_exact", "tg_id", "user_id"):
         assert forbidden not in raw
+
+
+# ---------------------------------------------------------------------------
+# 143-run: tartib uchligi va yaxlitlash.
+#
+# 27-sessiya `(tuman kodi, nomi, davr boshi)` uchligini `ETag` uchun
+# tanlagan edi, lekin `region` fikstyurasida uchlikning **birinchi**
+# a'zosi yolg'iz o'zi hamma narsani hal qiladi: uchala qator ham
+# har xil tumanda yoki har xil davrda. Ya'ni ikkinchi va uchinchi
+# a'zoni olib tashlash mavjud testlarning birortasini ham yiqitmasdi
+# (143-run mutatsiyasi: `SURVIVED`) — tartib «tekshirilgan» ko'rinardi.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def crowded_region():
+    """Bitta tumanda to'rtta joriy mahalla — tartibning uchala a'zosi kerak.
+
+    `mahallas` da `code` ustuni yo'q (`05` §2.1) va nom **noyob emas**:
+    bir tumanda bir xil nomli ikkita mahalla mutlaqo qonuniy. Shuning
+    uchun uchlikning har bir a'zosi alohida ish bajaradi va fikstyura
+    uchalasini ham ajratadigan qilib qurilgan:
+
+    * to'rtta qator bitta tumanda — `District.code` hech narsani
+      ajratmaydi;
+    * ikkitasi bir xil nomli (`Registon`) — ularni faqat `valid_from`
+      ajratadi;
+    * qatorlar ataylab **teskari** tartibda qo'yiladi (alifboning
+      oxiridan, yangi davrdan eskisiga), ya'ni tartibsiz `SELECT`
+      jadvaldagi jismoniy tartibni qaytarsa javob darhol boshqacha
+      bo'ladi.
+
+    Ikkala `Registon` ham **ochiq** (`valid_to IS NULL`) — bu versiya
+    almashuvi emas, bu bir xil nomli ikki mahalla.
+    """
+    rid = uuid.uuid4()
+    code = f"crowd-{rid.hex[:8]}"
+    async with session_scope() as session:
+        await _insert_region(session, rid, code)
+        did = await _insert_district(session, region_id=rid, code="a")
+        for name, valid_from, lat in (
+            ("Zarafshon", LAST_YEAR, LAT),
+            ("Registon", NOW, LAT + 0.02),
+            ("Registon", LAST_YEAR, LAT + 0.04),
+            ("Amir Temur", LAST_YEAR, LAT + 0.06),
+        ):
+            await _insert_mahalla(
+                session, district_id=did, name=name, lat=lat, valid_from=valid_from
+            )
+    yield rid, code
+    await _cleanup(rid)
+
+
+async def test_names_are_sorted_inside_one_district(client, crowded_region) -> None:
+    """Uchlikning ikkinchi a'zosi: bitta tuman ichida tartib — nom bo'yicha.
+
+    `region` fikstyurasida har bir mahalla o'z tumanida turadi, ya'ni
+    `District.code` yolg'iz o'zi tartibni to'liq aniqlaydi va
+    `Mahalla.name_uz` ni olib tashlash hech narsani o'zgartirmasdi.
+    Bu yerda esa to'rtala qator ham `a` tumanida.
+    """
+    _, code = crowded_region
+    body = (await client.get("/api/v1/geo/mahallas", params={"region": code})).json()
+    names = [f["properties"]["name_uz"] for f in body["features"]]
+    assert names == sorted(names), "nom bo'yicha tartib yo'qolgan"
+    assert names == ["Amir Temur", "Registon", "Registon", "Zarafshon"]
+
+
+async def test_same_named_mahallas_are_ordered_by_period_start(
+    client, crowded_region
+) -> None:
+    """Uchlikning uchinchi a'zosi: bir xil nom faqat `valid_from` bilan ajraladi.
+
+    Ikkita `Registon` bitta tumanda va ikkalasi ham ochiq. `valid_from`
+    tushib qolsa ular orasidagi tartib `SELECT` ning ixtiyoriga qoladi —
+    ya'ni bir xil ma'lumot ikki xil javob berardi. Buning narxi
+    `ETag` da ko'rinadi: tartib tebransa, o'zgarmagan spravochnik har
+    so'rovda yangi `ETag` olardi va kesh butunlay ishlamay qolardi.
+    """
+    _, code = crowded_region
+    body = (await client.get("/api/v1/geo/mahallas", params={"region": code})).json()
+    starts = [
+        f["properties"]["valid_from"]
+        for f in body["features"]
+        if f["properties"]["name_uz"] == "Registon"
+    ]
+    assert len(starts) == 2
+    assert starts == sorted(starts), "bir xil nomlilar davr boshi bo'yicha emas"
+
+
+async def test_the_etag_is_stable_across_repeated_requests(
+    client, crowded_region
+) -> None:
+    """Tartib barqarorligining bevosita natijasi (yuqoridagi ikkitasining sababi)."""
+    _, code = crowded_region
+    etags = {
+        (await client.get("/api/v1/geo/mahallas", params={"region": code})).headers["etag"]
+        for _ in range(3)
+    }
+    assert len(etags) == 1
+
+
+async def test_coordinates_are_rounded_to_the_configured_precision(
+    client, crowded_region
+) -> None:
+    """`ST_AsGeoJSON` ning ikkinchi argumenti — konfiguratsiyadan.
+
+    `districts` dagi bilan aynan bir xil qulf (142-run) va aynan bir xil
+    sabab: yaxlitlash tushib qolsa geometriya baribir to'g'ri, GeoJSON
+    baribir yaroqli va soddalashtirish testi ham o'tib ketardi — o'sib
+    ketgani faqat trafik. `simplify_m=0` majburiy: sukutdagi 25 m
+    soddalashtirish poligondan faqat burchaklarni qoldiradi va
+    yaxlitlashning yo'qolishi umuman ko'rinmasdi.
+    """
+    _, code = crowded_region
+    body = (
+        await client.get(
+            "/api/v1/geo/mahallas", params={"region": code, "simplify_m": 0}
+        )
+    ).json()
+    limit = settings.geo_boundaries_precision
+    ring = body["features"][0]["geometry"]["coordinates"][0][0]
+    decimals = [len(f"{v!r}".partition(".")[2]) for point in ring for v in point]
+    assert decimals, "koordinatalar topilmadi"
+    assert max(decimals) <= limit, f"{max(decimals)} xona — yaxlitlash yo'qolgan"
+
+
+async def test_a_neighbours_registry_does_not_fill_this_one(
+    client, bare_region, region
+) -> None:
+    """`region_has_mahallas` mintaqa bo'yicha filtrlaydi.
+
+    `mahallas` da `region_id` ustuni yo'q, ya'ni filtr faqat
+    `districts` bilan birlashmada yashaydi va uni olib tashlash
+    **yagona** joyda ko'rinadi: bo'sh mintaqa qo'shnisining spravochnigi
+    hisobiga «to'ldirilgan» bo'lib qolardi va FR-S-802 degradatsiyasi
+    o'chib ketardi — E17 gacha bu esa **har bir** mintaqaning odatiy
+    javobi.
+
+    Mavjud `test_missing_registry_is_not_a_silent_empty_list` buni
+    ushlay olmaydi: u yolg'iz `bare_region` bilan ishlaydi va bazada
+    boshqa hech kimning mahallasi yo'q.
+    """
+    _, bare_code = bare_region
+    body = (await client.get("/api/v1/geo/mahallas", params={"region": bare_code})).json()
+    assert body["count"] == 0
+    assert body["registry"]["available"] is False, "qo'shnining spravochnigi sanaldi"
+    assert body["warnings"] == [WARNING_MISSING]

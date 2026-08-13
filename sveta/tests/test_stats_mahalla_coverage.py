@@ -124,6 +124,102 @@ def test_measured_majority_does_not_warn() -> None:
     assert block.warnings == []
 
 
+def test_exactly_half_measured_does_not_warn() -> None:
+    """Chegaraning **o'zi**: `measured / total == 0.5` — ogohlantirish yo'q.
+
+    `MIN_MEASURED_RATIO` javobda ochiq turadi va u qat'iy kichiklik
+    bilan o'qiladi: aynan yarmini o'lchagan mintaqa e'lon qilingan
+    chegarani bajargan bo'ladi. `<=` bo'lsa, javobdagi `0.5` yolg'on
+    bo'lardi — bajarilgan shart ogohlantirish olardi.
+    """
+    facts = [_fact(90), _fact(70), *(_fact(0, quality=QUALITY_UNKNOWN) for _ in range(2))]
+    block = mahalla_coverage.summarize(facts, available=True)
+    assert block.measured / block.total == mahalla_coverage.MIN_MEASURED_RATIO
+    assert block.warnings == []
+
+
+def test_two_measured_of_five_warns() -> None:
+    """Chegaraning qiymati: 0.4 — yarmidan kam, ya'ni ogohlantirish bor.
+
+    Yuqoridagi test bilan birga `MIN_MEASURED_RATIO` ni ikki tomondan
+    qulflaydi: chegara pasaytirilsa (masalan `0.4`), o'lchanmagan
+    ko'pchilikning o'rtachasi vitrinada jimgina to'liq ma'lumot bo'lib
+    ko'rinardi.
+    """
+    facts = [_fact(90), _fact(70), *(_fact(0, quality=QUALITY_UNKNOWN) for _ in range(3))]
+    block = mahalla_coverage.summarize(facts, available=True)
+    assert block.warnings == [mahalla_coverage.WARNING_PARTIAL]
+
+
+def test_mean_is_rounded_not_truncated() -> None:
+    """O'rtacha yaxlitlanadi, kesilmaydi.
+
+    Kesish **har doim** pastga oladi, ya'ni mahalla darajasidagi indeks
+    tizimli ravishda kamayardi va pog'ona chegarasida (`band_of`) butun
+    kesim bir pog'ona sovuqroq ko'rinishi mumkin edi. Nazorat
+    qiymatlari ataylab butun songa **tushmaydigan** qilib tanlangan:
+    mavjud testlarning hammasida o'rtacha butun chiqadi va ikkala amal
+    bir xil javob berardi.
+    """
+    block = mahalla_coverage.summarize([_fact(50), _fact(53)], available=True)
+    assert block.index.index == 52
+
+
+def test_mixed_quality_takes_the_weaker_one() -> None:
+    """Sifatlar aralash bo'lsa o'rtacha **kuchsizrog'ini** oladi.
+
+    `measured` va `estimated` aralashmasi `estimated`: bitta o'lchangan
+    mahalla butun kesimni «o'lchangan» deb ko'rsatmasligi kerak —
+    `06` §5.4 ning noaniqlikni pastga hal qilish qoidasi. Mavjud
+    testlarda sifat bir xil edi, ya'ni yo'nalish tekshirilmagan.
+    """
+    facts = [_fact(80, quality=QUALITY_MEASURED), _fact(60, quality=QUALITY_ESTIMATED)]
+    block = mahalla_coverage.summarize(facts, available=True)
+    assert block.index.data_quality == QUALITY_ESTIMATED
+
+
+def test_sufficiency_is_averaged_not_maximised() -> None:
+    """`sufficiency` ham o'rtacha — eng yaxshi mahalla emas.
+
+    Maksimum olinsa, bitta yaxshi qamralgan mahalla butun kesimning
+    yetarlilik komponentini ko'tarardi va bu aynan modul izohi rad
+    etadigan da'vo bo'lardi.
+    """
+    block = mahalla_coverage.summarize([_fact(80), _fact(60)], available=True)
+    assert block.index.sufficiency == pytest.approx(0.7)
+
+
+def test_bands_use_the_published_band_not_the_raw_one() -> None:
+    """Taqsimot foydalanuvchi **ko'radigan** pog'ona bo'yicha sanaladi.
+
+    Sifat tufayli pasaytirilgan mahalla xaritada `low` bo'lib turadi;
+    taqsimotda esa `high` chelagida sanalsa, bitta javobning ichida ikki
+    xil haqiqat bo'lardi va dashboard (`01` §21) degradatsiyani umuman
+    ko'rmasdi.
+    """
+    fact = _fact(95)
+    demoted = mahalla_coverage.MahallaFact(
+        id=fact.id,
+        district_id=fact.district_id,
+        district_code=fact.district_code,
+        name_uz=fact.name_uz,
+        name_ru=fact.name_ru,
+        index=coverage.CoverageIndex(
+            index=95,
+            band=coverage.CoverageBand.LOW,
+            raw_band=coverage.CoverageBand.HIGH,
+            sufficiency=0.95,
+            spread=None,
+            penetration=None,
+            data_quality=QUALITY_UNKNOWN,
+            limiting_factor="sufficiency",
+        ),
+    )
+    block = mahalla_coverage.summarize([demoted], available=True)
+    assert block.bands["low"] == 1
+    assert block.bands["high"] == 0
+
+
 def test_unknown_quality_caps_the_band() -> None:
     """Bitta `unknown` sifat butun kesimning pog'onasini `low` ga tushiradi.
 
