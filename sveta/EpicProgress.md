@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-13 (145-run).
+**Oxirgi yangilanish:** 2026-08-13 (147-run).
 
 ---
 
@@ -54,6 +54,35 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
+* **✅ 147-run: 145 ning raqami TASDIQLANDI va obuna/fan-out qulflandi.**
+  146 qoldirgan tartibning (1) va (2) bandlari. **(1)** 145 ning sakkizta
+  survivori **bazasiz** to'plamda (`-m "not requires_db"`, 3435 test)
+  birma-bir qayta yurgizildi — **sakkizalasi ham SURVIVED**. Ya'ni 146
+  ning «145 ning raqami yarim» shubhasi rad etildi va 145 qo'shgan
+  sakkizta test ortiqcha emas edi; «`-m requires_db` — tor tanlov»
+  qoidasi kuchida qoladi, lekin bu nishonda natijani o'zgartirmadi.
+  **(2)** Yangi nishon — `notifications/subscriptions.py` (12 mutatsiya)
+  va `notifications/service.py` (10): **22 mutatsiya → 15 KILLED,
+  7 SURVIVOR**; yettalasi ham butun to'plamda tasdiqlangan va
+  qulflandi (+7 test `tests/test_notifications_db.py` ga).
+  🟢 **Asbob yangiligi — ikki bosqichli o'lchov.** Avval tor nishon
+  to'plami (9 fayl, 10 s), keyin **faqat survivorlar** butun to'plamda
+  (115 s). Tor tanlov yolg'on `SURVIVOR` beradi, yolg'on `KILLED`
+  bermaydi (baseline yashil bo'lsa) — eskalatsiya 144/146 ning tuzog'ini
+  yopadi va narxni 22×115 s dan 22×10 s + 7×115 s ga tushiradi.
+  **Survivorlarning uch oilasi:** (a) **tartib** — `list_for_user` ning
+  `(created_at, id)` i va `_pending_rows` ning `id` i: fikstyurada har
+  doim **bitta** qator turardi, ya'ni `ORDER BY` ni hech kim ajratmasdi;
+  (b) **yumshoq o'chirishning ikkinchi qirrasi** — `remove()` ning
+  takrori va `count_for_user` ning `is_active` filtri: o'chirilgan obuna
+  hech qachon **qayta** so'ralmagan, holbuki filtr yo'qolsa chegaraga
+  yetgan odam bu holatdan umuman chiqa olmasdi (qatorlar jismonan
+  o'chmaydi); (c) **hisobot maydonlari** — `DeliveryReport.skipped` ning
+  `prepare + deliver` yig'indisi, `sent_at` ning yozilishi va
+  `_create_intents` ning qaytargan soni: testlar yuborish
+  **o'tganini** tekshirardi, u haqidagi **qaydni** emas.
+  Mahsulot kodi, migratsiya, konfiguratsiya **tegilmadi**. Yig'indi
+  **3733 passed, 1 skipped** (`requires_db` **298**), `ruff` toza.
 * **🔴 145-run: MUTATSIYA O'LCHOVINING YANGI YOLG'ON SINFI — iflos baza
   har mutantga soxta `KILLED` beradi.** Nishon 144 ning tartibidagi (1)
   band edi: `notifications/queries.py` va `notifications/outbox.py`,
@@ -94,7 +123,28 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   tekshiriladigan da'vo.** Mahsulot kodi, migratsiya, konfiguratsiya
   **tegilmadi**. Yig'indi **3690 passed, 1 skipped** (`requires_db`
   **255**), `ruff` toza.
-* **⚠️ 144-run: `clustering/repository.py` va `reports/queries.py` —
+* **146-run: 144 ning «46 KILLED, 0 survivor» i RAD ETILDI — aslida
+  10 KILLED, 40 SURVIVOR.** O'sha 50 mutatsiya `reset` bilan va **butun
+  to'plamda** qayta o'lchandi: `clustering/repository.py` va
+  `reports/queries.py` ning shartlaridan 80 % i qulflanmagan ekan.
+  Survivorlar uch oilaga tushdi — yarim ochiq davr `[since, until)` ning
+  uchlari (17), `ORDER BY` (7), `DISTINCT` odam↔xabar (5), filtr/chegara
+  (11): 143 ning «fikstyura ajratmasa, qulf yo'q» naqshi. 144 ning
+  «yozuv yo'lidagi so'rov qarzsiz» naqshi shu bilan **bekor** —
+  oxirigacha boradigan ssenariy shartning **borligini** ko'rsatadi,
+  **chegarasini** emas. 🟢 Qirq survivordan **39 tasi qulflandi**
+  (`tests/test_query_boundaries_db.py`, 36 test); qolgan `fc-drop-layer`
+  bazasiz to'plamda o'ladi. 🔴 **Ikkita yangi yolg'on sinfi:**
+  (a) **to'liq bo'lmagan ishchi nusxasi** — `deploy-server` symlinksiz
+  ishchida har mutant `9 failed` bilan avtomatik «KILLED» bo'lardi
+  (mutatsiyasiz baseline buni darhol ochdi); (b) **`-m requires_db` ning
+  o'zi tor tanlov** — `fc-drop-layer` faqat **bazasiz** to'plamda o'ldi,
+  ya'ni verdikt butun to'plam bo'yicha chiqariladi va **145 ning raqami
+  ham yarim**. 🟢 Mutatsiya endi repoda emas, `/tmp/rN/sveta/` nusxasida
+  qo'llanadi (uzilgan partiya repoga tegmaydi), uchta ishchi parallel.
+  Mahsulot kodi, migratsiya, konfiguratsiya **tegilmadi**. Yig'indi
+  **3726 passed, 1 skipped** (`requires_db` **291**), `ruff check` toza.
+* **⛔ 144-run (RAD ETILDI, 146): `clustering/repository.py` va `reports/queries.py` —
   46 mutatsiya → 46 KILLED, 0 survivor; 145 dan keyin bu raqam
   ISBOTLANMAGAN** (👤 `reset` bilan qayta o'lchansin). 143 qoldirgan
   tartibning (1) va (2) bandlari. Mahsulot kodi, test, migratsiya va
@@ -212,10 +262,12 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   **tegilmadi**; yagona o'zgargan fayl — `.gitignore` (uchta yangi
   sandbox qoldig'i: `rm` mountda `Operation not permitted`,
   `allow_cowork_file_delete` esa CLAUDE.md §1 bo'yicha taqiqlangan).
-* **Yashil holat:** **154** test fayli; butun to'plam **3691 test**
-  (145-run: bazasiz qism **3435 passed, 1 skipped** — besh partiyada
-  o'lchangan; `-m requires_db` **255 passed** PostGIS bilan; jami
-  **3690 passed, 1 skipped**).
+* **Yashil holat:** **155** test fayli; butun to'plam **3734 test**
+  (147-run: bazasiz qism **3435 passed, 1 skipped**; `-m requires_db`
+  **298 passed** PostGIS bilan; jami **3733 passed, 1 skipped**).
+  <sub>Eskirgan o'lchov: **3727 test**
+  (146-run: bazasiz **3435 passed, 1 skipped**; `-m requires_db`
+  **291 passed**; jami **3726 passed, 1 skipped**).</sub>
   <sub>Eskirgan o'lchov: **3667 test**
   (142-run: **3432 passed, 235 skipped** DB siz; `-m requires_db`
   **234 passed**).</sub>
@@ -1210,6 +1262,7 @@ serverdan keyin ham `postmaster.pid` qoladi va `status || start`
 | E14 | `test_stats_boundaries` — **9 test**, mutatsiya 15/15 (125-run: ikkala davr chegarasining o'zi qulflandi); `test_stats_maturity` — **14 test**, mutatsiya 15/15 (`max(0/1, …)` qisqichlari, `min_events` chegarasi, `elif` — tarixsiz mintaqaning yagona sababi); `test_stats_mahalla_coverage` — **19 test**, mutatsiya 20/20 (`MIN_MEASURED_RATIO` va uning `<` chegarasi, `round`↔kesish, aralash sifatda `min`, `sufficiency` o'rtachasi, taqsimotning `band` bo'yicha sanalishi; ikkita yolg'on survivor i18n kalit kontraktida). Qolganlari: `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
 | E15 | `test_geo_mahallas` — **10 test**: mutatsiya 10/10 (128-run — bitta qulf ikkita survivorni yopdi: bo'sh javobning ogohlantirishdan boshqa **hamma** maydoni (`sources=()`, `versions`/`mahallas`/`districts` = 0) o'lchanmagan edi, ya'ni FR-S-802 degradatsiyasi e'lon qilinib, o'sha javobning o'zi mavjud bo'lmagan manba va qatorlar sonini ko'rsatardi). `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
+| E5/E6/E14/E16 | `test_query_boundaries_db` — **36 test** (146-run): `clustering/repository.py` va `reports/queries.py` ning chegaralari — yarim ochiq davr `[since, until)` ning ikkala uchi, `ORDER BY`, `DISTINCT` (odam ↔ xabar), `layer`/`status`/`kind` filtrlari va `trust_score >=` chegarasi. 40 survivordan 39 tasini qulflaydi; so'rov funksiyalarini to'g'ridan-to'g'ri chaqiradi (bot yo'lidan o'tkazish qaysi shart ushlaganini yashirardi) |
 | E19 | `test_region_registry`, `test_regions_api_db` |
 | TEST/OBS/ANL/JOBS | `test_obs_metrics` — **16 test**: mutatsiya 11/11 + **1 o'lchanmagan** (128-run — uch qulf: `_escape_help` (bugungi izohlarda slesh ham, qator uzilishi ham yo'q — qorovul faqat kelajakdagi izoh uchun), `-Inf` (bitta namuna butun **scrape** ni rad ettirardi) va `render` ning oila **ichidagi** tartibi; bitta ekvivalent — `if not rows` → `if rows is None`, `setdefault(…, []).append(…)` bo'sh ro'yxat qoldirmaydi; **o'lchanmagani** — `FAMILY_BY_NAME` kaliti: mutant `app/obs/monitoring.py` ning import-vaqt qorovuliga urilib `conftest` ni yiqitadi va `pytest` `rc=4` beradi, ya'ni verdikt yo'q; shartnoma `test_registry_is_keyed_by_the_bare_name` da). `test_jobs_registry` — **28 test**: `05` §8 jadvali hujjatdan, `JOB`/`register()` juftlari, skript rejimi (56-run) va **130-rundan** planlovchining o'z tsikli; `app/jobs/runner.py` mutatsiyasi 9/9 (olti survivor — `sleep(interval)`, `await`, `except Exception`, `log.error` darajasi, `if not JOBS` va `gather` ning to'liq ro'yxati; hammasi to'rtta yangi xatti-harakat testi bilan qulflandi). `test_obs_age_contract` — **8 test** (133-run, ⚠️ yurgizilmagan): `collector._age_s` ↔ `outbox._age_s` ajrimi (`inf` ↔ `0.0`), naive va `+05:00` tarmoqlari, kelajakdagi vaqtning nolga qisilishi; ogohlantirish qiymati **funksiyadan** olinadi, konstantadan emas. Qolganlari: `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_alerts`, `test_obs_latency`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_logging_setup` |
 | REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract`, `test_roadmap_contract` |

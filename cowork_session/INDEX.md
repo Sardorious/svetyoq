@@ -12,8 +12,136 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-> 🔴 **145-run (2026-08-13) — MUTATSIYA O'LCHOVINING YANGI YOLG'ON SINFI:
-> iflos baza har mutantga soxta `KILLED` beradi.**
+> ✅ **147-run (2026-08-13) — 145 NING RAQAMI TASDIQLANDI, OBUNA VA FAN-OUT
+> QULFLANDI.**
+>
+> 146 qoldirgan tartibning (1) va (2) bandlari bajarildi.
+>
+> 🟢 **(1) 145 ning sakkizta survivori bazasiz to'plamda ham SURVIVED.**
+> `-m "not requires_db"` (3435 test) bilan birma-bir yurgizildi —
+> sakkizdan sakkiztasi. Ya'ni 146 ning «145 ning raqami yarim» shubhasi
+> **rad etildi** va 145 qo'shgan sakkizta test ortiqcha emas edi.
+> 146 ning «`-m requires_db` — tor tanlov» qoidasi kuchida qoladi: u
+> shubhani asosli qilgan, lekin bu nishonda natijani o'zgartirmadi.
+>
+> 🟢 **(2) `subscriptions.py` (12) + `service.py` (10) → 22 mutatsiya,
+> 15 KILLED, 7 SURVIVOR.** Yettalasi ham butun to'plamda tasdiqlandi
+> (yolg'on survivor yo'q) va yettalasi ham qulflandi — +7 test
+> `tests/test_notifications_db.py` ga, yangi fayl kerak bo'lmadi.
+>
+> 🟢 **Asbob yangiligi — IKKI BOSQICHLI O'LCHOV.** Butun to'plam uchta
+> ishchida parallel 115–123 s, ya'ni 22 mutatsiya bitta `bash`
+> chaqiruviga sig'maydi. Endi: 1-bosqich — tor nishon to'plami (9 fayl,
+> 213 test, 10 s), 2-bosqich — **faqat survivorlar** butun to'plamda.
+> Nima uchun 144/146 ning tuzog'i otilmaydi: tor tanlov yolg'on
+> **`SURVIVOR`** beradi, yolg'on **`KILLED`** bermaydi (baseline yashil
+> bo'lsa), ya'ni majburiy eskalatsiya yetarli. Narx 22×115 s dan
+> 22×10 s + 7×115 s ga tushdi.
+>
+> **Survivorlarning uch oilasi.** (a) **Tartib** — `list_for_user` ning
+> `(created_at, id)` i va `_pending_rows` ning `id` i: fikstyurada har
+> doim **bitta** qator turardi, ya'ni `ORDER BY` ni hech kim ajratmasdi
+> (143 ning naqshi). (b) **Yumshoq o'chirishning ikkinchi qirrasi** —
+> `remove()` ning takrori va `count_for_user` ning `is_active` filtri:
+> o'chirilgan obuna hech qachon **qayta** so'ralmagan; filtr yo'qolsa
+> chegaraga yetgan odam bu holatdan **umuman** chiqa olmasdi, chunki
+> qatorlar jismonan o'chmaydi. (c) **Hisobot maydonlari** —
+> `DeliveryReport.skipped` ning yig'indisi, `sent_at` ning yozilishi va
+> `_create_intents` ning qaytargan soni: testlar yuborish **o'tganini**
+> tekshirardi, u haqidagi **qaydni** emas.
+>
+> 🔴 **Yangi infratuzilma qirrasi:** `pgup` **har** `bash` chaqiruvida
+> qayta chaqirilishi shart. Bir marta unutildi va natija jimgina yolg'on
+> bo'ldi — `213 passed` o'rniga `185 passed, 28 skipped`: server o'lgani
+> uchun butun `requires_db` qismi `skip` bo'ldi va chiqishda hech qanday
+> xato ko'rinmadi (142 topgan TCP qirrasining yangi ko'rinishi).
+>
+> **148 uchun tartib:** (1) `notifications/render.py`, `sender.py`,
+> `events.py` va `bot/notifier.py` — E13 ning o'lchanmagan qolgani;
+> (2) 126 sanagan 92 bazasiz moduldan hali o'lchanmagan ~62 tasi;
+> (3) 👤 `service._create_intents` ning qaytargan qiymatini hech kim
+> o'qimaydi — ko'rsatish yoki olib tashlash kerak; (4) 👤
+> `cowork_session/` dagi nusxa juftliklari (`100_…_70dfe57e` ↔
+> `144_…_70dfe57e`, to'rtta `28_*`) — agent o'chira olmaydi.
+>
+> **Muhit:** `/tmp` 146 dan saqlanib qolgan (`micromamba`: `py311`, `pg`).
+> Yangi `initdb -D /tmp/pgdata147`, port `55147`; uchta ishchi nusxasi
+> **repo ildizidan** (`/tmp/w1..w3`), har biriga o'z bazasi
+> (`sveta1..3`, `sveta_tpl` shablonidan, tiklash 0.4 s). Baseline
+> uchala ishchida alohida yashil (`3726 passed`).
+>
+> **O'lchovlar:** butun to'plam **3733 passed, 1 skipped** (+7),
+> `-m requires_db` **298 passed** (+7), bazasiz **3435 passed,
+> 1 skipped** (o'zgarmadi); `ruff check app tools tests alembic` toza,
+> migratsiyasiz, mahsulot kodi tegilmadi. Yakuniy o'lchov `/tmp/w1`
+> da olindi va `diff -r --brief` bilan repo bilan aynanligi isbotlandi.
+>
+> ---
+>
+> <sub>**146-run (2026-08-13) — 144 NING «46 KILLED, 0 SURVIVOR» I RAD
+> ETILDI: aslida 10 KILLED, 40 SURVIVOR.**</sub>
+>
+> Nishon 145 qoldirgan tartibning (1) bandi edi: 144 ni `reset` bilan qayta
+> o'lchash. 144 ning jadvalidan 50 mutatsiya qayta tiklandi
+> (`clustering/repository.py` + `reports/queries.py`) va qayta o'lchandi.
+> Ikkala faylning shartlaridan **80 %** i qulflanmagan ekan.
+>
+> 🟢 **Qirq survivordan 39 tasi qulflandi** — yangi
+> `tests/test_query_boundaries_db.py`, **36 test**. Qolgan bittasi
+> (`fc-drop-layer`) qulfsiz emas: u bazasiz to'plamda o'ladi.
+>
+> 🔴 **Yangi yolg'on sinfi — TO'LIQ BO'LMAGAN ISHCHI NUSXASI.** Bazasiz
+> tekshiruvda beshta mutatsiya `9 failed` bilan «KILLED» chiqdi; son har
+> safar bir xil edi. Mutatsiyasiz nazorat yurgizishi ham `9 failed` berdi:
+> `r3`/`r4` ishchilarida ildizdagi `deploy-server` symlinki qolib ketgan,
+> ya'ni **o'sha ishchiga tushgan har qanday mutant avtomatik «KILLED»**.
+> Symlink qo'yilgach beshtasi ham **SURVIVOR** chiqdi.
+> **Qoida:** ishchi nusxasi repo bilan ildizigacha bir xil; mutatsiyasiz
+> baseline har ishchida alohida yashil bo'lmaguncha o'lchov boshlanmaydi.
+>
+> 🔴 **`-m requires_db` — TOR TANLOV.** 144 «tor test fayli tanlovi yolg'on
+> SURVIVOR beradi» degan edi; 146 shuni bir pog'ona yuqorida ko'rdi.
+> `fc-drop-layer` butun `requires_db` to'plamida omon qoldi va aynan
+> **bazasiz** to'plamda o'ldi. **Verdikt butun to'plam bo'yicha chiqariladi.**
+> ⚠️ Shu sababli **145 ning o'z raqami ham yarim**: u `notifications/` ni
+> faqat `-m requires_db` da o'lchagan.
+>
+> 🟢 **Mutatsiya endi repoda emas, `/tmp/rN/sveta/` nusxasida.** Bitta partiya
+> yana uzildi va uchala ishchida `queries.py` mutatsiyalangan qoldi — **repo
+> tegilmadi**. Uchta ishchi parallel: to'liq `-m requires_db` yolg'iz 42 s,
+> uchtasi birga 62–75 s; to'rttasi 115 s (limitga yaqin, rad etildi).
+>
+> 🟢 **144 ning «yozuv yo'lidagi so'rov qarzsiz» bashorati rad etildi.**
+> Ikkala fayl ham yozuv yo'lida, lekin 40 shart qulflanmagan. To'g'ri
+> tushuntirish: oxirigacha boradigan ssenariy shartning **borligini**
+> ko'rsatadi, **chegarasini** emas — chegarani faqat chegarada turgan qator
+> ko'rsatadi (143 ning naqshi to'liq kuchida).
+>
+> **147 uchun tartib:** (1) 👤 **145 ni (`notifications/`, 10 mutatsiya)
+> bazasiz to'plam bilan ham qayta o'lchash** — uning raqami yarim;
+> (2) `notifications/subscriptions.py` va `service.py`; (3) 126 sanagan
+> 92 bazasiz moduldan hali o'lchanmagan ~62 tasi; (4) 👤 `cowork_session/`
+> dagi nusxa juftliklari (`100_…_70dfe57e` ↔ `144_…_70dfe57e`, to'rtta
+> `28_*`) — agent o'chira olmaydi.
+>
+> **Muhit:** `/tmp` saqlanib qolgan (`micromamba`: `py311`, `pg`). Yangi
+> `initdb -D /tmp/pgdata146`, port `55146`, `-k /tmp -c
+> listen_addresses=127.0.0.1`, `alembic upgrade head` (`0011`), shablon
+> `sveta_tpl`. Prelude — `/tmp/sv146.sh`. ⚠️ Bazasiz to'plam **repo mount
+> ida 165 s da ham tugamaydi** (44 %), `/tmp` nusxasida 41 s — yakuniy
+> o'lchov nusxada olindi (`diff -r --brief` bilan aynanligi isbotlangan).
+>
+> **O'lchovlar:** `-m requires_db` **291 passed** (+36), bazasiz **3435
+> passed, 1 skipped**, yig'indi **3726 passed, 1 skipped**;
+> `ruff check app tools tests alembic` toza, migratsiyasiz, mahsulot kodi
+> tegilmadi.
+>
+> ---
+>
+> <sub>**145-run (2026-08-13) — mutatsiya o'lchovining yolg'on sinfi: iflos
+> baza har mutantga soxta `KILLED` beradi. ⚠️ Uning `notifications/`
+> raqami 146 dan keyin YARIM deb o'qiladi — faqat `-m requires_db` da
+> o'lchangan.**</sub>
 >
 > Nishon 144 qoldirgan tartibning (1) bandi edi — `notifications/` ning
 > baza so'rovlari (`queries.py`, `outbox.py`), 10 mutatsiya. Birinchi
@@ -83,7 +211,8 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > ---
 >
 > <sub>**144-run (2026-08-13) — 143 ro'yxatining (1) va (2) bandlari.
-> ⚠️ Natijasi 145 dan keyin ISBOTLANMAGAN deb o'qiladi.**</sub>
+> ⛔ Natijasi 146 da RAD ETILDI: «46 KILLED, 0 survivor» emas, 10 KILLED va
+> 40 survivor. Quyidagi bayon tarix sifatida qoldirilgan.**</sub>
 >
 > ✅ **144-run (2026-08-13) — `clustering/repository.py` va
 > `reports/queries.py` TO'LIQ o'lchandi: 46 mutatsiya → 46 KILLED,
@@ -4249,6 +4378,7 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 146 | [qayta_olchov_40_survivor](146_qayta_olchov_40_survivor_a72e99c2.md) | `local_a72e99c2` | 145 ro'yxatining (1) bandi: 144 ning «46 KILLED, 0 survivor» i `reset` bilan qayta o'lchandi va **rad etildi** — 50 mutatsiyadan **10 KILLED, 40 SURVIVOR** (ikkala faylning shartlaridan 80 % i qulflanmagan edi). Survivorlar uch oilaga tushdi: yarim ochiq davr `[since, until)` ning uchlari (17), `ORDER BY` (7), `DISTINCT` odam↔xabar (5), filtr/chegara (11) — 143 ning «fikstyura ajratmasa, qulf yo'q» naqshi. 144 ning «yozuv yo'lidagi so'rov qarzsiz» bashorati **rad etildi**: oxirigacha boradigan ssenariy shartning borligini ko'rsatadi, chegarasini emas. Yangi `tests/test_query_boundaries_db.py` (36 test) 40 survivordan **39** tasini qulfladi; qolgan `fc-drop-layer` bazasiz to'plamda o'ladi. Uchta harness yangiligi: mutatsiya **repo nusxasida** (uzilgan partiya repoga tegmadi), **uchta ishchi parallel** (o'z bazasi + shablondan `reset`), va ikkita yangi yolg'on sinfi — **to'liq bo'lmagan ishchi nusxasi** (`deploy-server` symlinksiz `r3` har mutantga `9 failed` bergan) hamda **`-m requires_db` ning o'zi tor tanlov** (`fc-drop-layer` faqat bazasiz to'plamda o'ldi) → 145 ning raqami ham yarim | ✅ 145 (1); 3726 test (+36), `requires_db` 291 (+36), migratsiyasiz, ruff yashil |
 | 144 | [repository_va_queries_qulflandi](144_repository_va_queries_qulflandi_70dfe57e.md) | `local_70dfe57e` | 143 ro'yxatining (1) va (2) bandlari yopildi: `clustering/repository.py` (20 mutatsiya) va `reports/queries.py` (26 mutatsiya) — **46 KILLED, 0 survivor**, yangi test kerak bo'lmadi. `count_open` va `list_rows` ning `min_radius_m >=` shartlari (143 da anker ikki marta uchraganidan `SKIP` bo'lgan) oldingi qatori bilan ajratilib alohida qulflandi. Ikkita harness saboqi: **tor test tanlovi yolg'on `SURVIVED` beradi** (uchta «survivor» to'liq `-m requires_db` da KILLED chiqdi) va **`bash` limiti 120 s, 180 s emas** — uzilgan partiya `repository.py` ni mutatsiyalangan holda qoldirdi, `/tmp` etaloni bilan `diff` uni darhol ochdi. Yangi naqsh: **yozuv yo'lidagi so'rov qarzsiz, o'qish yo'lidagi so'rov qarzdor** — 142/143 ning survivorlari `geo/queries` va `obs/collector` (vitrina) da edi, 144 nishonlari esa `intake → assign → evaluate` yo'lida | ✅ 143 (1) va (2); 3679 test (+0), `requires_db` 247 (+0), migratsiyasiz, ruff yashil |
 | 140 | [koordinata_istemolchilari](140_koordinata_istemolchilari_ad837191.md) | `local_100a3f71` | ⚠️ Sandbox ketma-ket **o'ninchi** run ko'tarilmadi — yana statik audit. 131 ning ro'yxati 139 da tugagani uchun nishon — 132 ning koordinata oilasi, lekin uning **ikkinchi qavati**. 🔴 **(1) Qulf ishlab chiqaruvchi tomonda to'xtab qolgan edi.** 133 `_lat_lon`/`_position` ning `(ST_Y, ST_X)` **qaytarishini** qulfladi, lekin uni ochadigan **sakkizta** joy (`lat, lon = ...`; `repository.py:74, 201, 350, 525`, `queries.py:265, 347, 387`, `subscriptions.py:100`) qulflanmagan edi: `lon, lat = ...` bitta tokenlik o'zgarish va 133 ning yigirma bir testidan birortasi ham yiqilmasdi — funksiya baribir `(ST_Y, ST_X)` qaytaradi, faqat chaqiruvchi teskari nomlaydi. Qulf ikki qavatli: `ast` (nomlar + reyestr + sanoq) **va** semantik (`_outage_row_columns()[4]` ning shakli aynan `ST_Y` — izchil qayta nomlash bilan aylanib bo'lmaydi). 🔴 **(2) O'n yettita ustunli ikki ro'yxat qo'lda hamqadam yuritiladi:** `_outage_row_columns()` `SELECT` ni beradi, `_to_outage_row()` esa `row[0]`…`row[16]` bo'yicha o'qiydi, o'rtada faqat raqamli indeks. Bir tomondagi almashuv ikkinchisiga ko'chmasa xato chiqmaydi — `distinct_users` ↔ `independent_reporters` ikkalasi `int` (`05` §4.3 aynan shu ikkovini solishtiradi), `district_id` ↔ `mahalla_id` ikkalasi `uuid` (hodisa boshqa tumanga yozilardi). Uch tomonlama qulf: ustunlar **qo'lda** jadval bilan, `OutageRow` maydonlari o'sha jadval bilan (124 ning refleksivligi), `_to_outage_row` **hamma qiymati farq qiladigan** qator bilan. ⚙️ Mustaqil guvoh — `.key` emas, `select(...).compile(postgresql.dialect())` matni. ⚙️ Uchinchi qulf: `numeric(6,1)` va `ST_Y`/`ST_X` `Decimal` qaytarishi mumkin, `float()`/`int()` castlarini olib tashlash bazasiz to'plamda ko'rinmasdi (JSON da `Decimal` seriyalanmasdi) — test `Decimal` beradi va **tipni** tekshiradi. Qoldirilgani: `collector._as_uuid`/`_reading` va `bot/service._label` — tabiiy uy yo'q, yangi fayl esa 136 ning chegarasiga ziddir | ⚠️⚠️ Hali ham **o'lchov emas** — fayl 133 dan beri hech qachon yurgizilmagan, ya'ni endi unda 28 ta tekshirilmagan test bor. Har tasdiq manbaga solishtirildi (`repository.py:35-38, 74, 200-242, 350, 525`, `queries.py:80, 265, 347, 387`, `subscriptions.py:71-73, 100`, `models.py:52-53, 91-121`), yangi importlar beshtasi alifbo bo'yicha, eng uzun yangi qator ~93 belgi; `type(x) is float` `E721` ga tushmaydi. Yangi fayl **yo'q**; o'zgargan yagona fayl — `tests/test_geo_sql_expressions.py` (+7 test, 21 → **28**). Mahsulot kodi, migratsiya, konfiguratsiya **tegilmadi**. Push navbati **o'n bir** fayl (o'zgarmadi). Bashorat: **+7 test → 3404 passed, 232 skipped**; test fayllari **152** (o'zgarmadi). `requires_db` — ketma-ket **19-run** yo'q. 👤 `cleanup-sessions.ps1` |
 | 139 | [verdikt_va_audit](139_verdikt_va_audit_ad837191.md) | `local_8400b55e` | ⚠️ Sandbox ketma-ket **to'qqizinchi** run ko'tarilmadi — yana statik audit; 131 ro'yxatining oxirgi to'rtligi olindi. 🔴 `validate_point` mintaqaning **o'z** bbox ini e'tiborsiz qoldirsa to'plam yashil qolardi (mavjud ikkala tasdiq mamlakat bbox i bilan bir xil javob beradi — 137 ning `pick_for_point` sinfi, quvurning birinchi qadamida). 🔴 `MESSAGE_KEYS` ning **qiymatlari** qulflanmagan edi: `no_outage` ↔ `not_enough_data` ni almashtirish o'tardi, ya'ni E7 o'zagida 127 ning «matn kaliti boshqasiniki» sinfi. 🔴 `cli_actor` ning `USERNAME` tarmog'i umuman yurgizilmagan (Windows dagi operator `unknown` ga tushardi va butun jurnal bitta `actor_id` ga qo'shilardi). `jsonable` ning `date`/`tuple`/kalit tarmoqlari, `OutOfRegionError` ning `region` konteksti, `text()` ning sukut tili. Ekvivalent: `validate_point` dagi `is_plausible` (`0005` CHECK i soyalaydi). +10 test, yangi fayl yo'q, mahsulot kodi tegilmadi. |
@@ -4367,6 +4497,7 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 | 28 | [mutatsiya_bazali](28_mutatsiya_bazali_0b2526c0.md) | `local_0b2526c0` | 141 ning «142 uchun tartib» idan (1) va (2). **131 ro'yxati yopildi:** `collector._as_uuid`, `collector._reading`, `bot/service._label` — uchalasiga ham chaqiruvchi faqat `requires_db` orqali yetardi, ya'ni 122–140 da umuman yurgizilmasdi; ikkita toza fayl (+28 test). **Baza bilan o'lchash birinchi marta:** `geo/queries._period_filter` ni **nom bo'yicha** uchta kontrakt reyestri eslatardi, xatti-harakatini esa hech kim tekshirmasdi; `tests/test_geo_api_db.py` ga uchta test (+3). **30 mutatsiya → 30 KILLED** (birinchi o'tishda 26/4). To'rtala survivor ham bir xil naqshni ko'rsatdi — **shart to'g'ri, lekin uni ajratadigan kirish testda yo'q**: `geo_unmatched_ratio` to'sig'i maxrajni himoya qiladi (ajratuvchi kirish — nomuvofiq `(3, 0)` juftligi); `_period_filter` ning oralig'i yarim ochiq `[valid_from, valid_to)` va uning ikkala chegarasi faqat **almashuv lahzasida** ko'rinadi (bor testlar `?at=` ni oraliq nuqtada so'raydi); `ST_AsGeoJSON` ning `precision` i sukutdagi 25 m soddalashtirish ostida umuman ko'rinmaydi (qulf `simplify_m=0` so'rashi shart). 🔴 `conftest._db_reachable` **TCP** soketiga qaraydi — Unix-soketli `DATABASE_URL` bilan `requires_db` ning hammasi jimgina `skip` bo'ladi | ✅ 30/30 mutatsiya; 3432 passed / 235 skipped, `requires_db` 234, 156 test fayli (+2), migratsiyasiz, mahsulot kodi tegilmagan, ruff yashil |
 | 28 | [mahalla_va_repository_qulflari](28_mahalla_va_repository_qulflari_72438bb2.md) | `local_72438bb2` | 142 ning tartibidagi (2) va (3): `mahalla_boundaries` oilasi (12 mutatsiya, birinchi o'tishda 5/7) va `clustering/repository.py` (10 mutatsiya, 5/5). **O'ntala survivor ham bir sababdan: qulf bor, uni ajratadigan holat fikstyurada yo'q.** `(tuman kodi, nomi, davr boshi)` uchligining 2- va 3-a'zosi 27-sessiyadan beri o'lchanmagan edi (har mahalla o'z tumanida → birinchi a'zo hammasini hal qiladi) — javob `crowded_region` fikstyurasi: to'rtta joriy mahalla bitta tumanda, ikkitasi bir xil nomli, teskari tartibda. `count_confirmed_ever` ning mezoni `confirmed_at IS NOT NULL` — birorta fikstyura `confirmed_at` yozmagani uchun `01` FR-S-901 butunlay o'lchanmagan edi. `status_counts_started_between` ning sutka chegarasi `[start, end)` — yarim tundagi hodisa `<=` bilan ikkala kunga tushardi. `open_outage_ids` ning `last_report_at ASC` — teskarisida eski uzilish `timeout` bo'yicha hech qachon yopilmasdi. Ikkita `LIMIT` qulfi endpointda emas, **so'rovda**: `service` `limit + 1` so'rab Python da kesadi, ya'ni SQL `LIMIT` javobda ko'rinmaydi — bu hajm shartnomasi. 🔴 Harness `finally` si SIGKILL dan omon qolmadi va `queries.py` ni repoda mutatsiyalangan qoldirdi; endi har partiya boshida `/tmp` etalonidan tiklanadi, partiya ≤4 mutant | ✅ 22 mutatsiya → 22 KILLED; +13 test (hammasi `requires_db`), `requires_db` 247 (+13), butun to'plam 3679/1, migratsiyasiz, ruff yashil |
 | 145 | [yolgon_killed_va_baza_qoldigi](145_yolgon_killed_va_baza_qoldigi_ef90fc08.md) | `local_ef90fc08` | Mutatsiya o'lchovining **yangi yolg'on sinfi**: `requires_db` fikstyuralari xatoga chidamsiz, ya'ni `error` chiqargan mutatsiya bazada qator qoldiradi va **keyingi har bir mutant** qizil baseline ustida soxta `KILLED` oladi. Qorovul — yiqilishlar sonining monoton o'sishi (5 → … → 15) va mutatsiyasiz qayta yurgizishning **15 failed** i. Bir xil o'nta mutatsiya: tiklashsiz **10 KILLED / 0 survivor**, tiklash bilan **2 KILLED / 8 SURVIVOR**. Nazorat: toza baza 247 passed, o'sha bazada 2- va 3-marta ham 247 (to'plam o'zini tozalaydi) — muammo «iflos» emas, «xatoga chidamsiz». Sakkizala survivor qulflandi: `available_at <= now` chegarasi, navbat tartibi (`available_at` ↔ `id` teskari fikstyura talab qiladi), `limit`, `SKIP LOCKED` (xulq-atvor testi, `asyncio.wait_for`), `mark_processed` idempotentligi, `[since, until)` ning ikkala uchi (farq faqat yarim tundagi xabarda), `pending_outbox_count` ning navbat ↔ tarix farqi. `tools/_mut.py` ga **`reset`** maydoni + 3 test; uchidan-uchiga isbot ataylab ifloslantirilgan bazada. Retsept: shablon baza (0.2 s); `TRUNCATE … CASCADE` ishlamaydi. 🟢 Qoida: **0 survivor — natija emas, da'vo.** ⚠️ 144 ning 46/46 i qayta o'lchanishi kerak | ✅ 10/10 qulflandi; 3690 passed, 1 skipped (`requires_db` 255, +8; harness +3), migratsiyasiz, ruff yashil; mahsulot kodi tegilmadi |
+| 147 | [obuna_va_fanout](147_obuna_va_fanout_qulflandi_86dfa894.md) | `local_86dfa894` | 146 qoldirgan tartibning (1) va (2) bandlari. **(1)** 145 ning sakkizta survivori bazasiz to'plamda (3435 test) qayta yurgizildi — **sakkizdan sakkiztasi SURVIVED**, ya'ni 145 ning raqami yarim emas va qo'shilgan sakkizta test ortiqcha emas; 146 ning «`-m requires_db` tor tanlov» qoidasi kuchida qoladi, lekin bu nishonda natijani o'zgartirmadi. **(2)** `subscriptions.py` (12) + `service.py` (10) — 22 mutatsiya → **15 KILLED, 7 SURVIVOR**, yettalasi butun to'plamda tasdiqlandi va qulflandi (+7 test mavjud `tests/test_notifications_db.py` ga). Survivorlar uch oilada: **tartib** (`list_for_user` ning `created_at` i, `_pending_rows` ning `id` i — fikstyurada har doim bitta qator), **yumshoq o'chirishning ikkinchi qirrasi** (`remove` ning takrori, `count_for_user` ning `is_active` filtri — o'chirilgan obuna qayta so'ralmagan), **hisobot maydonlari** (`skipped` yig'indisi, `sent_at`, `_create_intents` ning soni — yuborish tekshirilardi, qayd emas). 🟢 **Ikki bosqichli o'lchov** joriy etildi: tor nishon to'plami (10 s) → **faqat survivorlar** butun to'plamda (115 s); tor tanlov yolg'on `SURVIVOR` beradi, yolg'on `KILLED` bermaydi, ya'ni eskalatsiya yetarli. 🔴 `pgup` har `bash` chaqiruvida shart — unutilganda `requires_db` jimgina `skip` bo'ldi | ✅ E13 mutatsiya qamrovi; 3733 passed, 1 skipped (+7), `requires_db` 298 (+7), migratsiyasiz, ruff yashil |
 | 27 | [geo_mahallas](27_geo_mahallas_5b817a67.md) | `local_5b817a67` | `01` §16 ning `GET /geo/mahallas` endpointi — to'rtta sessiya qoldirgan nomzod. Asosiy qaror: jadval E17 gacha bo'sh, ya'ni **bo'sh javob normal, lekin jim bo'lmasligi kerak** (FR-S-802 degradatsiyasi ko'rinishi shart). Bo'shlikning ikki sababi ajratildi — spravochnik yo'q ↔ `?at=` bilan so'ralgan sanada yo'q; `available` alohida so'rovdan (`region_has_mahallas`, davr filtrisiz) va faqat kesim bo'sh bo'lganda. Javob shakli `districts` niki emas: `code`/`source_ref`/`license` ustunlari yo'q → `sources` + doimiy `geo.disclaimer.mahalla_source` (bo'sh `licenses` yolg'on bo'lardi), mahalla `(district_id, name_uz)` bo'yicha sanaladi, tartib `(tuman kodi, nomi, davr boshi)`. Toza `app/geo/mahallas.py` (`MahallaFact` → `summarize` → `MahallaRegistry`, versiya — sana), `geo.queries.mahalla_boundaries`/`region_has_mahallas`/`region_has_district_code`, ikki endpoint uchun umumiy `_period_filter`; birlashmada tumanning davri **tekshirilmaydi** (bekor qilingan tumanning mahallalari yo'qolmasin), noma'lum `?district=` → `404`, `Vary: Accept-Language`. `0009` — `ix_mahallas_district_id`: NFR-S-02 ning **`region_id` ustunisiz** ko'rinishi, `0008` ni qulflagan testga ilinmagan edi | ✅ `01` §16; 771 test (+14), `requires_db` 186 (+19), `0009` migratsiya, ruff yashil |
 | 26 | [region_indekslari](26_region_indekslari_2a0beb89.md) | `local_2a0beb89` | `01` §10, §11, §13–§16, §19, §20 birinchi marta kod bilan solishtirildi. NFR-S-02 buzilgan: talabning **so'rov** yarmi bajarilgan, **indeks** yarmi yo'q edi — `reports` va `outages` da `region_id` bilan boshlanadigan birorta indeks yo'q; `ix_reports_created_at` ga barcha oyna so'rovlari tushardi va mintaqani ajratmasdi, `ix_outages_status_region_id_open` esa qisman va tarixiy so'rovlarga yaramaydi. `0008` — `(region_id, created_at DESC)`, `(region_id, started_at DESC)` va qisman `(region_id, confirmed_at)`; `ix_reports_created_at` **qoldirildi** (`purge_exact_geom` ataylab mintaqasiz), `users.region_id` ga indeks **qo'shilmadi** (so'rov o'lchovi emas). Ikkita kontrakt testi: `region_id` li har bir jadval indekslanganmi (istisnolar sabab matni bilan) va model↔migratsiya indekslari bir xil to'plammi (17 ta). Topilgan, lekin qilinmagani: `GET /geo/mahallas` (§16, keyingi run), `outage.read_exact_geo` (§20 — `05` §7.3 ga zid, ochiq savol) | ✅ `01` NFR-S-02; 757 test (+11), `requires_db` 167 (o'zgarmadi), `0008` migratsiya, ruff yashil |
 | 25 | [chegara_versiyasi](25_chegara_versiyasi_f221c459.md) | `local_f221c459` | `01` §8 (FR) va §9 (User Story) birinchi marta kod bilan solishtirildi. FR-S-803 (P0) buzilgan: statistika **joriy** chegaralardan qurilardi va bekor qilingan tuman nomsiz qoldiq chelakka aylanardi; javobda spravochnik versiyasi yo'q edi (US-S5 esa uni eksportda talab qiladi). `geo.queries.districts_for_period` + `DistrictVersionRow` (davr kesishuvi, nuqta emas), toza `app/stats/boundaries.py` (`BoundaryFact` → `summarize` → `BoundarySet`; versiya — sana; bo'sh reyestrda `None`; `changed_in_period` ochilish **yoki** yopilishdan), `StatsOut.boundaries` + `DistrictOut.valid_from/valid_to`, yopilgan versiyada qamrov `unknown`, `stats.warning.boundaries_changed` UZ/RU, CSV da ikki daraja, `/heatmap` ga ataylab qo'shilmadi (H3 chegaralarga bog'liq emas). ⚠️ i18n kataloglari `git show HEAD:` tufayli E8 holatiga qaytdi va koddan qayta tiklandi | ✅ `01` FR-S-803 va US-S5; 746 test (+12), `requires_db` 167 (+3), migratsiyasiz, ruff yashil; ⚠️ `HEAD` E8 da — push shoshilinch |

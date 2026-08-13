@@ -665,3 +665,197 @@ async def test_pending_outbox_count_counts_the_queue_not_the_history(region_id) 
         await outbox.publish(session, topic=events.TOPIC_CONFIRMED, payload=payload)
         after = await queries.pending_outbox_count(session)
         assert after == before + 1
+
+
+# --- Obuna va fan-out qulflari (147-run mutatsiyasi) ------------------------
+#
+# Yettala test 147-run ning survivorlaridan kelib chiqadi. Ularning
+# hammasi bitta naqshning takrori (143-run): shart kodda bor, lekin uni
+# **ajratadigan holat** fikstyurada yo'q edi — ro'yxatda har doim bitta
+# obuna, navbatda har doim bitta xabar, o'chirilgan obuna esa hech qachon
+# ikkinchi marta so'ralmagan.
+
+
+async def _insert_subscription(
+    session, *, sub_id: uuid.UUID, user_id: uuid.UUID, created_at: datetime
+) -> None:
+    """`created_at` ni oshkora belgilash uchun — `add()` unga ta'sir qila olmaydi."""
+    await session.execute(
+        text(
+            "INSERT INTO subscriptions (id, user_id, label, geom, radius_m, "
+            "is_active, created_at) VALUES (:id, :uid, :label, "
+            "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 500, true, :ts)"
+        ),
+        {
+            "id": sub_id,
+            "uid": user_id,
+            "label": str(created_at.hour),
+            "lat": LAT,
+            "lon": LON,
+            "ts": created_at,
+        },
+    )
+
+
+async def test_list_is_ordered_by_creation_not_by_identifier(region_id) -> None:
+    """Ro'yxat tartibi — `created_at`, `id` esa faqat teng vaqt uchun tayanch.
+
+    Bot obunalarni **raqamlab** ko'rsatadi (`🔔 Obunalarim`), ya'ni tartib
+    foydalanuvchi uchun manzil: «2-chisini o'chir» degan buyruq keyingi
+    ochilishda boshqa qatorga tushmasligi kerak. UUID esa tasodifiy —
+    `id` bo'yicha tartib har bir odamda boshqacha va vaqtga umuman
+    bog'liq emas. Mavjud testlarda ro'yxatda **bitta** obuna turardi,
+    ya'ni tartibni birorta test ajratmasdi.
+    """
+    low, high = sorted([uuid.uuid4(), uuid.uuid4()])
+    async with session_scope() as session:
+        uid = await make_user(session, region_id)
+        # Eskiroq obuna — **kattaroq** UUID: ikki tartib ataylab qarama-qarshi.
+        await _insert_subscription(
+            session, sub_id=high, user_id=uid, created_at=NOW - timedelta(hours=2)
+        )
+        await _insert_subscription(
+            session, sub_id=low, user_id=uid, created_at=NOW - timedelta(hours=1)
+        )
+        listed = await subscriptions.list_for_user(session, uid)
+        assert [v.id for v in listed] == [high, low]
+
+
+async def test_removing_the_same_subscription_twice_is_reported(region_id) -> None:
+    """Ikkinchi o'chirish — `SubscriptionNotFoundError`, jim `None` emas.
+
+    `remove()` ning `is_active` sharti yo'qolsa `UPDATE` nofaol qatorni
+    ham topadi va `rowcount == 1` qaytaradi, ya'ni bot foydalanuvchiga
+    «o'chirildi» deb javob berardi — allaqachon yo'q obuna uchun.
+    Botning ro'yxati keshlanmaydi, lekin ikki qurilmadan yozilgan ikkita
+    `/start` seansi aynan shu holatni beradi.
+    """
+    async with session_scope() as session:
+        uid = await make_user(session, region_id)
+        view = await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+        await subscriptions.remove(session, user_id=uid, subscription_id=view.id)
+        with pytest.raises(subscriptions.SubscriptionNotFoundError):
+            await subscriptions.remove(session, user_id=uid, subscription_id=view.id)
+
+
+async def test_removed_subscription_frees_a_slot_in_the_limit(region_id) -> None:
+    """`count_for_user` faqat **faol** obunalarni sanaydi.
+
+    O'chirish yumshoq (`is_active = false`), ya'ni qator jadvalda qoladi.
+    Sanoq uni ham hisoblasa, chegaraga yetgan odam bitta obunani
+    o'chirib ham yangisini qo'sha olmasdi va bu holatdan **umuman**
+    chiqib keta olmasdi: qatorlar hech qachon jismonan o'chmaydi.
+    """
+    async with session_scope() as session:
+        uid = await make_user(session, region_id)
+        views = [
+            await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+            for _ in range(5)
+        ]
+        assert await subscriptions.count_for_user(session, uid) == 5
+        await subscriptions.remove(session, user_id=uid, subscription_id=views[0].id)
+        assert await subscriptions.count_for_user(session, uid) == 4
+        await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+
+
+async def test_pending_rows_are_served_oldest_identifier_first(region_id) -> None:
+    """Navbat tartibi — `notifications.id` o'sish bo'yicha.
+
+    Tartib `deliver()` ning tashqi ta'siriga chiqadi: yiqilgan yuborishdan
+    keyingi urinishda xabarlar **o'sha** ketma-ketlikda ketishi kerak,
+    aks holda bir xil hodisa bo'yicha ikki odam har urinishda har xil
+    navbat oladi va Telegram ning tezlik chegarasiga urilgan holatda
+    doim bir xil odamlar yutqazadi. Mavjud testlarda navbatda bitta
+    qator turardi, ya'ni `ORDER BY` ni hech kim o'lchamasdi.
+    """
+    low, high = sorted([uuid.uuid4(), uuid.uuid4()])
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        first = await make_user(session, region_id)
+        second = await make_user(session, region_id)
+        # Obunasiz: `_create_intents` yangi qator yozmaydi, tanlov aynan
+        # quyidagi ikki qatordan iborat bo'ladi.
+        for nid, uid in ((high, first), (low, second)):
+            await session.execute(
+                text(
+                    "INSERT INTO notifications (id, user_id, outage_id, region_id, "
+                    "status) VALUES (:id, :uid, :oid, :rid, 'queued')"
+                ),
+                {"id": nid, "uid": uid, "oid": oid, "rid": region_id},
+            )
+        row = outbox.OutboxRow(
+            1, events.TOPIC_CONFIRMED, make_event(oid, region_id).as_payload(), 0
+        )
+        deliveries, _ = await notify.prepare(session, row, now=NOW)
+        assert [d.notification_id for d in deliveries] == [low, high]
+
+
+async def test_blocked_bot_is_counted_as_skipped_in_the_report(region_id) -> None:
+    """`DeliveryReport.skipped` — `prepare` va `deliver` ning **yig'indisi**.
+
+    Bloklangan chat `deliver` da chiqadi (`PermanentSendError`), obunasi
+    o'chirilgan yoki matnsiz topik esa `prepare` da. Hisobot faqat
+    birinchisini sanasa `05` §10 ning `notifications_skipped` metrikasi
+    eng ko'p uchraydigan sababni ko'rsatmasdi va `planned` bilan
+    `sent + failed + skipped` yig'indisi ajralib ketardi.
+    """
+    async with session_scope() as session:
+        uid = await make_user(session, region_id)
+        oid = await make_outage(session, region_id)
+        await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+        row = outbox.OutboxRow(
+            1, events.TOPIC_CONFIRMED, make_event(oid, region_id).as_payload(), 0
+        )
+        report = await notify.process(
+            session, row, sender=FailingSender(PermanentSendError("forbidden")), now=NOW
+        )
+        assert report.skipped == 1
+        assert report.planned == report.sent + report.failed + report.skipped
+
+
+async def test_delivery_stamps_the_moment_it_was_sent(region_id) -> None:
+    """`sent_at` yozilishi shart — kechikish metrikasi shundan o'qiladi.
+
+    `queries.status_counts_between` va `05` §10 ning kunlik kesimi aynan
+    `sent_at` bo'yicha filtrlaydi: ustun bo'sh qolsa hisobotlar jimgina
+    **nolga** aylanardi, bildirishnomalar esa yuborilaverardi.
+    """
+    async with session_scope() as session:
+        uid = await make_user(session, region_id)
+        oid = await make_outage(session, region_id)
+        await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+        row = outbox.OutboxRow(
+            1, events.TOPIC_CONFIRMED, make_event(oid, region_id).as_payload(), 0
+        )
+        report = await notify.process(session, row, sender=RecordingSender(), now=NOW)
+        assert report.sent == 1
+        stamp = await session.execute(
+            text("SELECT sent_at FROM notifications WHERE outage_id = :id"), {"id": oid}
+        )
+        assert stamp.scalar_one() == NOW
+
+
+async def test_intent_count_is_what_was_written_not_what_matched(region_id) -> None:
+    """`_create_intents` **yozilgan** qatorlar sonini qaytaradi.
+
+    Mos kelgan obunalar soni undan katta bo'lishi mumkin: bloklangan
+    foydalanuvchi `reports.queries.recipients` da tushib qoladi. Ikkalasi
+    aralashsa «rejalashtirilgan» va «yozilgan» sonlar ajralib ketardi.
+
+    👤 Bugun bu qiymatni hech kim o'qimaydi (`prepare` uni tashlab
+    yuboradi) — shuning uchun u faqat shu yerda o'lchanadi;
+    `PROGRESS.md` ning «Ochiq savollar» iga qayd etilgan.
+    """
+    async with session_scope() as session:
+        good = await make_user(session, region_id)
+        blocked = await make_user(session, region_id, blocked=True)
+        oid = await make_outage(session, region_id)
+        for uid in (good, blocked):
+            await subscriptions.add(session, user_id=uid, lat=LAT, lon=LON)
+        event = make_event(oid, region_id)
+        matched = await subscriptions.find_matching(
+            session, lat=event.lat, lon=event.lon, radius_m=event.radius_m
+        )
+        assert len(matched) == 2
+        written = await notify._create_intents(session, event, now=NOW)
+        assert written == 1
