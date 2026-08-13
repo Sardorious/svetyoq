@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-13 (144-run).
+**Oxirgi yangilanish:** 2026-08-13 (145-run).
 
 ---
 
@@ -54,8 +54,49 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
-* **✅ 144-run: `clustering/repository.py` va `reports/queries.py` TO'LIQ
-  o'lchandi — 46 mutatsiya → 46 KILLED, 0 survivor.** 143 qoldirgan
+* **🔴 145-run: MUTATSIYA O'LCHOVINING YANGI YOLG'ON SINFI — iflos baza
+  har mutantga soxta `KILLED` beradi.** Nishon 144 ning tartibidagi (1)
+  band edi: `notifications/queries.py` va `notifications/outbox.py`,
+  10 mutatsiya. Birinchi o'tish **10 KILLED / 0 survivor** berdi va
+  **butunlay yolg'on** edi. Qorovul — yiqilishlar soni mutatsiyadan
+  mutatsiyaga **monoton o'sardi** (5 → 9 → 11 → … → 15), holbuki
+  mutatsiyalar mustaqil va har biri `finally` da qaytariladi;
+  mutatsiyasiz qayta yurgizish **15 failed** ko'rsatdi.
+  **Mexanizm:** `requires_db` to'plami o'zidan keyin tozalaydi, lekin
+  tozalash **fikstyura teardown ida** — u xatoga chidamli emas. Birinchi
+  mutatsiya bitta testni `error` ga olib keldi, teardown yurmadi,
+  `users` da 47 begona qator qoldi; keyingi har bir mutant o'sha qoldiq
+  tufayli qizil to'plamni ko'rib `rc == 1` oldi. Aniq iz: yangi,
+  tegilmagan mintaqada `Coverage(active_users=16, min_required=5)`.
+  **Nazorat:** toza baza → 247 passed; o'sha bazada 2- va 3-marta →
+  247 passed (to'plam o'zini o'zi tozalaydi); bitta `error` dan keyin →
+  5 failed va har safar ko'proq. Ya'ni muammo «to'plam iflos» emas,
+  **«to'plam xatoga chidamsiz»**.
+  **Tiklash bilan qayta o'lchash — 2 KILLED / 8 SURVIVOR.** Sakkizala
+  survivor haqiqiy va qulflandi (+8 test `tests/test_notifications_db.py`
+  ga): `available_at <= now` chegarasining o'zi; navbat tartibi
+  (`available_at`, keyin `id` — teskarisida `retry_later` kechiktirgan
+  eski qator yangi hodisani to'sardi); `limit`; `SKIP LOCKED` (qulf
+  **xulq-atvor** bilan — ikkinchi sessiya `asyncio.wait_for(…, 5)` ichida
+  bo'sh qaytishi kerak); `mark_processed` ning `processed_at IS NULL`
+  qorovuli; davrning **yarim ochiq** `[since, until)` ikkala uchi (farq
+  faqat yarim tunda yuborilgan xabarda ko'rinadi); `pending_outbox_count`
+  ning navbat ↔ tarix farqi (E13-a signali aynan kerak paytda o'chardi).
+  **Asbob tuzatildi:** `tools/_mut.py` ga **`reset`** maydoni — buyruq
+  har mutatsiyadan **oldin** yuriladi, nolmas rc o'lchov emas xato;
+  uchta test bilan qulflandi. Uchidan-uchiga isbot: ataylab
+  ifloslantirilgan bazada semantikasiz mutatsiya `reset` bilan to'g'ri
+  **SURVIVOR** chiqdi. Tez retsept — shablon baza (`CREATE DATABASE
+  sveta TEMPLATE sveta_tpl`, 0.2 s); ⚠️ `TRUNCATE … CASCADE` ishlamaydi.
+  **Nima uchun bu 119 va 126 dan yomonroq:** ular chiqishda ko'rinadigan
+  anomaliya qoldirardi, bu esa jim — yagona iz «hamma mutant ushlandi»
+  degan xushxabar. 🟢 **Yangi umumiy qoida: 0 survivor — natija emas,
+  tekshiriladigan da'vo.** Mahsulot kodi, migratsiya, konfiguratsiya
+  **tegilmadi**. Yig'indi **3690 passed, 1 skipped** (`requires_db`
+  **255**), `ruff` toza.
+* **⚠️ 144-run: `clustering/repository.py` va `reports/queries.py` —
+  46 mutatsiya → 46 KILLED, 0 survivor; 145 dan keyin bu raqam
+  ISBOTLANMAGAN** (👤 `reset` bilan qayta o'lchansin). 143 qoldirgan
   tartibning (1) va (2) bandlari. Mahsulot kodi, test, migratsiya va
   konfiguratsiya **tegilmadi** — qulflanmagan xossa topilmadi, ya'ni
   yangi test kerak bo'lmadi. `count_open` va `list_rows` ning
@@ -171,9 +212,13 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   **tegilmadi**; yagona o'zgargan fayl — `.gitignore` (uchta yangi
   sandbox qoldig'i: `rm` mountda `Operation not permitted`,
   `allow_cowork_file_delete` esa CLAUDE.md §1 bo'yicha taqiqlangan).
-* **Yashil holat:** **156** test fayli; butun to'plam **3667 test**
-  (142-run: **3432 passed, 235 skipped** DB siz — o'lchangan;
-  `-m requires_db` **234 passed** PostGIS bilan — 142-run).
+* **Yashil holat:** **154** test fayli; butun to'plam **3691 test**
+  (145-run: bazasiz qism **3435 passed, 1 skipped** — besh partiyada
+  o'lchangan; `-m requires_db` **255 passed** PostGIS bilan; jami
+  **3690 passed, 1 skipped**).
+  <sub>Eskirgan o'lchov: **3667 test**
+  (142-run: **3432 passed, 235 skipped** DB siz; `-m requires_db`
+  **234 passed**).</sub>
   <sub>Eskirgan o'lchov: butun to'plam **3555 yig'ildi**</sub>
   (129-run: DB siz **3323 passed, 232 skipped** — o'lchangan, hisoblangan
   emas. DB bilan oxirgi o'lchov — 121-run,

@@ -98,6 +98,35 @@ def test_an_unapplied_mutation_is_an_error_not_a_survivor(tmp_path, monkeypatch)
     assert nishon.read_text(encoding="utf-8") == "takror\ntakror\n"
 
 
+def test_a_target_without_reset_runs_unchanged() -> None:
+    """`reset` ixtiyoriy: bazasiz nishon uchun hech narsa yurmaydi."""
+    _mut.reset_state({"file": "app/x.py"})  # xato chiqmasligi — yagona da'vo
+
+
+def test_a_failing_reset_is_an_error_not_a_measurement() -> None:
+    """Tiklanmagan holat ustidagi verdikt hisobga olinmaydi.
+
+    145-run ning saboqi: `requires_db` fikstyuralari xatoga chidamli
+    emas va mutatsiya `error` chiqargan zahoti qatorlar bazada qoladi.
+    Keyingi mutant o'sha qoldiq tufayli qizil to'plamni ko'radi va
+    yolg'on `KILLED` oladi — bir xil o'nta mutatsiya tiklashsiz
+    10 KILLED, tiklash bilan 2 KILLED bergan edi. Shuning uchun
+    `reset` yiqilishi survivor ham, KILLED ham emas.
+    """
+    with pytest.raises(_mut.MutationHarnessError, match="reset"):
+        _mut.reset_state({"reset": "exit 3"})
+
+
+def test_reset_runs_before_the_mutation_is_applied() -> None:
+    """Tartib muhim: avval tiklash, keyin mutatsiya va `pytest`.
+
+    Teskari tartibda tiklash mutatsiya **qoldirgan** qatorlarni emas,
+    o'zining kirish holatini yo'q qilardi.
+    """
+    manba = inspect.getsource(_mut.apply_one)
+    assert manba.index("reset_state(spec)") < manba.index("path.read_text(")
+
+
 def test_the_mutant_is_restored_even_when_pytest_explodes() -> None:
     """Qo'llangan mutatsiya `finally` da qaytariladi.
 

@@ -11,7 +11,8 @@ kiritiladi va testlar uni ushlashi kutiladi. Ushlanmagan mutatsiya
 `mutations.json` — ro'yxat; har element:
 
     {"file": "tools/recluster.py", "old": "…", "new": "…",
-     "tests": "tests/test_recluster_sweep.py", "why": "nima yashiringan bo'lardi"}
+     "tests": "tests/test_recluster_sweep.py", "why": "nima yashiringan bo'lardi",
+     "reset": "bash /tmp/dbfresh.sh"}
 
 Har mutatsiya alohida qo'llanadi va `finally` da **albatta** qaytariladi.
 Fayl 60-runda yozilgan qoidadan kelib chiqadi: bitta chaqiruvda 15 ta
@@ -22,6 +23,26 @@ keyin `git status --porcelain` bilan tekshiring.
 Verdikt qoidasi `verdict()` da va u **qulflangan**
 (`tests/test_mut_harness.py`): `KILLED` faqat `rc == 1` da. 119-run
 aynan shu yerda yiqilgan — batafsili `verdict()` ning docstringida.
+
+## `reset` — nima uchun ixtiyoriy emas, majburiy (145-run)
+
+`requires_db` to'plami **o'zidan keyin tozalaydi**, lekin fikstyura
+teardown i xatoga chidamli emas: mutatsiya testni `error` ga olib kelsa
+(fikstyura o'rtasida yiqilsa) qatorlar bazada qoladi. Keyingi yurgizish
+esa **o'sha qoldiq** tufayli qizil bo'ladi — ya'ni undan keyingi har bir
+mutant `rc == 1` oladi va yolg'on `KILLED` deb yoziladi.
+
+145-run buni empirik ko'rdi: bir xil o'nta mutatsiya tiklashsiz
+**10 KILLED / 0 survivor**, tiklash bilan **2 KILLED / 8 survivor**
+berdi. Ya'ni qoldiq o'lchovni to'liq teskarisiga aylantiradi va bu 119
+va 126 dagi yolg'onlardan **jimroq**: chiqishda hech qanday xato
+ko'rinmaydi, faqat «hammasi ushlandi» degan xushxabar.
+
+Shuning uchun bazaga tegadigan har qanday nishon uchun `reset` beriladi
+— buyruq har mutatsiyadan **oldin** yuriladi va uning nolmas chiqish
+kodi o'lchov emas, xato. Tez retsept (145-run): shablon baza
+(`CREATE DATABASE sveta_tpl` + `alembic upgrade head`), keyin
+`DROP DATABASE sveta; CREATE DATABASE sveta TEMPLATE sveta_tpl` — 0.2 s.
 
 👤 Bu fayl 64-runda vaqtinchalik harness sifatida yaratilgan, lekin
 126-rundan boshlab **qoladi**: verdikt qoidasi tuzatildi va test bilan
@@ -51,8 +72,27 @@ def targets(spec: dict[str, str]) -> list[str]:
     return list(field) if isinstance(field, list) else field.split()
 
 
+def reset_state(spec: dict[str, str]) -> None:
+    """`reset` buyrug'i — mutatsiyadan **oldin** tashqi holatni tiklaydi.
+
+    Buyruq berilmasa hech narsa qilinmaydi (bazasiz nishonlar uchun).
+    Berilgan buyruq yiqilsa — bu o'lchov emas, **xato**: tiklanmagan
+    holat ustida olingan verdikt yolg'on `KILLED` bo'ladi (145-run,
+    modul docstringi).
+    """
+    command = spec.get("reset")
+    if not command:
+        return
+    done = subprocess.run(command, shell=True, cwd=ROOT, capture_output=True, text=True)  # noqa: S602
+    if done.returncode != 0:
+        raise MutationHarnessError(
+            f"`reset` yiqildi (rc={done.returncode}): {command}\n{done.stderr.strip()}"
+        )
+
+
 def apply_one(spec: dict[str, str]) -> tuple[bool, str]:
-    """Bitta mutatsiya: qo'lla → testni yurgiz → **albatta** qaytar."""
+    """Bitta mutatsiya: holatni tikla → qo'lla → testni yurgiz → **albatta** qaytar."""
+    reset_state(spec)
     path = ROOT / spec["file"]
     original = path.read_text(encoding="utf-8")
     # Qo'llanmagan mutatsiya — o'lchov emas. Ilgari bu ikki holat

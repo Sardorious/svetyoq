@@ -15,6 +15,7 @@ Bu yerdagi asosiy kafolatlar:
 
 from __future__ import annotations
 
+import asyncio
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -23,7 +24,7 @@ import pytest
 from sqlalchemy import text
 
 from app.db.session import session_scope
-from app.notifications import events, outbox, subscriptions
+from app.notifications import events, outbox, queries, subscriptions
 from app.notifications import service as notify
 from app.notifications.sender import NullSender, PermanentSendError, SendError
 
@@ -465,3 +466,202 @@ async def test_unknown_topic_is_dropped_not_retried(region_id) -> None:
         )
         report = await notify.process(session, row, sender=NullSender(), now=NOW)
         assert report.planned == 0 and report.complete is True
+
+
+# --- Navbatning qulflari (145-run mutatsiyasi) -----------------------------
+#
+# Quyidagi beshta test `app/notifications/outbox.py` ning mutatsiyada omon
+# qolgan xossalarini qulflaydi. Ularning hammasi bitta sinfdan: yuqoridagi
+# navbat testlari `claim` dan **qaysi qator qaytdi** degan savolga javob
+# beradi, lekin *qanday tartibda*, *nechtasi* va *kim bilan birga* degan
+# savollarga tegmaydi — ya'ni tartib, `limit` va qulf strategiyasi
+# o'lchanmagan edi.
+
+
+async def test_row_that_matures_exactly_now_is_claimed(region_id) -> None:
+    """`available_at <= now` — chegaraning **o'zi** navbatga kiradi.
+
+    `<` bo'lsa aynan yetilgan lahzadagi qator o'sha aylanishda
+    olinmasdi va butun `retry_later` narvoni bir sikl kechikardi
+    (`process_outbox` har 5 s da yuradi, ya'ni kechikish ko'zga
+    ko'rinmasdi). `test_claim_returns_only_mature_rows` buni
+    ko'rmaydi: u qatorni chegaradan bir daqiqa **narida** qo'yadi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        exact = await outbox.publish(
+            session,
+            topic=events.TOPIC_CONFIRMED,
+            payload=make_event(oid, region_id).as_payload(),
+            available_at=NOW,
+        )
+        claimed = {r.id for r in await outbox.claim(session, limit=50, now=NOW)}
+        assert exact in claimed
+
+
+async def test_queue_is_served_by_maturity_not_by_insertion_order(region_id) -> None:
+    """Tartib — `available_at`, keyin `id`; teskarisi emas.
+
+    `id` birinchi bo'lsa navbat **yozilish** tartibida yurardi:
+    `retry_later` kechiktirgan eski qator o'zidan keyin yozilgan yangi
+    qatorni to'sib qo'yardi va `limit` kichik bo'lganda yangi hodisa
+    haqidagi bildirishnoma nosozlik tugaguncha kutardi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        payload = make_event(oid, region_id).as_payload()
+        # Avval yoziladi (`id` kichik), lekin kechroq yetiladi.
+        late = await outbox.publish(
+            session, topic=events.TOPIC_CONFIRMED, payload=payload,
+            available_at=NOW - timedelta(minutes=1),
+        )
+        early = await outbox.publish(
+            session, topic=events.TOPIC_CONFIRMED, payload=payload,
+            available_at=NOW - timedelta(minutes=5),
+        )
+        assert early > late  # ya'ni `id` va `available_at` teskari tartibda
+        order = [r.id for r in await outbox.claim(session, limit=50, now=NOW)]
+        assert order.index(early) < order.index(late)
+
+
+async def test_claim_never_returns_more_than_the_limit(region_id) -> None:
+    """`limit` — `process_outbox` ning bitta aylanishdagi ish hajmi.
+
+    E'tiborsiz qolsa butun navbat bitta tranzaksiyada `FOR UPDATE`
+    bilan bloklanardi: uzoq nosozlikdan keyin to'plangan minglab qator
+    bitta aylanishga tushib, ulanish va qulf butun sikl davomida ushlab
+    turilardi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        payload = make_event(oid, region_id).as_payload()
+        for _ in range(4):
+            await outbox.publish(
+                session, topic=events.TOPIC_CONFIRMED, payload=payload,
+                available_at=NOW - timedelta(minutes=1),
+            )
+        assert len(await outbox.claim(session, limit=2, now=NOW)) == 2
+
+
+async def test_second_worker_skips_locked_rows_instead_of_waiting(region_id) -> None:
+    """`SKIP LOCKED` — ikkita `jobs` konteyneri bir-birini kutmaydi (`05` §2.4).
+
+    Qulf strategiyasi **xulq-atvor** bilan o'lchanadi, manba matni bilan
+    emas: birinchi sessiya qatorni bloklab turganda ikkinchisi darhol
+    (`wait_for` bilan o'lchanadigan vaqt ichida) **bo'sh** qaytishi
+    kerak. `skip_locked=False` bo'lsa ikkinchi sessiya birinchisining
+    `commit` ini kutib qotib qolardi va bu yerda `TimeoutError` bo'lib
+    ko'rinadi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        await outbox.publish(
+            session,
+            topic=events.TOPIC_CONFIRMED,
+            payload=make_event(oid, region_id).as_payload(),
+            available_at=NOW - timedelta(minutes=1),
+        )
+
+    async with session_scope() as holder:
+        held = await outbox.claim(holder, limit=50, now=NOW)
+        assert held, "birinchi ishchi qatorni oldi"
+        async with session_scope() as rival:
+            second = await asyncio.wait_for(
+                outbox.claim(rival, limit=50, now=NOW), timeout=5
+            )
+        assert second == []
+
+
+async def test_mark_processed_does_not_move_an_already_closed_row(region_id) -> None:
+    """Idempotentlik — takroriy chaqiruv **vaqtni qayta yozmaydi**.
+
+    `processed_at IS NULL` qorovuli tushsa at-least-once yetkazishda
+    normal bo'lgan takroriy chaqiruv qatorning yopilish vaqtini
+    surardi: `outbox` yagona yetkazish jurnali, ya'ni «qachon
+    yopildi» tarixiy fakt. `test_processed_row_is_not_claimed_again`
+    buni ko'rmaydi — u faqat qator qaytmasligini tekshiradi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        message_id = await outbox.publish(
+            session,
+            topic=events.TOPIC_CONFIRMED,
+            payload=make_event(oid, region_id).as_payload(),
+        )
+        await outbox.mark_processed(session, message_id, now=NOW)
+        await outbox.mark_processed(session, message_id, now=NOW + timedelta(hours=1))
+        closed = await session.execute(
+            text("SELECT processed_at FROM outbox WHERE id = :id"), {"id": message_id}
+        )
+        assert closed.scalar_one() == NOW
+
+
+# --- Hisobot so'rovlari (`app/notifications/queries.py`) --------------------
+
+
+async def test_status_counts_include_the_first_moment_of_the_window(region_id) -> None:
+    """Davr **yarim ochiq**: `[since, until)`.
+
+    Ikkala chegara ham mutatsiyada omon qolgan edi — mavjud testlar
+    yuborishni oynaning **ichiga**, chegaradan uzoqqa qo'yardi. Farq
+    faqat aynan yarim tunda yuborilgan bildirishnomada ko'rinadi:
+    `>` bo'lsa u hech qaysi kunning hisobotiga tushmaydi, `<=` bo'lsa
+    **ikkalasiga** tushadi va kunlik hisobotlar yig'indisi jami
+    yuborishdan ko'p chiqadi.
+    """
+    since = NOW.replace(hour=0, minute=0, second=0, microsecond=0)
+    until = since + timedelta(days=1)
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        uid = await make_user(session, region_id)
+        await session.execute(
+            text(
+                "INSERT INTO notifications (id, user_id, outage_id, region_id, "
+                "status, sent_at) VALUES (:id, :uid, :oid, :rid, 'sent', :ts)"
+            ),
+            {"id": uuid.uuid4(), "uid": uid, "oid": oid, "rid": region_id, "ts": since},
+        )
+        counts = await queries.status_counts_between(session, since=since, until=until)
+        assert counts.get("sent") == 1
+
+        previous = await queries.status_counts_between(
+            session, since=since - timedelta(days=1), until=since
+        )
+        assert previous.get("sent") is None
+
+
+async def test_status_counts_exclude_the_closing_moment(region_id) -> None:
+    """Oynaning o'ng uchi — `<`, ya'ni `until` ning o'zi keyingi kunniki."""
+    since = NOW.replace(hour=0, minute=0, second=0, microsecond=0)
+    until = since + timedelta(days=1)
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        uid = await make_user(session, region_id)
+        await session.execute(
+            text(
+                "INSERT INTO notifications (id, user_id, outage_id, region_id, "
+                "status, sent_at) VALUES (:id, :uid, :oid, :rid, 'sent', :ts)"
+            ),
+            {"id": uuid.uuid4(), "uid": uid, "oid": oid, "rid": region_id, "ts": until},
+        )
+        counts = await queries.status_counts_between(session, since=since, until=until)
+        assert counts == {}
+
+
+async def test_pending_outbox_count_counts_the_queue_not_the_history(region_id) -> None:
+    """`pending_outbox_count` — **yopilmagan** qatorlar (E13-a signali).
+
+    `IS NOT NULL` ga aylansa metrika teskari ma'no olardi va eng yomon
+    holatda — `jobs` konteyneri umuman ishlamayotganda — navbat o'sib
+    borsa ham hisobot `0` ko'rsatardi (ishlangan qator yo'q), ya'ni
+    signal aynan kerak bo'lgan paytda o'chib qolardi.
+    """
+    async with session_scope() as session:
+        oid = await make_outage(session, region_id)
+        payload = make_event(oid, region_id).as_payload()
+        closed = await outbox.publish(session, topic=events.TOPIC_CONFIRMED, payload=payload)
+        await outbox.mark_processed(session, closed, now=NOW)
+        before = await queries.pending_outbox_count(session)
+        await outbox.publish(session, topic=events.TOPIC_CONFIRMED, payload=payload)
+        after = await queries.pending_outbox_count(session)
+        assert after == before + 1
