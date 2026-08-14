@@ -9,7 +9,9 @@ qator joyida, nom joyida, faqat holat bir pog'ona yaxshiroq.
 
 from __future__ import annotations
 
+import ast
 import dataclasses
+import inspect
 
 import pytest
 
@@ -335,3 +337,265 @@ async def test_bound_row_has_no_near_in_the_response(client, monkeypatch) -> Non
         for row in stage["measures"]:
             if row["bound"] is not None:
                 assert row["near"] == [], row["code"]
+
+
+# --------------------------------------------------------------------------
+# Qorovulning xabari (162-run)
+# --------------------------------------------------------------------------
+#
+# Yuqoridagi to'qqizta qorovul testi `pytest.raises(ValueError)` bilan
+# yozilgan, ya'ni ular **yiqilish faktini** tekshiradi, sababini emas.
+# `_check_registry` esa import paytida yuradi va uning yagona o'quvchisi —
+# reyestrni yozayotgan odam ko'radigan matn. 162-run to'qqizala xabarni
+# mutatsiya bilan buzdi va **bittasi ham** sezilmadi.
+#
+# `match=` bu yerda yetarli emas: u `re.search`, ya'ni `takrorlangan_x`
+# ham `match="takrorlangan"` ni qanoatlantiradi (161-run sabog'i, ikkinchi
+# marta). Shuning uchun xabar **butunlay** solishtiriladi.
+
+
+def _raise_message(monkeypatch, *, measures=(), stages=()) -> str:
+    """Reyestrni buzib, `_check_registry` ning xabarini qaytaradi."""
+    if measures:
+        monkeypatch.setattr(m, "MEASURES", (*m.MEASURES, *measures))
+    if stages:
+        monkeypatch.setattr(m, "STAGES", (*m.STAGES, *stages))
+    with pytest.raises(ValueError) as failure:
+        m._check_registry()
+    return str(failure.value)
+
+
+_OUTAGES_OPEN = m.Binding(m.Source.METRIC, "outages_open")
+
+
+@pytest.mark.parametrize(
+    ("broken", "expected"),
+    [
+        (
+            dataclasses.replace(m.MEASURES[0]),
+            "ko'rsatkich kodi takrorlangan: ['deploy_frequency']",
+        ),
+        (
+            m.Measure("x", "nowhere", m.Coverage.EXTERNAL),
+            "notanish bosqich: ['nowhere']",
+        ),
+        (
+            m.Measure("x", "r10", m.Coverage.MEASURED),
+            "`x`: MEASURED, lekin manbasi yo'q",
+        ),
+        (
+            m.Measure("x", "r10", m.Coverage.ABSENT, bound=_OUTAGES_OPEN),
+            "`x`: manbasi bor, lekin MEASURED emas",
+        ),
+        (
+            m.Measure(
+                "x",
+                "r10",
+                m.Coverage.MEASURED,
+                bound=_OUTAGES_OPEN,
+                near=(m.Binding(m.Source.METRIC, "reports_received_total"),),
+            ),
+            "`x`: MEASURED da `near` bo'lmaydi",
+        ),
+        (
+            m.Measure("x", "r10", m.Coverage.ABSENT, near=(m.Binding(m.Source.METRIC, "nope"),)),
+            "`x`: `05` §10 da bunday metrika yo'q — nope",
+        ),
+        (
+            m.Measure("x", "r10", m.Coverage.ABSENT, near=(m.Binding(m.Source.GATE, "nope"),)),
+            "`x`: `03` §6 da bunday mezon yo'q — nope",
+        ),
+        (
+            m.Measure(
+                "x", "r10", m.Coverage.MEASURED, bound=m.Binding(m.Source.STATS, "app.stats")
+            ),
+            "`x`: `stats` havolasi `modul:atribut` bo'lishi kerak",
+        ),
+        (
+            m.Measure("x", "r10", m.Coverage.MEASURED, bound=m.Binding(m.Source.NONE, "")),
+            "`x`: bog'lanishda `Source.NONE` ishlatilmaydi",
+        ),
+    ],
+    ids=[
+        "duplicate",
+        "unknown-stage",
+        "measured-without-source",
+        "gap-with-source",
+        "measured-with-near",
+        "unknown-metric",
+        "unknown-gate",
+        "stats-shape",
+        "source-none",
+    ],
+)
+def test_every_guard_says_exactly_what_broke(monkeypatch, broken, expected: str) -> None:
+    assert _raise_message(monkeypatch, measures=(broken,)) == expected
+
+
+def test_the_empty_stage_guard_says_which_stage(monkeypatch) -> None:
+    """Yagona qorovul — u qatordan emas, **bosqichdan** kelib chiqadi."""
+    message = _raise_message(monkeypatch, stages=(m.Stage("r30"),))
+    assert message == "bosqich ko'rsatkichsiz: ['r30']"
+
+
+def test_a_second_copy_is_enough_to_trip_the_duplicate_guard(monkeypatch) -> None:
+    """Chegara `> 1`, `> 2` emas.
+
+    `> 2` bilan **ikkita** bir xil kod jimgina o'tardi, uchtasi esa
+    ushlanardi — ya'ni eng ehtimolli xato (nusxa-joylash) aynan
+    ko'rinmas bo'lardi.
+    """
+    copy = dataclasses.replace(m.MEASURES[0])
+    assert "takrorlangan" in _raise_message(monkeypatch, measures=(copy,))
+
+
+def test_the_registry_check_actually_runs_at_import() -> None:
+    """Modul satrining **o'zi** qulflanadi.
+
+    §«Reyestr» dagi o'nala test qorovulni **o'zi** chaqiradi, ya'ni
+    `_check_registry()` satri modul oxiridan o'chirilsa hammasi
+    baribir yashil qolardi — va buzuq reyestrni yozayotgan odam hech
+    qanday ogohlantirish olmasdi. Shu sababdan tekshiruv matn
+    darajasida, `ast` bilan.
+    """
+    tree = ast.parse(inspect.getsource(m))
+    calls = [
+        node.value.func.id
+        for node in tree.body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+    ]
+    assert "_check_registry" in calls, "reyestr import paytida tekshirilmayapti"
+
+
+# --------------------------------------------------------------------------
+# Lug'at (162-run)
+# --------------------------------------------------------------------------
+#
+# `StrEnum` qiymatlari `GET /api/v1/admin/measures` javobiga **kod**
+# bo'lib chiqadi (`row["coverage"] == "absent"` yuqorida qulflangan) va
+# `Binding.__str__` orqali `metric:…` satriga kiradi. Ya'ni ular
+# tashqi kontrakt. Bittasidan boshqasi hech qayerda tekshirilmasdi.
+
+
+def test_source_values_are_locked() -> None:
+    assert {s.name: str(s) for s in m.Source} == {
+        "METRIC": "metric",
+        "STATS": "stats",
+        "GATE": "gate",
+        "NONE": "none",
+    }
+
+
+def test_coverage_values_are_locked() -> None:
+    assert {c.name: str(c) for c in m.Coverage} == {
+        "MEASURED": "measured",
+        "DERIVABLE": "derivable",
+        "ABSENT": "absent",
+        "EXTERNAL": "external",
+    }
+
+
+def test_coverage_is_a_string_enum() -> None:
+    """`str` merosi tasodif emas — `counts` kalitlari va javob shu qiymat."""
+    assert issubclass(m.Coverage, str)
+    assert issubclass(m.Source, str)
+
+
+# --------------------------------------------------------------------------
+# Reyestrning surati (162-run)
+# --------------------------------------------------------------------------
+#
+# Havolalarning **mavjudligi** tekshirilardi, **to'g'riligi** — yo'q:
+# `moderation_sla` ning `near` i boshqa mavjud gate ga ko'chsa,
+# `answer_p90` ning ikkinchi havolasi tushib qolsa, `api_p95` boshqa
+# metrikaga bog'lansa — hech narsa qizil bo'lmasdi. Mavjudlik tekshiruvi
+# test emas (159-run sabog'i, uchinchi marta), shuning uchun jadval
+# **literal** yoziladi: qator o'zgarsa, u ataylab o'zgartiriladi.
+
+REGISTRY: dict[str, tuple[str, str, str | None, tuple[str, ...]]] = {
+    "deploy_frequency": ("m0_r03", "external", None, ()),
+    "pipeline_duration": ("m0_r03", "external", None, ()),
+    "matching_reports": (
+        "pilot",
+        "derivable",
+        None,
+        ("metric:geo_unmatched_ratio", "gate:confirmable_share"),
+    ),
+    "reported_area_share": ("pilot", "absent", None, ("gate:reported_area_share",)),
+    "answer_p90": (
+        "r10",
+        "absent",
+        None,
+        ("metric:time_to_confirm_seconds", "gate:answer_p90"),
+    ),
+    "map_refresh_lag": ("r10", "measured", "metric:snapshot_age_seconds", ()),
+    "notify_delivery_time": (
+        "r11",
+        "derivable",
+        None,
+        ("metric:outbox_lag_seconds", "gate:notify_delivery_p90"),
+    ),
+    "unsubscribe_share": ("r11", "derivable", None, ()),
+    "aggregate_diff": (
+        "r12",
+        "measured",
+        "stats:app.stats.aggregate:Aggregation.reconciles",
+        (),
+    ),
+    "coverage_distribution": (
+        "r12",
+        "measured",
+        "stats:app.stats.mahalla_coverage:MahallaCoverage.bands",
+        (),
+    ),
+    "api_p95": ("r20", "measured", "metric:http_request_duration_seconds", ()),
+    "external_consumers": ("r20", "absent", None, ()),
+    "moderation_sla": ("always", "absent", None, ("gate:moderation_sla",)),
+    "autoconfirm_share": ("always", "absent", None, ()),
+}
+
+
+def test_the_registry_matches_the_locked_table() -> None:
+    seen = {
+        x.code: (
+            x.stage,
+            str(x.coverage),
+            str(x.bound) if x.bound is not None else None,
+            tuple(str(n) for n in x.near),
+        )
+        for x in m.MEASURES
+    }
+    assert seen == REGISTRY
+
+
+def test_the_registry_keeps_the_document_order() -> None:
+    """Literal jadval `dict`, ya'ni tartibni alohida qulflaymiz."""
+    assert [x.code for x in m.MEASURES] == list(REGISTRY)
+
+
+# --------------------------------------------------------------------------
+# Hisobotning shakli (162-run)
+# --------------------------------------------------------------------------
+
+
+def test_binding_is_frozen_and_hashable() -> None:
+    """`Binding` — qiymat: u `in measure.near` da va to'plamlarda ishlatiladi."""
+    binding = m.Binding(m.Source.METRIC, "outages_open")
+    assert len({binding, m.Binding(m.Source.METRIC, "outages_open")}) == 1
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        binding.ref = "boshqa"  # type: ignore[misc]
+
+
+def test_first_gap_walks_the_stage_order_not_the_row_order() -> None:
+    """`first_gap` tashqi tsikli — bosqichlar, ichkisi — qatorlar.
+
+    `evaluate()` hisobotni allaqachon saralab beradi, ya'ni bugun
+    ikkala yo'l bir xil javob qaytaradi va bosqich sharti butunlay
+    tushib qolsa ham hech narsa qizil bo'lmasdi. Hisobotni **qo'lda**
+    teskari tartibda yig'ish ikkalasini ajratadi.
+    """
+    late = m.Measure("late", "always", m.Coverage.ABSENT)
+    early = m.Measure("early", "r10", m.Coverage.ABSENT)
+    assert m.MeasureReport(measures=(late, early)).first_gap is early

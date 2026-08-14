@@ -825,3 +825,187 @@ def test_accuracy_needs_all_three_conditions(report: ch.Report) -> None:
         undeclared=(),
     )
     assert held_only.accurate is True
+
+
+# ---------------------------------------------------------------------------
+# 12. Parserning o'lchanmagan qorovullari (149-run, mutatsiya)
+#
+# Yuqoridagi o'n bir bo'lim §19 ning **bugungi** matnini o'qiydi va u
+# to'g'ri o'qilayotganini isbotlaydi. 149-run ning mutatsiya o'lchovi
+# (28 mutatsiya → 19 KILLED, 9 SURVIVOR) shuni ko'rsatdi: aynan shu
+# sabab parserning qorovullari o'lchanmay qolgan. Har qorovul hujjat
+# **o'zgarganda** otiladi, bugungi matnda esa jim turadi — ya'ni uni
+# olib tashlash birorta testni yiqitmasdi va §19 ning keyingi tahriri
+# jimgina noto'g'ri o'qilardi.
+#
+# Survivorlarning sinfi bitta: **bugungi hujjat qorovulni otdirmaydi.**
+# Ular tuzatilmaydi (qorovullar joyida), ular **o'lchanadi**.
+# ---------------------------------------------------------------------------
+
+
+def test_the_section_heading_must_end_at_the_line() -> None:
+    """`_SECTION_RE` ning `$` anchori (149-run, mutatsiya M01).
+
+    Ansiz `## 19. Notifications и оповещения` ham «§19» deb o'qilardi.
+    Bugun hujjatda bunday sarlavha yo'q, ya'ni farq ko'rinmaydi —
+    lekin `01` ga bo'lim nomi kengaytirilib qo'yilsa, parser boshqa
+    bo'limni §19 deb o'qib, reyestrni **jimgina** boshqa jadval bilan
+    solishtirardi.
+    """
+    doc = SYNTHETIC.replace("## 19. Notifications", "## 19. Notifications и оповещения")
+    with pytest.raises(ValueError, match="bo'lim topilmadi"):
+        ch.section_text(doc)
+
+
+def test_the_section_ends_only_at_the_next_numbered_section() -> None:
+    """Chegarasi — **raqamli** `##`, har qanday sarlavha emas (M02).
+
+    `^##\\s+\\d+\\.` dan raqamni olib tashlash `###` kichik bo'limini
+    ham chegara qilardi: §19 ga bitta `### 19.1` qo'shilishi bilan
+    yetkazish qoidasi paragrafi bo'limdan tashqarida qolar va
+    `parse_table` «qoida topilmadi» deb yiqilardi — sabab esa
+    hujjatning **formatida**, mazmunida emas.
+    """
+    doc = SYNTHETIC.replace(
+        "\n---\n\n## 20. Security",
+        "\n### 19.1. Порядок доставки\n\nОповещение уходит один раз.\n\n---\n\n## 20. Security",
+    )
+    body = ch.section_text(doc)
+    assert "19.1" in body
+    assert "один раз" in body
+    assert "Security" not in body
+
+
+def test_the_inherited_radius_is_read_from_its_own_phrase() -> None:
+    """Meros radius «N м Ташкента» dan, har qanday metrdan emas (M03).
+
+    `\\s+Ташкента` ni olib tashlash regexni paragrafdagi **birinchi**
+    metr soniga bog'lardi. Aynan shu son `test_the_shipped_default_is_
+    still_the_inherited_number` da `bootstrap()` bilan solishtiriladi,
+    ya'ni noto'g'ri o'qilgan son «kalibrlash bo'ldi» degan yolg'on
+    xulosa berardi.
+    """
+    doc = SYNTHETIC.replace(
+        "**Радиус подлежит калибровке отдельно** — 500 м Ташкента.",
+        "Минимальный радиус — 100 м. "
+        "**Радиус подлежит калибровке отдельно** — 500 м Ташкента.",
+    )
+    assert ch.parse_table(doc).baseline_radius_m == 500
+
+
+def test_a_second_table_after_the_rule_is_rejected() -> None:
+    """Qoida paragrafidan keyingi jadval — to'xtash sababi (M06).
+
+    Qorovul bor, lekin uni otdiradigan hujjat yo'q edi. Usiz
+    ikkinchi jadvalning qatorlari birinchisiga **qo'shilib** ketardi
+    va `rule_text` o'sha ikkinchi jadvalgacha bo'lgan matndan
+    yig'ilardi: reyestr «baholanmagan kanal» deb yiqilishi ham,
+    yiqilmasligi ham mumkin — natija ikkinchi jadvalning mazmuniga
+    bog'liq bo'lardi.
+    """
+    doc = SYNTHETIC.replace(
+        "\n---\n\n## 20. Security",
+        "\n| Гамма | MVP | Третий |\n\n---\n\n## 20. Security",
+    )
+    with pytest.raises(ValueError, match="yana jadval bor"):
+        ch.parse_table(doc)
+
+
+def test_a_header_missing_a_column_is_rejected() -> None:
+    """Notanish ustun o'lchangan edi, **yo'q** ustun — yo'q (M07).
+
+    Ikkala tekshiruv bir joyda yozilgan va bir xil ko'rinadi, lekin
+    ular har xil xatoni ushlaydi. `missing` siz sarlavhasi qisqargan
+    jadval `KeyError` bilan yiqilardi — ya'ni `ValueError` bilan
+    yozilgan barcha diagnostika chetlab o'tilardi va xabar hujjatning
+    qaysi ustuni yo'qolganini aytmasdi.
+    """
+    doc = SYNTHETIC.replace(
+        "| Канал | Статус в регионе | Обоснование |\n|---|---|---|\n"
+        "| Альфа | MVP | Первый |\n| Бета | Не входит | Второй |",
+        "| Канал | Обоснование |\n|---|---|\n| Альфа | Первый |\n| Бета | Второй |",
+    )
+    with pytest.raises(ValueError, match=r"ustun\(lar\) yo'q"):
+        ch.parse_table(doc)
+
+
+def test_a_ragged_row_names_both_counts() -> None:
+    """Qator uzunligi qorovuli — **diagnostika** darajasidagi qulf (M09).
+
+    Bu yagona survivor, u xatti-harakatni emas, **xabarni** ushlaydi:
+    qorovulsiz ham `dict(zip(..., strict=True))` `ValueError` beradi,
+    ya'ni tur bo'yicha mutant ekvivalent. Farq o'quvchida: `zip()
+    argument 2 is shorter than argument 1` hujjatni tahrirlagan
+    odamga hech narsa demaydi, «qatorda 2 katakcha, sarlavhada 3»
+    esa aynan qaysi qator buzilganini aytadi.
+    """
+    doc = SYNTHETIC.replace("| Бета | Не входит | Второй |", "| Бета | Не входит |")
+    with pytest.raises(ValueError, match="qatorda 2 katakcha, sarlavhada 3"):
+        ch.parse_table(doc)
+
+
+def test_a_wrapped_rule_paragraph_keeps_its_words_apart() -> None:
+    """Qoida paragrafi bo'shliq bilan yig'iladi (M12).
+
+    Bugun paragraf bir qatorda, shuning uchun `" ".join` ham,
+    `"".join` ham bir xil natija beradi. Hujjatda qator ko'chirilishi
+    bilan esa `RULE_CLAUSES` ning uchala iqtibosi ham topilmay qolardi
+    va `build_report` §19 ni «qoida buzilgan» deb yiqitardi —
+    matnning **mazmuni** o'zgarmagan holda.
+    """
+    doc = SYNTHETIC.replace(
+        "Правило доставки: при подтверждённом инциденте в радиусе подписки.",
+        "Правило доставки: при подтверждённом\nинциденте в радиусе подписки.",
+    )
+    parsed = ch.parse_table(doc)
+    assert "при подтверждённом инциденте" in parsed.rule_text
+    assert "в радиусе подписки" in parsed.rule_text
+
+
+@pytest.mark.parametrize(
+    ("surfaced_as", "carries"),
+    [
+        ("web/index.html:banner", None),
+        (None, "нечто"),
+    ],
+)
+def test_a_lone_artifact_field_without_surfaced_is_rejected(
+    surfaced_as: str | None, carries: str | None
+) -> None:
+    """Artefakt maydonlari `SURFACED` siz **alohida** ham taqiqlanadi (M16).
+
+    `test_an_artifact_without_surfaced_is_rejected` ikkalasini birga
+    to'ldiradi, ya'ni `or` ni `and` ga aylantirish sezilmasdi. Narxi:
+    `DELIVERS` deb belgilangan kanalga yarim artefakt yozib qo'yish
+    mumkin bo'lardi — «banner bor» degan gap `Reach` ni tekshirmasdan
+    reyestrda qolardi va `SURFACED` ning butun ma'nosi yo'qolardi.
+    """
+    assessment = ch.Assessment(
+        channel="Х",
+        reach=Reach.DELIVERS,
+        standing=Standing.UNHELD,
+        evidence=("app.notifications.channels:SPEC",),
+        surfaced_as=surfaced_as,
+        carries=carries,
+        why="izoh " * 40,
+    )
+    with pytest.raises(ValueError, match="artefakt ko'rsatilgan"):
+        ch.assess(_row("Х", "MVP"), assessment)
+
+
+def test_a_clause_without_evidence_stops_the_report(
+    prd: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Iqtibos topilishi yetarli emas — banddagi dalil ham shart (M25).
+
+    `test_every_clause_is_quoted_from_the_document` faqat iqtibosni
+    o'lchaydi. Dalil tekshiruvisiz qoidaga yangi band **bo'sh**
+    `evidence` bilan qo'shilishi mumkin bo'lardi: hujjat bandi
+    ro'yxatga tushardi, uni bajaradigan kod esa ko'rsatilmasdi — ya'ni
+    reyestr «uchala band ham bajarilyapti» deb ko'rinardi.
+    """
+    quoted = ch.RULE_CLAUSES[0]
+    naked = ch.RuleClause(quote=quoted.quote, evidence=(), why=quoted.why)
+    monkeypatch.setattr(ch, "RULE_CLAUSES", (naked,))
+    with pytest.raises(ValueError, match="uchun dalil yo'q"):
+        ch.build_report(prd)

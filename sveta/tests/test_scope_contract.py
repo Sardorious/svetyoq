@@ -728,3 +728,251 @@ def test_accuracy_has_three_independent_conditions() -> None:
 def test_unsound_warrants_are_exactly_the_two() -> None:
     report = scope.evaluate()
     assert {i.code for i in report.unsound_warrants} == {"S-1", "S-6"}
+
+
+# --------------------------------------------------------------------------
+# 11. Qorovulning otilmagan tarmoqlari va hisobotning shakli (154-run)
+# --------------------------------------------------------------------------
+#
+# 154-run `scope.py` ga 39 mutatsiya qo'ydi: 22 KILLED, 17 SURVIVOR.
+# Survivorlar ikki oilaga tushdi va ikkalasi ham 152/153 ning sinfi:
+# (a) `_check_registry` ning **bugungi reyestr to'g'ri bo'lgani uchun
+# otilmaydigan** tarmoqlari — ularni zaiflashtirish butun to'plamni
+# yashil qoldirardi; (b) hisobotning **shakli** — o'qlar lug'ati va
+# `accurate` ning uchta shartini bir vaqtda emas, birma-bir o'lchash.
+# Quyidagi qatlam o'shalarni qulflaydi. Har testning nomi u to'sadigan
+# xatoni aytadi, mutatsiya ID sini emas.
+
+
+def _check_with(monkeypatch: pytest.MonkeyPatch, **patched: object) -> None:
+    """Reyestrni vaqtincha almashtirib, ichki tekshiruvni qayta chaqir."""
+    for name, value in patched.items():
+        monkeypatch.setattr(scope, name, value)
+    scope._check_registry()
+
+
+def _items_with(code: str, **patch: object) -> tuple[scope.ScopeItem, ...]:
+    victim = replace(_item(code), **patch)
+    return tuple(victim if i.code == code else i for i in scope.ITEMS)
+
+
+@pytest.mark.parametrize("code", ["S-2", "S-5", "S-6"])
+@pytest.mark.parametrize("warrant", [scope.Warrant.PROSE, scope.Warrant.FOREIGN])
+def test_a_horizon_may_not_hang_on_an_unresolved_warrant(
+    monkeypatch: pytest.MonkeyPatch, code: str, warrant: scope.Warrant
+) -> None:
+    """Gorizont — **yechilgan** havolaning hosilasi, mustaqil maydon emas.
+
+    `warrant_phase` `01` §3 dan parse qilinadi, ya'ni u faqat hujjatda
+    manzili bor havolada ma'noga ega. Nasriy yoki begona asosda turgan
+    gorizont — o'lchanmagan raqam: uni hech kim §3 bilan solishtira
+    olmaydi, `MISDATED` hukmi esa baribir hisoblanaverardi.
+    """
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, ITEMS=_items_with(code, warrant=warrant))
+
+
+@pytest.mark.parametrize("code", ["S-2", "S-5"])
+def test_misdated_is_rejected_from_the_early_side_too(
+    monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    """Hukm ikki tomonlama: kech gorizont ham, erta gorizont ham.
+
+    `S-6` (Ph.2) `MISDATED` **bo'lishi shart** — buni
+    `test_misdated_is_derived_from_the_horizon` o'lchaydi. Teskarisi
+    esa o'lchanmagan edi: MVP ning o'z fazasida (Ph.0/Ph.1) turgan
+    qatorga `MISDATED` yozib qo'yish reyestrni «asos kechikkan» deb
+    ko'rsatardi va hisobotning `unsound_warrants` ro'yxatiga sababsiz
+    qator qo'shardi.
+    """
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, ITEMS=_items_with(code, warrant=scope.Warrant.MISDATED))
+
+
+@pytest.mark.parametrize("code", ["F-2", "O-3", "O-4"])
+def test_an_absent_row_may_not_be_called_hollow(
+    monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    """`HOLLOW` — «qurilgan, lekin to'liq emas», ya'ni dalil talab qiladi.
+
+    Repoda hech narsasi yo'q qator (`ABSENT`) dalil ko'rsatib turib
+    «ichkarisi bo'sh» deb belgilansa, hisobotning `hollow` ro'yxati
+    MVP ning bajarilmagan qatorlari bilan `Out of Scope` ning kuzatuv
+    havolalarini bitta ro'yxatga qo'shib yuborardi.
+    """
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, ITEMS=_items_with(code, fence=scope.Fence.HOLLOW))
+
+
+@pytest.mark.parametrize("code", ["S-1", "S-2", "S-5", "S-8", "F-4"])
+def test_every_witnessed_class_needs_evidence_not_only_built(
+    monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    """Dalil talabi `BUILT` ga emas, **`ABSENT` dan boshqa hammasiga**.
+
+    `PARTIAL`, `DISPLACED`, `UNREACHABLE` va `EXTERNAL` — aynan shu
+    to'rt sinf uchun «repo nima qilgan» degan savol qiyin, ya'ni
+    dalilsiz baho eng oson shu yerda yashirinadi.
+    """
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, ITEMS=_items_with(code, binds=()))
+
+
+def test_unlisted_codes_are_unique_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Teskari yo'nalish ham reyestr: nusxa kod qatorni jimgina yutadi."""
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, UNLISTED=scope.UNLISTED + (scope.UNLISTED[0],))
+
+
+def test_a_listed_row_can_never_reach_the_misdated_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`MISDATED` sikli nima uchun `Standing` ni tekshirmaydi.
+
+    Sikl uchala ro'yxatning qatorlaridan o'tadi, lekin `LATER`/`OUT`
+    qatori u yerga **yeta olmaydi**: ustun yo'q → `Warrant.NONE`, va
+    gorizont bilan birga `NONE` yuqoridagi qorovulda to'xtatiladi.
+    Ya'ni siklga `standing` sharti qo'shish — ekvivalent o'zgarish, va
+    bu test o'sha ekvivalentlikning dalili (154-run).
+    """
+    with pytest.raises(scope.ScopeError):
+        _check_with(monkeypatch, ITEMS=_items_with("F-1", warrant_phase="Ph.2"))
+
+
+def test_standings_touched_counts_only_the_blocked_rows() -> None:
+    """«Nechta ro'yxatga tegadi» — **bloklangan** qatorlarning xossasi.
+
+    Bosh topilmaning kuchi shunda: bitta yo'q mexanizm uchala
+    ro'yxatga ham tegadi. Agar hisob butun reyestrdan olinsa, javob
+    har doim «uchchala» bo'lardi va topilma o'z ma'nosini yo'qotardi —
+    bugungi qiymat esa o'zgarmagani uchun buni hech kim sezmasdi.
+    """
+    mixed = scope.ScopeReport(items=(_item("S-7"), _item("F-1")), unlisted=())
+    assert [i.code for i in mixed.blocked_by_missing_source_path] == ["S-7"]
+    assert mixed.standings_touched == frozenset({scope.Standing.IN})
+
+    report = scope.evaluate()
+    assert report.standings_touched == frozenset(scope.Standing)
+
+
+def test_boundaries_need_both_sides_separately() -> None:
+    """`boundaries_hold` — kon'yunksiya; bugun ikkala tomon ham buzilgan.
+
+    Aynan shuning uchun `and` ni `or` ga almashtirish bugungi javobni
+    o'zgartirmaydi: `False or False` ham `False`. Bir tomoni tuzalgan
+    kuni esa hisobot chegarani «ushlab turibdi» deb yozardi.
+    """
+    crossed_only = scope.ScopeReport(items=(_item("F-5"),), unlisted=())
+    assert crossed_only.crossed and not crossed_only.hollow
+    assert crossed_only.boundaries_hold is False
+
+    hollow_only = scope.ScopeReport(items=(_item("S-1"),), unlisted=())
+    assert hollow_only.hollow and not hollow_only.crossed
+    assert hollow_only.boundaries_hold is False
+
+    held_only = scope.ScopeReport(items=(_item("S-3"),), unlisted=())
+    assert held_only.boundaries_hold is True
+
+
+def _clean_items() -> tuple[scope.ScopeItem, ...]:
+    return tuple(
+        replace(i, fence=scope.Fence.HELD, warrant=scope.Warrant.PROSE)
+        if i.standing is scope.Standing.IN
+        else replace(i, fence=scope.Fence.HELD)
+        for i in scope.ITEMS
+    )
+
+
+def test_accuracy_conditions_are_measured_one_at_a_time() -> None:
+    """Uchala shart alohida-alohida `accurate` ni yiqitadi.
+
+    `test_accuracy_has_three_independent_conditions` uchalasini bir
+    vaqtda tuzatadi, ya'ni bittasini shartdan olib tashlash o'sha
+    testdan o'tardi. Bu yerda har bir shart **yolg'iz** buziladi.
+    """
+    clean = _clean_items()
+    assert scope.ScopeReport(items=clean, unlisted=()).accurate is True
+
+    only_fence = scope.ScopeReport(
+        items=(replace(clean[0], fence=scope.Fence.HOLLOW), *clean[1:]),
+        unlisted=(),
+    )
+    assert only_fence.unsound_warrants == ()
+    assert only_fence.unlisted == ()
+    assert only_fence.boundaries_hold is False
+    assert only_fence.accurate is False
+
+    only_warrant = scope.ScopeReport(
+        items=(replace(clean[0], warrant=scope.Warrant.MISDATED), *clean[1:]),
+        unlisted=(),
+    )
+    assert only_warrant.boundaries_hold is True
+    assert only_warrant.unlisted == ()
+    assert {i.code for i in only_warrant.unsound_warrants} == {clean[0].code}
+    assert only_warrant.accurate is False
+
+    only_unlisted = scope.ScopeReport(items=clean, unlisted=scope.UNLISTED)
+    assert only_unlisted.boundaries_hold is True
+    assert only_unlisted.unsound_warrants == ()
+    assert only_unlisted.accurate is False
+
+
+def test_report_axes_keep_every_class_even_when_unused() -> None:
+    """O'q lug'ati — **sinflar** ro'yxati, uchragan qiymatlar emas.
+
+    `test_every_class_of_every_axis_is_used` bugun uchala o'qning ham
+    hamma sinfi to'lganini tekshiradi, ya'ni lug'atni faqat uchragan
+    sinflardan qurish bugun bir xil javob berardi. Bo'shliq yopilgan
+    kuni esa kalit hisobotdan **yo'qolardi** va o'quvchi «bu sinf
+    yo'q» bilan «bu sinfda qator yo'q» ni ajrata olmasdi.
+    """
+    lone = scope.ScopeReport(items=(_item("S-3"),), unlisted=())
+    assert set(lone.by_standing) == set(scope.Standing)
+    assert lone.by_standing[scope.Standing.LATER] == ()
+    assert set(lone.by_presence) == set(scope.Presence)
+    assert lone.by_presence[scope.Presence.ABSENT] == ()
+    assert set(lone.by_fence) == set(scope.Fence)
+    assert lone.by_fence[scope.Fence.CROSSED] == ()
+    assert set(lone.by_warrant) == set(scope.Warrant)
+    assert lone.by_warrant[scope.Warrant.NONE] == ()
+
+
+def test_phase_order_is_the_numeric_order_not_a_hand_written_tuple() -> None:
+    """`PHASE_ORDER` — tartib, ro'yxat emas: `MISDATED` shundan hisoblanadi.
+
+    Ikki fazani joyini almashtirish bugun sezilmaydi (§3 ning hech bir
+    gorizonti Ph.3 emas), lekin hukm aynan shu tartibning indeksidan
+    keladi — ya'ni Ph.3 li birinchi maqsad paydo bo'lgan kuni javob
+    jimgina teskari bo'lardi.
+    """
+    assert list(scope.PHASE_ORDER) == sorted(
+        scope.PHASE_ORDER, key=lambda phase: int(phase.split(".")[1])
+    )
+    assert len(set(scope.PHASE_ORDER)) == len(scope.PHASE_ORDER)
+    assert scope.PHASE_ORDER[: len(scope.MVP_PHASES)] == scope.MVP_PHASES
+    assert set(_product_goal_horizons().values()) <= set(scope.PHASE_ORDER)
+
+
+def test_presence_built_excludes_the_partial_class() -> None:
+    """«Qurilgan» — to'liq qurilgan: `PARTIAL` bu yerda ataylab yo'q.
+
+    Ikkala to'plam ham (`PRESENCE_BUILT`, `PRESENCE_OUTSIDE`) modulning
+    e'lon qilingan tasnifi bo'lib, ularni **o'qiydigan kod yo'q** —
+    ya'ni yagona o'quvchi shu kontrakt. Shuning uchun ular sinf
+    sifatida emas, reyestrning o'z qatorlariga qarshi yechiladi.
+    """
+    assert scope.Presence.PARTIAL not in scope.PRESENCE_BUILT
+    for item in scope.ITEMS:
+        if item.standing is not scope.Standing.IN:
+            continue
+        if item.presence in scope.PRESENCE_BUILT:
+            assert item.fence is scope.Fence.HELD, item.code
+
+
+def test_presence_outside_is_exactly_the_unwitnessed_class() -> None:
+    """Repo guvoh bo'la olmaydigan sinf ↔ `UNWITNESSED` — bitta qaror."""
+    assert scope.PRESENCE_OUTSIDE
+    for item in scope.ITEMS:
+        assert (item.presence in scope.PRESENCE_OUTSIDE) == (
+            item.fence is scope.Fence.UNWITNESSED
+        ), item.code

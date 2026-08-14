@@ -630,10 +630,16 @@ def test_every_bind_resolves_to_a_real_symbol() -> None:
 # --------------------------------------------------------------------------
 
 
-def _check_with(monkeypatch: pytest.MonkeyPatch, rows: tuple[deps.Row, ...]) -> None:
+def _check_with(
+    monkeypatch: pytest.MonkeyPatch,
+    rows: tuple[deps.Row, ...],
+    undeclared: tuple[deps.UndeclaredDependency, ...] | None = None,
+) -> None:
     """Modulning **o'z** `_check_registry()` i yuriladi (75-run sabog'i)."""
     monkeypatch.setattr(deps, "ROWS", rows)
     monkeypatch.setattr(deps, "ROW_BY_CODE", {r.code: r for r in rows})
+    if undeclared is not None:
+        monkeypatch.setattr(deps, "UNDECLARED", undeclared)
     deps._check_registry()
 
 
@@ -700,6 +706,117 @@ def test_positions_are_locked(monkeypatch: pytest.MonkeyPatch) -> None:
         _check_with(monkeypatch, reordered)
 
 
+def test_a_shortened_table_is_caught(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qator soni **aynan** — `!=`, `>` emas.
+
+    Yo'nalish muhim: `>` ortiqcha qatorni ushlaydi va aynan shu sababdan
+    ishonarli ko'rinadi, lekin §28 ning yopiqligi teskari tomondan
+    buziladi — qator **tushib qolsa**. `>` bilan olti qatorlik reyestr
+    jimgina o'tardi va `SPEC_ROWS` hech narsani anglatmasdi.
+    """
+    with pytest.raises(ValueError, match="qator, kutilgani"):
+        _check_with(monkeypatch, deps.ROWS[:-1])
+
+
+def test_a_duplicated_code_is_caught(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Takrorlangan kod — `ROW_BY_CODE` dan qator yo'qolishi.
+
+    Xabar bo'yicha tekshiriladi, chunki takroriy kod tartibni ham
+    buzadi: `!=` ni `>` ga aylantirsa qorovul baribir yiqiladi, faqat
+    **boshqa sabab** bilan («qatorda turibdi»), ya'ni `ROW_BY_CODE` ning
+    to'liqligi o'lchanmagan qolardi.
+    """
+    broken = tuple(
+        replace(r, code="DP-2") if r.code == "DP-3" else r for r in deps.ROWS
+    )
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        _check_with(monkeypatch, broken)
+
+
+def test_a_row_without_a_reason_is_caught(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`note` ning **matni** tekshirilmaydi, `bo'sh emasligi` — ha.
+
+    `not row.note` ni `row.note is None` ga toraytirish bo'sh satrni
+    o'tkazib yuborardi: baho saqlanardi, sababi esa yo'qolardi. Aynan
+    shu sabab bu faylning §1 izohida «ataylab tekshirilmaydi» deb
+    yozilgan narsaning yagona qulfi.
+    """
+    broken = tuple(replace(r, note="") if r.code == "DP-7" else r for r in deps.ROWS)
+    with pytest.raises(ValueError, match="izohsiz"):
+        _check_with(monkeypatch, broken)
+
+
+def test_a_supplied_row_needs_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Teskari qoida: «yo'q» dalilsiz, **qolgani** esa dalilsiz emas.
+
+    `UNMET` da dalil taqiqi allaqachon qulflangan (yuqoridagi test), bu
+    esa uning juftligi: `MET`/`PARTIAL`/`MOOT` — kuzatiladigan da'vo va
+    ular ko'rsatmasdan qo'yilsa reyestr fikrga aylanardi.
+    """
+    broken = tuple(
+        replace(r, supply_binds=()) if r.code == "DP-1" else r for r in deps.ROWS
+    )
+    with pytest.raises(ValueError, match="partial"):
+        _check_with(monkeypatch, broken)
+
+
+def test_a_surface_claim_may_not_be_unwitnessable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sirt haqidagi to'siq **tekshiriladi** — `VOID` bo'la olmaydi.
+
+    `MILESTONE`/`UNSTATED` juftligidan farqli o'laroq bu qoida
+    `WITNESSABLE` orqali yuradi, ya'ni `Row.is_witnessable` ning yagona
+    qulfi ham shu: xossani teskarisiga aylantirish import paytida
+    boshqa qatorni (`DP-2`) yiqitadi.
+    """
+    broken = tuple(
+        replace(r, hold=deps.Hold.VOID, hold_binds=()) if r.code == "DP-4" else r
+        for r in deps.ROWS
+    )
+    with pytest.raises(ValueError, match="sirt"):
+        _check_with(monkeypatch, broken)
+
+
+def test_an_undeclared_dependency_needs_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Teskari yo'nalish ham dalilli: «reyestrda yo'q» — kuzatiladigan da'vo."""
+    broken = tuple(replace(u, binds=()) for u in deps.UNDECLARED)
+    with pytest.raises(ValueError, match="dalilsiz"):
+        _check_with(monkeypatch, deps.ROWS, broken)
+
+
+def test_an_undeclared_dependency_needs_a_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`why_not_covered` — nima uchun mavjud qatorlar uni qoplamaydi."""
+    broken = tuple(replace(u, why_not_covered="") for u in deps.UNDECLARED)
+    with pytest.raises(ValueError, match="izohsiz"):
+        _check_with(monkeypatch, deps.ROWS, broken)
+
+
+def test_the_guard_runs_at_import_time() -> None:
+    """Chaqiruvning **o'zi** ham o'lchanadi.
+
+    Yuqoridagi o'nta test qorovulni `monkeypatch` bilan qayta chaqiradi
+    — ya'ni ularning hammasi modul satri `_check_registry()` o'chirilgan
+    holatda ham yashil qolardi, va reyestrni yozayotgan odam hech qanday
+    ogohlantirish olmasdi. Qorovulning butun ma'nosi **import paytida**
+    yiqilishida.
+    """
+    tree = _tree(APP_DIR / "release" / "dependencies.py")
+    calls = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_check_registry"
+    ]
+    assert len(calls) == 1, "`_check_registry()` modul darajasida chaqirilmaydi"
+
+
 def test_the_registry_accepts_itself(monkeypatch: pytest.MonkeyPatch) -> None:
     """Qoidalar vakuum emas: haqiqiy reyestr ularning hammasidan o'tadi."""
     _check_with(monkeypatch, deps.ROWS)
@@ -757,3 +874,155 @@ def test_each_condition_alone_makes_the_table_inaccurate() -> None:
     assert only_undeclared.accurate is False
 
     assert deps.DependencyReport(rows=clean_rows, undeclared=()).accurate is True
+
+
+# --------------------------------------------------------------------------
+# 11. Lug'at va manzil
+# --------------------------------------------------------------------------
+
+#: `SPEC` ning shakli: hujjat va bo'lim nomeri.
+SPEC_PATTERN = re.compile(r"^01 §(\d+)$")
+
+
+def test_the_vocabularies_are_a_literal_contract() -> None:
+    """Uchala `StrEnum` ning **qiymatlari**, nafaqat a'zolari.
+
+    A'zoni qayta nomlash har qanday testda ushlanadi (`AttributeError`),
+    qiymatni o'zgartirish esa — hech qayerda: bugungi kod ularni faqat
+    `is` bilan solishtiradi. Lekin `Enum` emas, aynan `StrEnum`
+    tanlangan va qiymat ikki joyga chiqadi: `_check_registry()` ning
+    diagnostikasiga (`f"…\\`{row.supply}\\`, dalil yo'q"` — reyestrni
+    yozayotgan odam o'qiydigan yagona matn) va modulning serializatsiya
+    sirtiga, chunki `_probe_dependencies` bugun faqat sonlarni beradi,
+    ertaga esa qatorni bera oladi. Qiymat ichki nom emas.
+
+    Uzunlik ham shu tenglikda tekshiriladi: ikkita a'zo bitta satrga
+    tushib qolsa (`VOID = "unstated"`) keyingisi **alias** bo'lib
+    qolardi, iteratsiya uni o'tkazib yuborardi va `Hold` uch a'zoli
+    bo'lib qolardi.
+    """
+    assert {r.name: r.value for r in deps.Referent} == {
+        "MILESTONE": "milestone",
+        "REQUIREMENT": "requirement",
+        "OPEN_QUESTION": "open_question",
+        "SURFACE": "surface",
+    }
+    assert {s.name: s.value for s in deps.Supply} == {
+        "MET": "met",
+        "PARTIAL": "partial",
+        "UNMET": "unmet",
+        "MOOT": "moot",
+    }
+    assert {h.name: h.value for h in deps.Hold} == {
+        "ENFORCED": "enforced",
+        "LEAKY": "leaky",
+        "VOID": "void",
+        "UNSTATED": "unstated",
+    }
+
+
+def test_the_spec_names_the_section_the_contract_parses() -> None:
+    """`SPEC` — `GET /api/v1/admin/registries` dagi manzil.
+
+    `admin/registries.py` uni `Registry(code="dependencies", spec=…)`
+    ga qo'yadi, ya'ni o'quvchi aynan shu satr bo'yicha hujjatni ochadi.
+    «Hujjatda bunday sarlavha bor» tekshiruvi buni ajratmaydi:
+    `01 §29` ham **mavjud** sarlavha (`## 29. High-Level Architecture`,
+    quyida tasdiqlanadi) va reyestr o'quvchini arxitektura bo'limiga
+    yuborardi — hech bir test bunga e'tiroz bildirmasdi
+    (156…160 runlarining sabog'i).
+    """
+    match = SPEC_PATTERN.fullmatch(deps.SPEC)
+    assert match, f"`SPEC` shakli `01 §<son>` bo'lishi kerak: {deps.SPEC!r}"
+    assert SECTION.startswith(f"## {match.group(1)}. "), (
+        f"`SPEC` = {deps.SPEC!r}, kontrakt esa {SECTION!r} ni parse qiladi"
+    )
+    assert SECTION_END in _doc(), "qo'shni sarlavha ham hujjatda bor"
+
+
+def test_only_enforced_is_counted_as_a_claim_that_holds() -> None:
+    """`HELD` — «da'vo o'z ishini qiladi» ning yagona sinfi.
+
+    `LEAKY` ataylab tashqarida: `DP-1` da to'siq **bor**, faqat §28
+    aytgan joyda emas, va uni «bajarilgan» deb sanash jadvalning eng
+    jim xatosini yashirardi. `HELD` ni `LEAKY` ga siljitish yoki
+    `Row.holds` ni boshqa sinfga bog'lash bugungi testlarning birortasini
+    ham yiqitmasdi, chunki `holds` hisobotning ro'yxatlari orqali emas,
+    faqat to'g'ridan-to'g'ri o'qiladi.
+    """
+    assert deps.HELD is deps.Hold.ENFORCED
+    sample = deps.ROW_BY_CODE["DP-4"]
+    for hold in deps.Hold:
+        assert replace(sample, hold=hold).holds is (hold is deps.Hold.ENFORCED), hold
+
+
+# --------------------------------------------------------------------------
+# 12. Dalil kortejlari — to'liq, nafaqat yechiladigan
+# --------------------------------------------------------------------------
+
+#: Har qatorning `(supply_binds, hold_binds)` i. Bu ro'yxat reyestrning
+#: nusxasi emas, uning **to'liqligi**: `test_every_bind_resolves_to_a_real_symbol`
+#: mavjudlikni tekshiradi, ya'ni kortejdan bitta element jimgina tushib
+#: qolsa yoki boshqa mavjud simvolga almashsa hech narsa sezmasdi
+#: (159-run sabog'i). Har simvol yonida u nimaning guvohi ekani.
+EXPECTED_BINDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    # Ta'minot: tumanlar bor (jadval + staging + import quvuri).
+    # To'siq: yoqish qorovuli, poligonsiz yo'l, yagona haqiqiy to'xtash.
+    "DP-1": (
+        (
+            "app.geo.models:District",
+            "app.geo.models:BoundaryStaging",
+            "tools.import_boundaries:main",
+        ),
+        (
+            "tools.region_admin:_set_active",
+            "app.geo.pipeline:find_district_id",
+            "app.stats.aggregate:MAX_UNASSIGNED_RATIO",
+        ),
+    ),
+    # `UNMET` + `VOID`: ikkala o'qda ham dalil bo'lishi mumkin emas.
+    "DP-2": ((), ()),
+    # `MOOT` ning yagona dalili — o'qilmaydigan sozlama.
+    "DP-3": (("app.core.config:Settings",), ()),
+    # To'siq: mexanizm bor (kodlar + qatlam), yaratadigan chaqiruv yo'q.
+    "DP-4": (
+        (),
+        (
+            "app.reports.sources:AUTHORITATIVE_CODES",
+            "app.clustering.service:LAYER_OFFICIAL",
+            "app.reports.intake:create_report",
+        ),
+    ),
+    "DP-5": ((), ()),
+    # Yagona ta'minlangan qator: tanlash, jadval, qo'shish buyrug'i.
+    # To'siq: nuqtadan mintaqa va `reports.region_id` ning `NOT NULL` i.
+    "DP-6": (
+        (
+            "app.geo.registry:pick_for_point",
+            "app.geo.models:Region",
+            "tools.region_admin:cmd_add",
+        ),
+        (
+            "app.geo.pipeline:region_for_point",
+            "app.reports.models:Report",
+        ),
+    ),
+    "DP-7": ((), ()),
+}
+
+#: E'lon qilinmagan bog'liqliklarning dalillari.
+EXPECTED_UNDECLARED_BINDS: dict[str, tuple[str, ...]] = {
+    # Yagona kirish yo'li: botning yuborishi va uni qabul qiladigan funksiya.
+    "UD-1": ("app.bot.service:submit_report", "app.reports.intake:create_report"),
+    # Bajarilayotgan huquqiy shart: litsenziya oq ro'yxati va uni saqlagan jadval.
+    "UD-2": ("app.geo.quality:ALLOWED_LICENSES", "app.geo.models:District"),
+}
+
+
+def test_every_bind_tuple_is_complete() -> None:
+    """Dalil kortejining **tarkibi**, nafaqat har elementining mavjudligi."""
+    assert {r.code: (r.supply_binds, r.hold_binds) for r in deps.ROWS} == EXPECTED_BINDS
+
+
+def test_every_undeclared_bind_tuple_is_complete() -> None:
+    assert {u.code: u.binds for u in deps.UNDECLARED} == EXPECTED_UNDECLARED_BINDS

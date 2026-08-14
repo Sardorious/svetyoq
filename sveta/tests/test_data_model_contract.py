@@ -708,3 +708,457 @@ def test_claim_validity_columns_are_mandatory_on_both_tables(prd: str) -> None:
         table = metadata.tables[name]
         assert table.columns["valid_from"].nullable is False
         assert table.columns["valid_to"].nullable is True
+
+
+# ---------------------------------------------------------------------------
+# 8. Lug'at va manzil (163-run mutatsiya qulflari)
+# ---------------------------------------------------------------------------
+#
+# 72-run bu fayl bilan birga «22 mutatsiya, 0 survivor» degan edi. O'sha
+# o'lchov `verdict` `returncode != 0` bo'lgan harness bilan olingan
+# (126-runda tuzatilgan): `pytest` ning `rc=4` i yolg'on `KILLED` berardi.
+# 163-run qayta o'lchadi — **93 mutatsiya, 59 KILLED, 34 SURVIVOR**.
+# Quyidagi to'rt bo'lim o'sha survivorlarni qulflaydi.
+
+
+def test_the_fidelity_vocabulary_is_locked() -> None:
+    """Beshta holatning **qiymati** ham qulflanadi, nomi ham.
+
+    Qiymat sirtga ikki yo'l bilan chiqadi: `Report.counts` ning
+    kalitlari va `evaluate()` ning diagnostikasi
+    («`{attr}` — `{verdict}`, lekin izohlanmagan») — reyestrni
+    yozayotgan odam o'qiydigan yagona matn. `test_the_five_states_are_
+    all_in_use_today` holatlarni **sanaydi**, lekin ularning nomini
+    so'ramaydi: har beshalasini `*_x` ga aylantirish sezilmasdi.
+    """
+    assert [(f.name, f.value) for f in Fidelity] == [
+        ("AS_DIAGRAMMED", "as_diagrammed"),
+        ("RENAMED", "renamed"),
+        ("RELOCATED", "relocated"),
+        ("NARROWED", "narrowed"),
+        ("ABSENT", "absent"),
+    ]
+
+
+def test_the_reliance_vocabulary_is_locked() -> None:
+    """`Reliance` ning to'rttasi — o'sha sabab bilan.
+
+    Bu o'q hisobotning ikkinchi ustuni: «ajralishni bugun kim
+    sezadi». Qiymat o'zgarsa hisobot boshqa so'z bilan gapiradi va
+    birorta test buni ko'rmasdi.
+    """
+    assert [(r.name, r.value) for r in Reliance] == [
+        ("LOAD_BEARING", "load_bearing"),
+        ("DORMANT", "dormant"),
+        ("CLAIMED_ELSEWHERE", "claimed_elsewhere"),
+        ("UNCLAIMED", "unclaimed"),
+    ]
+
+
+def test_counts_are_keyed_by_the_vocabulary_value(report: dm.Report) -> None:
+    """`counts` — lug'at qiymatining yagona mashina o'quvchi sirti.
+
+    `sum(counts.values()) == len(findings)` (yuqorida) kalitlarni
+    umuman ko'rmaydi: bitta holatni tashlab yuborish yig'indini
+    o'zgartirsa ham, kalitni qayta nomlash o'zgartirmasdi.
+    """
+    assert set(report.counts) == {
+        "as_diagrammed",
+        "renamed",
+        "relocated",
+        "narrowed",
+        "absent",
+    }
+
+
+def test_the_spec_address_is_the_heading_the_parser_reads(prd: str) -> None:
+    """`SPEC` — o'quvchi hujjatni ochadigan satr, ya'ni u ham mahsulot.
+
+    `SPEC` `GET /api/v1/admin/registries` javobiga
+    `app/admin/registries.py` orqali chiqadi. Uni `01 §18` ga
+    ko'chirish sezilmasdi va `## 18. Integrations` — **mavjud**
+    sarlavha, ya'ni oddiy «yechiladi» tekshiruvi ikkalasini
+    ajratmaydi (156…162 sabog'i sakkizinchi marta). Shuning uchun
+    qulf ikki qismli: shakl `01 §<son>` **va** son — aynan
+    `_SECTION_RE` qidiradigan sarlavhaning nomeri.
+    """
+    assert re.fullmatch(r"01 §\d+", dm.SPEC), dm.SPEC
+    number = dm.SPEC.split("§")[1]
+    assert dm._SECTION_RE.pattern.startswith(rf"^##\s+{number}\.")
+    assert f"\n## {number}. Data Model\n" in prd
+
+
+# ---------------------------------------------------------------------------
+# 9. Parserning o'lchanmagan qirralari
+# ---------------------------------------------------------------------------
+
+
+def test_section_text_stops_at_the_next_section() -> None:
+    """§17 ning chegarasi — keyingi `## N.` sarlavhasi.
+
+    Kesish tushib qolsa, `parse_er_diagram` va `parse_change_claims`
+    hujjatning **qolgan hammasini** ko'rardi: §19 ning mermaid bloki
+    yoki §20 ning ro'yxati §17 niki bo'lib hisoblanardi. Bugungi
+    hujjatda §17 dan keyin mermaid bloki yo'q, ya'ni javob
+    o'zgarmasdi — aynan shuning uchun bu yerda sun'iy hujjat kerak.
+    """
+    doc = SYNTHETIC + "\nБлок восемнадцатого раздела.\n"
+    body = dm.section_text(doc)
+    assert "erDiagram" in body
+    assert "восемнадцатого" not in body
+
+
+def test_only_the_first_mermaid_block_is_read() -> None:
+    """Ochko'z `(.*)` ikkita blokni bittaga yopishtirib qo'yardi."""
+    doc = SYNTHETIC.replace(
+        "## 18. Integrations",
+        "```mermaid\nerDiagram\n  STREETS {\n    uuid id PK\n  }\n```\n\n## 18. Integrations",
+    )
+    parsed = dm.parse_er_diagram(doc)
+    assert parsed.entities == ("REGIONS", "DISTRICTS")
+
+
+def test_a_two_character_cardinality_is_not_a_relation() -> None:
+    """`{3,}` — kardinallik belgisining eng qisqasi (`||-`, `--o`).
+
+    Ikkitagacha qisqartirish `A |{ B : label` ni qabul qilardi, ya'ni
+    diagrammadagi chinakam sintaktik xato jimgina bog'lanishga
+    aylanardi.
+    """
+    doc = SYNTHETIC.replace("REGIONS ||--o{ DISTRICTS", "REGIONS |{ DISTRICTS")
+    with pytest.raises(ValueError, match="tushunarsiz diagramma qatori"):
+        dm.parse_er_diagram(doc)
+
+
+def test_a_uk_marker_is_a_key_not_a_syntax_error() -> None:
+    """Uchala kalit belgisi qabul qilinadi, ikkitasi emas.
+
+    Bugungi §17 da `UK` yo'q, ya'ni uni regexdan olib tashlash hech
+    narsani o'zgartirmasdi — va hujjatga unikal kalit qo'shilgan kun
+    parser butun blokni «tushunarsiz qator» deb yiqitardi.
+    """
+    doc = SYNTHETIC.replace("    text code\n", "    text code UK\n")
+    parsed = dm.parse_er_diagram(doc)
+    assert [(a.name, a.key) for a in parsed.attributes_of("REGIONS")] == [
+        ("id", "PK"),
+        ("code", "UK"),
+    ]
+
+
+def test_a_keyless_attribute_carries_an_empty_key_not_none() -> None:
+    """`attr.group(3) or ""` — `key: str` ning yagona himoyasi.
+
+    Mavjud testlar `PK` va `FK` ni so'raydi, kalitsiz qatorni emas:
+    `or ""` tushsa `key` `None` bo'lardi va `DiagramAttribute.key`
+    ning tipi jimgina yolg'onga aylanardi (`E3` ni qulflaydigan
+    quyidagi test aynan shu maydonning rostligiga tayanadi).
+    """
+    code = next(a for a in dm.parse_er_diagram(SYNTHETIC).attributes if a.name == "code")
+    assert code.key == ""
+
+
+def test_an_unrecognised_line_outside_a_block_is_an_error() -> None:
+    """Blok **ichidagi** tushunarsiz qator allaqachon qulflangan.
+
+    Tashqarisidagisi — alohida shox: uni `continue` ga aylantirish
+    diagrammaga qo'shilgan yangi bog'lanishni jimgina yo'qotardi.
+    """
+    doc = SYNTHETIC.replace(
+        "  REGIONS ||--o{ DISTRICTS : contains",
+        "  REGIONS ||--o{ DISTRICTS : contains\n  ??? nonsense",
+    )
+    with pytest.raises(ValueError, match="tushunarsiz diagramma qatori"):
+        dm.parse_er_diagram(doc)
+
+
+def test_a_bullet_needs_the_space_after_the_dash() -> None:
+    """`- ` — belgi emas, prefiks: `stripped[2:]` aynan shunga tayanadi."""
+    doc = SYNTHETIC.replace("- первое изменение;", "-первое изменение;")
+    assert dm.parse_change_claims(doc) == ()
+
+
+def test_the_change_list_stops_at_the_first_blank_line_after_it() -> None:
+    """Bo'sh qator ro'yxatni **yopadi**, faqat oldidagisini o'tkazadi.
+
+    Shartsiz `continue` §17 ning quyi qismidagi har qanday `- ` bilan
+    boshlanadigan qatorni «Изменения» bandi deb sanardi.
+    """
+    doc = SYNTHETIC.replace(
+        "- второе изменение.",
+        "- второе изменение.\n\n- посторонний пункт.",
+    )
+    assert dm.parse_change_claims(doc) == ("первое изменение", "второе изменение")
+
+
+# ---------------------------------------------------------------------------
+# 10. Tip siyosati va yechim
+# ---------------------------------------------------------------------------
+
+
+def test_the_type_table_is_locked() -> None:
+    """Tip jadvali — o'lchanmagan **siyosat**, ma'lumot emas.
+
+    `test_narrowing_is_one_directional` yettita juftlikni so'raydi va
+    ular jadvalning to'rtta kalitiga tegadi; qolgan beshtasi
+    (`uuid`, `boolean`, `timestamptz`, `geometry`, `geography`)
+    hech qachon o'lchanmagan. Har qanday kengaytirish — `timestamptz`
+    ga `Date` qo'shish, `geometry` ga `Geography` — driftni **jimgina
+    qabul qiladi**: hujjat bir narsa va'da qiladi, sxema boshqasini
+    beradi va hisobot `AS_DIAGRAMMED` deydi.
+    """
+    assert dm.TYPE_EQUIVALENTS == {
+        "uuid": frozenset({"UUID"}),
+        "text": frozenset({"Text", "String", "VARCHAR"}),
+        "boolean": frozenset({"Boolean"}),
+        "smallint": frozenset({"SmallInteger"}),
+        "integer": frozenset({"Integer"}),
+        "bigint": frozenset({"BigInteger"}),
+        "timestamptz": frozenset({"DateTime"}),
+        "geometry": frozenset({"Geometry"}),
+        "geography": frozenset({"Geography"}),
+    }
+    assert dm.NARROWING == {
+        "bigint": frozenset({"Integer", "SmallInteger"}),
+        "integer": frozenset({"SmallInteger"}),
+    }
+
+
+def test_an_unknown_diagram_type_is_never_accepted() -> None:
+    """Jadvalda yo'q tip — `None`, `AS_DIAGRAMMED` emas.
+
+    Bu shox bugun yurmaydi (hujjatdagi to'qqizala tip jadvalda bor),
+    ya'ni uni `AS_DIAGRAMMED` ga aylantirish hisobotni
+    o'zgartirmasdi — va §17 ga `jsonb` yozilgan kun har qanday ustun
+    har qanday tip bilan «mos» bo'lardi.
+    """
+    assert dm._type_verdict("jsonb", "JSONB") is None
+    doc = SYNTHETIC.replace("    text code\n", "    jsonb code\n")
+    with pytest.raises(ValueError, match="tipi mos emas"):
+        dm.build_report(doc, _synthetic_metadata())
+
+
+def test_an_undeclared_narrowing_cannot_pass_as_as_diagrammed() -> None:
+    """Izohlanmagan `NARROWED` — modulning butun mavjudlik sababi.
+
+    `test_a_type_mismatch_stops_the_report` **mos kelmagan** tipni
+    o'lchaydi (`_type_verdict` `None` qaytaradi). Toraytirish esa
+    boshqa shox: `_type_verdict` `NARROWED` beradi va uni tekshirmasa
+    hisobot qatorni jimgina `AS_DIAGRAMMED` deb yozardi — ya'ni eng
+    jim ajralish sinfi (`independent_reporters`) reyestrsiz o'tib
+    ketardi.
+    """
+    from sqlalchemy import Column, ForeignKey, Table, Text
+    from sqlalchemy.dialects.postgresql import UUID as PgUUID
+
+    doc = SYNTHETIC.replace(
+        "    uuid region_id FK\n",
+        "    uuid region_id FK\n    integer rank\n",
+    )
+    small = MetaData()
+    Table(
+        "regions",
+        small,
+        Column("id", PgUUID(as_uuid=True), primary_key=True),
+        Column("code", Text),
+    )
+    Table(
+        "districts",
+        small,
+        Column("id", PgUUID(as_uuid=True), primary_key=True),
+        Column("region_id", PgUUID(as_uuid=True), ForeignKey("regions.id")),
+        Column("rank", SmallInteger),
+    )
+    with pytest.raises(ValueError, match="lekin izohlanmagan"):
+        dm.build_report(doc, small)
+
+
+def test_a_half_written_resolution_names_the_missing_address() -> None:
+    """Manzilning **yarmi** ham manzil emas.
+
+    `table` yozilib `column` unutilsa, `or` `and` ga aylanganda
+    tekshiruv keyingi shoxga o'tardi va odam «`reports.None` sxemada
+    yo'q» degan chalg'ituvchi xabar olardi. Qulf xabar bo'yicha, chunki
+    ikkala shox ham `ValueError` beradi.
+    """
+    half = dm.Resolution(
+        table="reports",
+        column=None,
+        fidelity=Fidelity.RENAMED,
+        reliance=Reliance.LOAD_BEARING,
+        why="y" * 80,
+    )
+    attr = dm.DiagramAttribute(entity="REPORTS", type_name="text", name="h3_index")
+    with pytest.raises(ValueError, match="manzil ko'rsatilmagan"):
+        dm._check_declared(attr, half, metadata)
+
+
+def test_a_declared_column_that_does_not_exist_is_rejected() -> None:
+    """Manzil jadvali bor, ustuni yo'q — bu ham «tushuntirilmagan».
+
+    `test_a_declared_target_with_the_wrong_type_is_rejected` yo'q
+    **jadvalni** emas, noto'g'ri **tipni** o'lchaydi. Yo'q ustun
+    shoxi o'lchanmagan edi va uni tashlab yuborish reyestrni yana
+    o'ziga solishtirishga aylantirardi.
+    """
+    ghost = dm.Resolution(
+        table="reports",
+        column="h3_r9_v2",
+        fidelity=Fidelity.RENAMED,
+        reliance=Reliance.LOAD_BEARING,
+        why="y" * 80,
+    )
+    attr = dm.DiagramAttribute(entity="REPORTS", type_name="text", name="h3_index")
+    with pytest.raises(ValueError, match="sxemada yo'q"):
+        dm._check_declared(attr, ghost, metadata)
+
+
+def test_key_bearing_attributes_are_resolved_too(
+    report: dm.Report, diagram: dm.ErDiagram
+) -> None:
+    """`PK`/`FK` li atributlar ham yechiladi — va hisobotning shakli qat'iy.
+
+    `sum(counts.values()) == len(findings)` **ichki** muvozanat: agar
+    `evaluate()` kalitli atributlarni umuman tashlab ketsa, ikkala son
+    ham birga kamayadi va test yashil qolardi. Shuning uchun bu yerda
+    tashqi o'lchov: har bir entity va har bir atribut aynan bitta
+    topilma beradi.
+    """
+    keyed = [a for a in diagram.attributes if a.key]
+    assert keyed
+    subjects = {f.subject for f in report.findings}
+    for attr in keyed:
+        assert attr.dotted in subjects, attr.dotted
+    assert len(report.findings) == len(diagram.entities) + len(diagram.attributes)
+
+
+# ---------------------------------------------------------------------------
+# 11. Reyestr qatorlari va hisobotning shakli
+# ---------------------------------------------------------------------------
+
+#: `DIVERGENCES` ning literal nusxasi: kalit → (jadval, ustun,
+#: `Fidelity`, `Reliance`, `claimed_by`). Tartib ham qulflanadi —
+#: hisobot qatorlarni shu ketma-ketlikda beradi.
+REGISTRY: dict[str, tuple[str | None, str | None, Fidelity, Reliance, str | None]] = {
+    "REPORTS.h3_index": ("reports", "h3_r9", Fidelity.RENAMED, Reliance.LOAD_BEARING, None),
+    "DISTRICTS.population": (
+        "territory_stats",
+        "population",
+        Fidelity.RELOCATED,
+        Reliance.LOAD_BEARING,
+        None,
+    ),
+    "DISTRICTS.is_city_district": (None, None, Fidelity.ABSENT, Reliance.UNCLAIMED, None),
+    "OUTAGES.independent_reporters": (
+        "outages",
+        "independent_reporters",
+        Fidelity.NARROWED,
+        Reliance.LOAD_BEARING,
+        None,
+    ),
+    "COVERAGE_ZONES": (
+        None,
+        None,
+        Fidelity.ABSENT,
+        Reliance.CLAIMED_ELSEWHERE,
+        "BRD §6.1 IS-08",
+    ),
+}
+
+
+def test_the_registry_is_locked_row_by_row() -> None:
+    """Reyestrning **ikkinchi ustuni** hech qachon o'lchanmagan edi.
+
+    `_check_declared` `Fidelity` ni haqiqatga bog'laydi — manzil bor
+    va tipi mos. `Reliance` ni esa hech narsa bog'lamaydi: u
+    hujjatlar haqidagi da'vo, sxema haqidagi emas. Shuning uchun
+    `is_city_district` ni `UNCLAIMED` dan `DORMANT` ga,
+    `independent_reporters` ni `LOAD_BEARING` dan `DORMANT` ga
+    ko'chirish butun to'plamda sezilmasdi — ya'ni «ikkita o'q
+    bir-birini takrorlamaydi» degan asosiy qaror o'lchanmagan
+    qolgandi.
+    """
+    assert list(dm.DIVERGENCES) == list(REGISTRY)
+    for key, expected in REGISTRY.items():
+        row = dm.DIVERGENCES[key]
+        assert (row.table, row.column, row.fidelity, row.reliance, row.claimed_by) == expected, key
+
+
+def test_by_reliance_finds_the_rows_it_names(report: dm.Report) -> None:
+    """`by_reliance` `reliance` ni so'raydi, `fidelity` ni emas.
+
+    Ikkala `StrEnum` ham alohida sinf, ya'ni `f.fidelity is reliance`
+    **har doim** `False` — metod jimgina bo'sh ro'yxat qaytarardi va
+    birorta test bunga qaramasdi (`by_fidelity` ning juftligi
+    `test_the_five_states_are_all_in_use_today` da bor, `by_reliance`
+    niki yo'q edi).
+    """
+    assert {f.subject for f in report.by_reliance(Reliance.LOAD_BEARING)} == {
+        "REPORTS.h3_index",
+        "DISTRICTS.population",
+        "OUTAGES.independent_reporters",
+    }
+    assert {f.subject for f in report.by_reliance(Reliance.UNCLAIMED)} == {
+        "DISTRICTS.is_city_district"
+    }
+    assert {f.subject for f in report.by_reliance(Reliance.CLAIMED_ELSEWHERE)} == {
+        "COVERAGE_ZONES"
+    }
+    assert report.by_reliance(Reliance.DORMANT) == ()
+
+
+def test_faithful_notices_a_divergence_on_its_own() -> None:
+    """`faithful` ning **birinchi** konyunkti ham alohida o'lchanadi.
+
+    Ikkinchisi va uchinchisi allaqachon qulflangan
+    (`..._an_unbacked_relation_...`, `..._an_undiagrammed_region_id_...`),
+    birinchisi esa yo'q edi: sun'iy sxemada ajralish hosil qilish
+    uchun `DIVERGENCES` global, shuning uchun hisobot qo'lda
+    yig'iladi.
+    """
+    only_drift = dm.Report(
+        findings=(
+            dm.Finding(
+                subject="DISTRICTS.population",
+                fidelity=Fidelity.RELOCATED,
+                reliance=Reliance.LOAD_BEARING,
+                table="territory_stats",
+                column="population",
+                why="z" * 80,
+            ),
+        ),
+        relations=(),
+        region_gaps=(),
+    )
+    assert only_drift.diverged
+    assert only_drift.unbacked_relations == ()
+    assert only_drift.region_gaps == ()
+    assert only_drift.faithful is False
+
+
+def test_the_first_matching_foreign_key_wins() -> None:
+    """Bitta jadvalda bitta ota-onaga ikkita FK bo'lsa, birinchisi olinadi.
+
+    `break` tushsa oxirgisi qolardi. Bugungi sxemada bunday juftlik
+    yo'q, ya'ni javob o'zgarmasdi — lekin `outages.region_id` yoniga
+    `outages.origin_region_id` qo'shilgan kun hisobot boshqa ustunni
+    ko'rsatib, o'zini baribir to'g'ri deb hisoblardi.
+    """
+    from sqlalchemy import Column, ForeignKey, Table
+    from sqlalchemy.dialects.postgresql import UUID as PgUUID
+
+    small = MetaData()
+    Table("regions", small, Column("id", PgUUID(as_uuid=True), primary_key=True))
+    Table(
+        "districts",
+        small,
+        Column("id", PgUUID(as_uuid=True), primary_key=True),
+        Column("region_id", PgUUID(as_uuid=True), ForeignKey("regions.id")),
+        Column("origin_region_id", PgUUID(as_uuid=True), ForeignKey("regions.id")),
+    )
+    diagram = dm.ErDiagram(
+        entities=("REGIONS", "DISTRICTS"),
+        attributes=(),
+        relations=(dm.DiagramRelation(left="REGIONS", right="DISTRICTS", label="contains"),),
+    )
+    resolved = dm.evaluate_relations(diagram, small)
+    assert [r.foreign_key for r in resolved] == ["districts.region_id"]

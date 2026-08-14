@@ -8,7 +8,13 @@ qatorma-qator qulflanadi.
 from __future__ import annotations
 
 from app.obs import metrics as m
-from app.obs.readings import AGE_UNKNOWN, Readings, RegionReading, to_samples
+from app.obs.readings import (
+    AGE_UNKNOWN,
+    Readings,
+    RegionReading,
+    _quantile_label,
+    to_samples,
+)
 
 
 def test_every_metric_from_the_specification_is_registered() -> None:
@@ -215,3 +221,44 @@ def test_regions_are_sorted_by_code() -> None:
 def test_max_snapshot_age_without_regions_is_zero() -> None:
     """Mintaqasi yo'q o'rnatma ogohlantirish bermaydi (`05` §10 sharti mintaqaga bog'liq)."""
     assert Readings().max_snapshot_age_s == 0.0
+
+
+# --------------------------------------------------------------------------
+# 151-run mutatsiyasi: `readings.py` ning ikkita qulflanmagan joyi
+#
+# Eksport yo'li deyarli qarzsiz chiqdi (15 mutatsiyadan 13 tasi birinchi
+# o'tishda o'ldi). Qolgan ikkitasi — barqaror diff va yorliq matni.
+# --------------------------------------------------------------------------
+
+
+def test_http_status_classes_are_exported_in_a_fixed_order() -> None:
+    """`sorted(http_counts.items())` — lug'atning tartibi eksportga sizmaydi.
+
+    Yuzalar uchun bu allaqachon qulflangan
+    (`test_surfaces_are_exported_in_a_fixed_order`), status sinflari
+    uchun esa yo'q edi: hisoblagich birinchi ko'rilgan javob bo'yicha
+    to'ladi, ya'ni tartib protsessning **tarixiga** bog'liq bo'lardi
+    va ikkita scrape ning diffi sababsiz shovqin berardi.
+    """
+    samples = to_samples(
+        Readings(),
+        http_counts={"5xx": 1, "2xx": 9, "4xx": 3},
+        http_latency={},
+    )
+    seen = [dict(s.labels)["status_class"] for s in samples if s.name == m.HTTP_REQUESTS.name]
+    assert seen == ["2xx", "4xx", "5xx"]
+
+
+def test_a_whole_quantile_is_labelled_without_a_trailing_dot() -> None:
+    """`.rstrip("0").rstrip(".")` — ikkinchi `rstrip` ertangi kvantil uchun.
+
+    Bugungi `QUANTILES` — `(0.5, 0.9)`, ya'ni oxirgi nuqta hech qachon
+    ochilib qolmaydi va ikkinchi `rstrip` ni olib tashlash sezilmaydi.
+    `1.0` (yoki `06` bo'yicha qo'shilishi mumkin bo'lgan har qanday
+    butun kvantil) esa `quantile="1."` yorlig'ini berardi — Prometheus
+    uchun bu satr qiymat emas, ya'ni butun namuna yo'qolardi.
+    """
+    assert _quantile_label(1.0) == "1"
+    assert _quantile_label(0.5) == "0.5"
+    assert _quantile_label(0.9) == "0.9"
+    assert _quantile_label(0.95) == "0.95"

@@ -522,9 +522,17 @@ def _guard(
     tasks: tuple[rm.Task, ...] | None = None,
     criteria: tuple[rm.Criterion, ...] | None = None,
     phases: tuple[rm.Phase, ...] | None = None,
+    ahead: tuple[rm.AheadOfPlan, ...] | None = None,
 ) -> None:
     """`_check_registry` ni almashtirilgan ro'yxatlarda yurgizadi."""
-    saved = (rm.TASKS, rm.CRITERIA, rm.PHASES, dict(rm.TASK_BY_CODE), dict(rm.CRITERION_BY_CODE))
+    saved = (
+        rm.TASKS,
+        rm.CRITERIA,
+        rm.PHASES,
+        rm.AHEAD,
+        dict(rm.TASK_BY_CODE),
+        dict(rm.CRITERION_BY_CODE),
+    )
     try:
         if tasks is not None:
             rm.TASKS = tasks
@@ -534,9 +542,18 @@ def _guard(
             rm.CRITERION_BY_CODE = {c.code: c for c in criteria}
         if phases is not None:
             rm.PHASES = phases
+        if ahead is not None:
+            rm.AHEAD = ahead
         rm._check_registry()
     finally:
-        rm.TASKS, rm.CRITERIA, rm.PHASES, rm.TASK_BY_CODE, rm.CRITERION_BY_CODE = saved
+        (
+            rm.TASKS,
+            rm.CRITERIA,
+            rm.PHASES,
+            rm.AHEAD,
+            rm.TASK_BY_CODE,
+            rm.CRITERION_BY_CODE,
+        ) = saved
 
 
 def test_the_registry_accepts_itself() -> None:
@@ -627,3 +644,276 @@ def test_the_module_has_no_dates() -> None:
         if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
     }
     assert not {f for f in fields if "date" in f or "deadline" in f or "week" in f}
+
+
+# --------------------------------------------------------------------------
+# 8. Mutatsiya qamrovi (156-run)
+# --------------------------------------------------------------------------
+#
+# 82-run bu modulni «18 mutatsiya, 1 survivor» deb qayd etgan. O'sha
+# o'lchov **tuzatilmagan harness** bilan olingan: verdikt
+# `returncode != 0` edi va `pytest` ning `rc=4` (bitta ham test yurmagan
+# run) `KILLED` deb o'qilardi; `verdict()` faqat 126-runda tuzatilgan.
+# Qayta o'lchov: **50 mutatsiya → 20 KILLED, 30 SURVIVOR (60 %)**,
+# o'ttizalasi ham butun bazasiz to'plamda birma-bir tasdiqlangan.
+#
+# Ikki oila:
+#
+# * **`_check_registry` ning yigirma to'rtta shartidan o'n yettitasi**
+#   hech qachon otilmagan — bugungi reyestr to'g'ri bo'lgani uchun.
+#   Yuqoridagi 5-bo'lim faqat oltitasini otardi.
+# * **Hisobotning shakli** (154/155 ning sinfi uchinchi marta):
+#   `by_landing` ning vazifalar yarmi, `by_bearing` ning chelaklari,
+#   `gate_holds` ning ikkala yarmi va `accurate` ning birinchi
+#   kon'yunkti bugun bir xil javob berardi.
+
+
+def test_the_criterion_count_is_locked() -> None:
+    """Vazifalar soni 5-bo'limda qulflangan edi, mezonlar soni — yo'q."""
+    with pytest.raises(ValueError, match="mezon, kutilgani"):
+        _guard(criteria=rm.CRITERIA[:-1])
+
+
+def test_the_phase_count_is_locked() -> None:
+    with pytest.raises(ValueError, match="faza, kutilgani"):
+        _guard(phases=rm.PHASES[:-1])
+
+
+def test_a_repeated_task_code_is_rejected() -> None:
+    """Takrorlangan kodni `TASK_BY_CODE` jimgina yutardi.
+
+    Qorovul ikkala lug'atni ham sanaydi; bu yerda **vazifalar** yarmi
+    o'lchanadi, quyida — mezonlar yarmi.
+    """
+    duplicated = rm.TASKS[:1] + (replace(rm.TASKS[1], code="P0-1"),) + rm.TASKS[2:]
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        _guard(tasks=duplicated)
+
+
+def test_a_repeated_criterion_code_is_rejected() -> None:
+    duplicated = rm.CRITERIA[:1] + (replace(rm.CRITERIA[1], code="EX-1"),) + rm.CRITERIA[2:]
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        _guard(criteria=duplicated)
+
+
+def test_a_task_out_of_document_order_is_rejected() -> None:
+    """`code` hujjatning `ID` ustuni — tartib ham kontrakt."""
+    swapped = (rm.TASKS[1], rm.TASKS[0]) + rm.TASKS[2:]
+    with pytest.raises(ValueError, match=r"`P0-2` 1-qatorda turibdi"):
+        _guard(tasks=swapped)
+
+
+def test_a_criterion_out_of_document_order_is_rejected() -> None:
+    """`EX-N` = N-band: kod tartibdan yasaladi, ya'ni tartib ma'noli."""
+    swapped = (rm.CRITERIA[1], rm.CRITERIA[0]) + rm.CRITERIA[2:]
+    with pytest.raises(ValueError, match=r"`EX-2` 1-bandda turibdi"):
+        _guard(criteria=swapped)
+
+
+def test_a_phase_out_of_document_order_is_rejected() -> None:
+    swapped = (rm.PHASES[1], rm.PHASES[0]) + rm.PHASES[2:]
+    with pytest.raises(ValueError, match=r"`PH-2` 1-fazada turibdi"):
+        _guard(phases=swapped)
+
+
+def test_a_task_without_a_note_is_rejected() -> None:
+    """Izoh — bahoning sababi; usiz reyestr fikrga aylanadi."""
+    broken = (replace(rm.TASKS[0], note=""),) + rm.TASKS[1:]
+    with pytest.raises(ValueError, match=r"`P0-1` izohsiz"):
+        _guard(tasks=broken)
+
+
+def test_a_phase_without_a_note_is_rejected() -> None:
+    broken = (replace(rm.PHASES[0], note=""),) + rm.PHASES[1:]
+    with pytest.raises(ValueError, match=r"`PH-1` izohsiz"):
+        _guard(phases=broken)
+
+
+def test_the_criterion_guard_walks_the_whole_list() -> None:
+    """Sikl birinchi bandda to'xtasa oxirgisi tekshirilmasdi.
+
+    Buzilish ataylab **oxirgi** qatorda: `CRITERIA[:1]` ga qisqargan
+    sikl uni ko'rmasdi.
+    """
+    broken = rm.CRITERIA[:-1] + (replace(rm.CRITERIA[-1], note=""),)
+    with pytest.raises(ValueError, match=r"`EX-5` izohsiz"):
+        _guard(criteria=broken)
+
+
+def test_an_unrecorded_task_may_not_carry_landing_evidence() -> None:
+    """`UNRECORDED` da mexanizmning yo'qligi aynan **baho**.
+
+    5-bo'lim faqat teskarisini otardi (dalil kerak bo'lgan joyda yo'q);
+    bu yerda dalil kerak bo'lmagan joyda **bor**.
+    """
+    broken = (replace(rm.TASKS[0], landing_binds=("app.main:create_app",)),) + rm.TASKS[1:]
+    with pytest.raises(ValueError, match="lekin dalil"):
+        _guard(tasks=broken)
+
+
+def test_an_open_task_may_not_carry_a_settlement_witness() -> None:
+    """`bearing_binds` — «javob allaqachon kodda» da'vosining dalili.
+
+    `OPEN` qatorda u turgan bo'lsa, baho bilan dalil bir-biriga zid.
+    """
+    broken = rm.TASKS[:1] + (replace(rm.TASKS[1], bearing_binds=("app.main:create_app",)),)
+    with pytest.raises(ValueError, match="qabul dalili ortiqcha"):
+        _guard(tasks=broken + rm.TASKS[2:])
+
+
+def test_an_instrumented_criterion_without_evidence_is_rejected() -> None:
+    """Mezonlar yarmi: 5-bo'lim faqat **vazifalar** yarmini otardi."""
+    broken = (replace(rm.CRITERIA[0], binds=()),) + rm.CRITERIA[1:]
+    with pytest.raises(ValueError, match="dalil yo'q"):
+        _guard(criteria=broken)
+
+
+def test_an_external_criterion_may_not_carry_evidence() -> None:
+    """`EX-4` repodan tashqarida — 67-run sabog'i qorovulda ham turadi."""
+    broken = rm.CRITERIA[:3] + (replace(rm.CRITERIA[3], binds=("app.main:create_app",)),)
+    with pytest.raises(ValueError, match="dalil ortiqcha"):
+        _guard(criteria=broken + rm.CRITERIA[4:])
+
+
+def test_a_criterion_near_is_allowed_only_where_there_is_no_place() -> None:
+    broken = (replace(rm.CRITERIA[0], near=("app.main:create_app",)),) + rm.CRITERIA[1:]
+    with pytest.raises(ValueError, match="`near` faqat `UNRECORDED` da"):
+        _guard(criteria=broken)
+
+
+def test_an_ahead_of_plan_surface_without_evidence_is_rejected() -> None:
+    """«Qurilgan» da'vosi dalilsiz bo'lsa, teskari yo'nalish fikrga aylanadi."""
+    broken = (replace(rm.AHEAD[0], binds=()),) + rm.AHEAD[1:]
+    with pytest.raises(ValueError, match=r"`AH-1` dalilsiz"):
+        _guard(ahead=broken)
+
+
+def test_an_ahead_of_plan_surface_without_a_reason_is_rejected() -> None:
+    broken = (replace(rm.AHEAD[0], why_not_named=""),) + rm.AHEAD[1:]
+    with pytest.raises(ValueError, match=r"`AH-1` izohsiz"):
+        _guard(ahead=broken)
+
+
+def test_the_ahead_guard_walks_the_whole_list() -> None:
+    """`AHEAD` sikli ham birinchi bandda to'xtamasin."""
+    broken = rm.AHEAD[:-1] + (replace(rm.AHEAD[-1], binds=()),)
+    with pytest.raises(ValueError, match=r"`AH-3` dalilsiz"):
+        _guard(ahead=broken)
+
+
+def test_a_recorded_result_also_needs_evidence() -> None:
+    """Gate ni yopadigan yagona sinf dalilsiz qabul qilinmaydi.
+
+    `RECORDED` bugun **bo'sh**, ya'ni uni `LANDING_NEEDS_EVIDENCE` dan
+    olib tashlash hech narsani o'zgartirmasdi. Qulf shuning uchun
+    to'plamni so'zma-so'z emas, qatorni yasab ko'rsatadi.
+    """
+    assert rm.CLOSING in rm.LANDING_NEEDS_EVIDENCE
+    landed = (replace(rm.CRITERIA[0], landing=rm.Landing.RECORDED, binds=()),) + rm.CRITERIA[1:]
+    with pytest.raises(ValueError, match="dalil yo'q"):
+        _guard(criteria=landed)
+
+
+def test_by_landing_counts_tasks_and_criteria_together() -> None:
+    """Hisobotning shakli: ikkala ro'yxat ham, to'rtala sinf ham.
+
+    Lug'atni «uchragan sinflardan» qurish bugun bir xil javob berardi,
+    `RECORDED` kaliti esa yo'qolardi — ya'ni bo'limning butun mazmunini
+    ko'rsatadigan bo'sh chelak hisobotdan chiqib ketardi.
+    """
+    grouped = rm.evaluate().by_landing
+    assert set(grouped) == set(rm.Landing)
+    assert grouped[rm.Landing.UNRECORDED] == ("P0-1", "P0-2", "P0-5", "P0-6", "EX-5")
+    assert grouped[rm.Landing.INSTRUMENTED] == ("P0-3", "P0-4", "EX-1", "EX-2", "EX-3")
+    assert grouped[rm.Landing.EXTERNAL] == ("P0-7", "EX-4")
+    assert grouped[rm.Landing.RECORDED] == ()
+
+
+def test_by_bearing_keeps_a_bucket_for_every_class() -> None:
+    """Bugun uchala sinf ham to'la — aynan shuning uchun o'lchanmagan edi."""
+    report = rm.evaluate()
+    assert set(report.by_bearing) == set(rm.Bearing)
+    only_open = replace(
+        report,
+        tasks=tuple(replace(t, bearing=rm.Bearing.OPEN, bearing_binds=()) for t in rm.TASKS),
+    )
+    assert set(only_open.by_bearing) == set(rm.Bearing)
+    assert only_open.by_bearing[rm.Bearing.ASSUMED] == ()
+    assert only_open.by_bearing[rm.Bearing.FORECLOSED] == ()
+
+
+def test_a_closed_document_alone_does_not_close_the_gate() -> None:
+    """Birinchi tarmoqning ikkala yarmi ham kerak.
+
+    Hujjatda beshala katakcha belgilangan bo'lsa ham, natija repoda
+    qayd etilmasa gate yopilmaydi — aks holda `x` belgisining o'zi
+    dalil o'rnini bosardi.
+    """
+    ticked = tuple(replace(c, checked=True) for c in rm.CRITERIA)
+    report = replace(rm.evaluate(), criteria=ticked)
+    assert report.unchecked == ()
+    assert report.recorded == ()
+    assert report.built_ahead
+    assert report.gate_holds is False
+
+
+def test_a_recorded_result_alone_does_not_close_the_gate() -> None:
+    """Ikkinchi yarmi: qayd etilgan natija hujjatning belgisini bosmaydi."""
+    recorded = (replace(rm.CRITERIA[0], landing=rm.Landing.RECORDED),) + rm.CRITERIA[1:]
+    report = replace(rm.evaluate(), criteria=recorded)
+    assert report.recorded == ("EX-1",)
+    assert report.unchecked
+    assert report.built_ahead
+    assert report.gate_holds is False
+
+
+def test_an_open_gate_alone_makes_the_section_inaccurate() -> None:
+    """`accurate` ning **birinchi** kon'yunkti ham mustaqil.
+
+    Qolgan ikkitasi (`prejudged`, `ahead`) 3-bo'limda alohida
+    o'lchangan edi, epigrafning qoidasi esa yo'q: uni olib tashlash
+    hech bir testni yiqitmasdi.
+    """
+    open_tasks = tuple(replace(t, bearing=rm.Bearing.OPEN, bearing_binds=()) for t in rm.TASKS)
+    report = replace(rm.evaluate(), tasks=open_tasks, ahead=())
+    assert report.prejudged == ()
+    assert report.ahead == ()
+    assert report.gate_holds is False
+    assert report.accurate is False
+
+
+def test_closes_gate_is_the_definition_of_a_recorded_landing() -> None:
+    """`closes_gate` — ta'rif, doimiy `False` emas.
+
+    Bugun birorta qator ham uni qaytarmaydi (`RECORDED` bo'sh), ya'ni
+    ikkala xossani ham `False` ga aylantirish sezilmasdi.
+    """
+    assert rm.TASKS[0].closes_gate is False
+    assert replace(rm.TASKS[0], landing=rm.Landing.RECORDED).closes_gate is True
+    assert rm.CRITERIA[0].closes_gate is False
+    assert replace(rm.CRITERIA[0], landing=rm.Landing.RECORDED).closes_gate is True
+
+
+def test_the_nearest_phase_is_recorded_where_the_document_has_one() -> None:
+    """Bo'sh `nearest_phase` — «faza yo'q» degan **baho**, sukut emas.
+
+    Eski test faqat to'ldirilgan qiymatni tekshirardi (`if
+    item.nearest_phase`), ya'ni qiymat jimgina yo'qolishi mumkin edi.
+    """
+    named = {i.code: i.nearest_phase for i in rm.AHEAD}
+    assert named["AH-1"] == "Phase 3 — Область и интеграция"
+    assert named["AH-2"] == ""
+    assert named["AH-3"] == "Phase 2 — Плотность и доверие"
+
+
+def test_every_near_tool_is_named() -> None:
+    """`near` — «joy yo'q» bahosini **aniqlashtiradi**, ya'ni o'lchanadi.
+
+    5-bo'lim faqat `P0-6` nikini o'qirdi; qolgan ikkitasi bo'shatilsa
+    hech narsa sezilmasdi.
+    """
+    assert rm.TASK_BY_CODE["P0-2"].near == ("app.stats.aggregate:build",)
+    assert rm.TASK_BY_CODE["P0-6"].near == ("app.release.gates:GATES",)
+    assert rm.CRITERION_BY_CODE["EX-5"].near == ("app.release.measures:MEASURES",)
+    assert [t.code for t in rm.TASKS if t.near] == ["P0-2", "P0-6"]
+    assert [c.code for c in rm.CRITERIA if c.near] == ["EX-5"]

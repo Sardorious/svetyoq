@@ -36,6 +36,40 @@ Fayl **besh** narsani bog'laydi:
 **mazmuni**. Ular keyingi o'quvchi uchun sabab, artefakt emas
 (70-run bilan bir xil qaror). Uzunligi esa tekshiriladi — bo'sh izoh
 qatorni o'qib bo'lmaydigan qiladi.
+
+## 164-run: 8–13-bo'limlar
+
+71-run «20 mutatsiya, 0 survivor» degan edi, lekin o'sha o'lchov
+`verdict` `returncode != 0` bo'lgan davrda olingan (`pytest` ning
+`rc=4` i yolg'on `KILLED` berardi; tuzatilgani 126-run). Qayta
+o'lchov: **70 mutatsiya → 6 KILLED, 64 SURVIVOR**. Quyidagi
+bo'limlar o'sha survivorlarning **62 tasini** qulflaydi; ikkitasi
+ekvivalent (`lower()` → `casefold()` — ustun nomlari ASCII;
+`GUARANTEE_BY_CODE` ni teskari tartibda qurish — kodlar noyob, ya'ni
+lug'atning **mazmuni** o'zgarmaydi).
+
+Uch sinf topildi:
+
+* **kod sirtga chiqadi.** `Posture` ning oltala va `Mechanism` ning
+  to'rttala qiymati hech qayerda o'lchanmagan edi. Ular ikki yo'l
+  bilan ko'rinadi: `registry_errors()` ning «izoh yetarli emas»
+  xabari (reyestrni yozayotgan odam o'qiydigan matn) va
+  `SecurityReport.counts` ning kalitlari. `SPEC` esa
+  `app/admin/registries.py` orqali `GET /api/v1/admin/registries` ga
+  chiqadi;
+* **qorovullar bir-birini soyalagan.** `registry_errors()` ning o'nta
+  qoidasidan oltitasi umuman o'lchanmagan edi: mavjud
+  `test_registry_rules_reject_a_broken_enforced_row` faqat
+  «ro'yxat bo'sh emas» ni so'raydi, ya'ni **qaysi** qoida
+  ishlaganini emas. Endi har qoida **yolg'iz** buziladi va xabar
+  **butunlay** solishtiriladi (`match=` yetarli emas — u `re.search`,
+  161 va 162 runlarning sabog'i);
+* **reyestrning o'zi o'lchanmagan.** `where` va `lock` uchun faqat
+  **mavjudlik** tekshirilardi: `rbac` ning `where` i `audit` ga,
+  `lock` i boshqa mavjud test fayliga ko'chsa — jim. `spec`,
+  `posture` va `mechanism` ustunlari esa umuman tekshirilmasdi.
+  Qulf — literal `REGISTRY` jadvali (17 qator × to'qqiz ustun) va
+  tartib.
 """
 
 from __future__ import annotations
@@ -43,7 +77,7 @@ from __future__ import annotations
 import ast
 import inspect
 import re
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 
 import pytest
@@ -571,3 +605,430 @@ def test_mfa_is_absent_because_a_single_bearer_token_is_one_factor() -> None:
         "`authenticate` ikkinchi omilni oldi — `mfa` qatorini qayta ko'ring"
     )
     assert security.GUARANTEE_BY_CODE["mfa"].mechanism is Mechanism.NAMED_ONLY
+
+
+# --------------------------------------------------------------------------
+# 8. Holat va mexanizm kodlari — ular sirtga chiqadi
+# --------------------------------------------------------------------------
+#
+# Ikkala `StrEnum` ham bugungacha faqat **o'zi orqali** tekshirilardi:
+# testlar `Posture.ENFORCED` ni yozadi va uni `Posture.ENFORCED` bilan
+# solishtiradi, ya'ni qiymatni istalgan matnga almashtirsa ham to'plam
+# yashil qolardi. Qiymat esa ikki joyda ko'rinadi: `registry_errors()`
+# ning «… uchun izoh yetarli emas» xabarida (`f"{g.mechanism}"` —
+# `StrEnum` o'z **qiymatini** beradi) va `counts` ning kalitlarida.
+
+
+def test_the_posture_codes_are_the_literal_strings_the_report_carries() -> None:
+    assert {p.name: p.value for p in Posture} == {
+        "ENFORCED": "enforced",
+        "UNDEFENDED": "undefended",
+        "VACUOUS": "vacuous",
+        "ABSENT": "absent",
+        "MISSTATED": "misstated",
+        "EXTERNAL": "external",
+    }
+
+
+def test_the_mechanism_codes_are_the_literal_strings_the_message_prints() -> None:
+    assert {m.name: m.value for m in Mechanism} == {
+        "AS_WRITTEN": "as_written",
+        "SUBSTITUTED": "substituted",
+        "NAMED_ONLY": "named_only",
+        "UNNAMED": "unnamed",
+    }
+
+
+def test_the_postures_run_from_trustworthy_to_untrustworthy() -> None:
+    """Tartib `Posture` ning docstringida **da'vo** qilingan.
+
+    U shunchaki bezak emas: `counts` shu tartibda quriladi, ya'ni
+    hisobotni o'qiydigan odam «ishonsa bo'ladi» dan «ishonib
+    bo'lmaydi» ga qarab yuradi.
+    """
+    assert [p.name for p in Posture] == [
+        "ENFORCED",
+        "UNDEFENDED",
+        "VACUOUS",
+        "ABSENT",
+        "MISSTATED",
+        "EXTERNAL",
+    ]
+
+
+def test_the_mechanisms_keep_their_declared_order() -> None:
+    assert [m.name for m in Mechanism] == [
+        "AS_WRITTEN",
+        "SUBSTITUTED",
+        "NAMED_ONLY",
+        "UNNAMED",
+    ]
+
+
+def test_the_counts_are_keyed_in_posture_order() -> None:
+    assert list(security.evaluate().counts) == list(Posture)
+
+
+def test_the_spec_address_points_at_the_security_section_of_the_prd() -> None:
+    """`SPEC` — `GET /api/v1/admin/registries` javobidagi manzil.
+
+    `app/admin/registries.py` uni o'sha endpointga uzatadi, ya'ni
+    noto'g'ri son operatorni hujjatning **boshqa** bo'limiga yuboradi.
+    Tekshiruv ikki qismli: shakl `01 §<son>` va son — aynan shu fayl
+    parse qiladigan sarlavhaning nomeri.
+    """
+    match = re.search(r"##\s*(\d+)\.", SECURITY_SECTION)
+    assert match, f"«{SECURITY_SECTION}» dan bo'lim nomeri o'qilmadi"
+    assert security.SPEC == f"01 §{int(match.group(1))}"
+
+
+# --------------------------------------------------------------------------
+# 9. Reyestrning har bir qorovuli — yolg'iz va xabari bilan
+# --------------------------------------------------------------------------
+#
+# `test_registry_rules_reject_a_broken_enforced_row` faqat «ro'yxat
+# bo'sh emas» ni so'raydi, ya'ni **qaysi** qoida ishlaganini emas —
+# oltita qoidani butunlay o'chirsa ham u yashil qolardi. Quyida har
+# qoida alohida buziladi va xabar **butunlay** solishtiriladi: bu
+# modulda xabar mahsulot sirti, chunki reyestrni yozayotgan odam
+# faqat shu matnni ko'radi.
+
+#: `SUBSTITUTED`/`NAMED_ONLY` uchun yetarli uzunlikdagi izoh.
+LONG_NOTE = "x" * 60
+
+
+def _row(**overrides: object) -> security.Guarantee:
+    """Bitta sun'iy qator: sukut bo'yicha **hech bir** qoidani buzmaydi."""
+    fields: dict[str, object] = {
+        "code": "probe",
+        "spec": "01 §20",
+        "posture": Posture.EXTERNAL,
+        "mechanism": Mechanism.UNNAMED,
+        "doc_item": "PCI DSS",
+        "note": LONG_NOTE,
+    }
+    fields.update(overrides)
+    return security.Guarantee(**fields)  # type: ignore[arg-type]
+
+
+def _errors(monkeypatch: pytest.MonkeyPatch, *rows: security.Guarantee) -> tuple[str, ...]:
+    monkeypatch.setattr(security, "GUARANTEES", tuple(rows))
+    return security.registry_errors()
+
+
+def test_the_probe_row_itself_breaks_no_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Quyidagi testlar bo'sh ish qilmasin: asos toza."""
+    assert _errors(monkeypatch, _row()) == ()
+
+
+@pytest.mark.parametrize("note", ["", "   ", "\n\t "])
+def test_a_row_whose_note_is_only_whitespace_is_reported(
+    monkeypatch: pytest.MonkeyPatch, note: str
+) -> None:
+    assert _errors(monkeypatch, _row(note=note)) == ("probe: izoh yo'q",)
+
+
+def test_a_row_without_any_anchor_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _errors(monkeypatch, _row(doc_item="", nfr="")) == (
+        "probe: langar yo'q — `doc_item` ham, `nfr` ham bo'sh",
+    )
+
+
+@pytest.mark.parametrize(("doc_item", "nfr"), [("PCI DSS", ""), ("", "NFR-S-03")])
+def test_either_anchor_alone_is_enough(
+    monkeypatch: pytest.MonkeyPatch, doc_item: str, nfr: str
+) -> None:
+    assert _errors(monkeypatch, _row(doc_item=doc_item, nfr=nfr)) == ()
+
+
+def test_a_claim_number_without_a_document_item_is_meaningless(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert _errors(monkeypatch, _row(doc_item="", nfr="NFR-S-03", claim=1)) == (
+        "probe: `claim` `doc_item` siz ma'nosiz",
+    )
+
+
+def test_a_negative_claim_number_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _errors(monkeypatch, _row(claim=-1)) == ("probe: `claim` manfiy",)
+
+
+@pytest.mark.parametrize(
+    ("where", "lock"),
+    [
+        ("", ""),
+        ("app.admin.roles:PERMISSIONS", ""),
+        ("", "tests/test_admin_roles.py"),
+    ],
+)
+def test_an_enforced_row_needs_both_a_mechanism_and_a_lock(
+    monkeypatch: pytest.MonkeyPatch, where: str, lock: str
+) -> None:
+    """Ikkalasi ham shart — **yarmi** ham `ENFORCED` emas.
+
+    Ikkinchi va uchinchi holat aynan `and` ni `or` ga almashtirishni
+    ushlaydi: mexanizm bor, qulf yo'q — bu ta'rif bo'yicha
+    `UNDEFENDED`, modulning butun mavjudlik sababi.
+    """
+    row = _row(
+        posture=Posture.ENFORCED,
+        mechanism=Mechanism.AS_WRITTEN,
+        where=where,
+        lock=lock,
+    )
+    assert _errors(monkeypatch, row) == ("probe: ENFORCED uchun `where` va `lock` shart",)
+
+
+def test_an_undefended_row_carrying_a_lock_is_reported_by_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    row = _row(posture=Posture.UNDEFENDED, lock="tests/test_admin_roles.py")
+    assert _errors(monkeypatch, row) == ("probe: UNDEFENDED da `lock` bo'lmaydi — u ENFORCED",)
+
+
+@pytest.mark.parametrize(
+    ("where", "lock"),
+    [
+        ("app.admin.roles:PERMISSIONS", ""),
+        ("", "tests/test_admin_roles.py"),
+        ("app.admin.roles:PERMISSIONS", "tests/test_admin_roles.py"),
+    ],
+)
+def test_an_absent_row_may_carry_neither_a_mechanism_nor_a_lock(
+    monkeypatch: pytest.MonkeyPatch, where: str, lock: str
+) -> None:
+    """`or` — `and` emas: **yarim** to'ldirilgan qator ham `ABSENT` emas."""
+    row = _row(
+        posture=Posture.ABSENT,
+        mechanism=Mechanism.NAMED_ONLY,
+        where=where,
+        lock=lock,
+    )
+    assert _errors(monkeypatch, row) == ("probe: ABSENT da `where`/`lock` bo'lmaydi",)
+
+
+@pytest.mark.parametrize("narrower", ["", "   "])
+def test_a_misstated_row_needs_a_narrower_that_says_something(
+    monkeypatch: pytest.MonkeyPatch, narrower: str
+) -> None:
+    row = _row(posture=Posture.MISSTATED, mechanism=Mechanism.NAMED_ONLY, narrower=narrower)
+    assert _errors(monkeypatch, row) == ("probe: MISSTATED uchun `narrower` shart",)
+
+
+def test_only_a_misstated_row_may_carry_a_narrower(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _errors(monkeypatch, _row(narrower="o'rnida shu bajariladi")) == (
+        "probe: `narrower` faqat MISSTATED da",
+    )
+
+
+@pytest.mark.parametrize("mechanism", [Mechanism.SUBSTITUTED, Mechanism.NAMED_ONLY])
+def test_both_calling_mechanisms_must_explain_themselves_at_sixty_characters(
+    monkeypatch: pytest.MonkeyPatch, mechanism: Mechanism
+) -> None:
+    """Bo'sag'a ham, ikkala mexanizm ham qulflanadi.
+
+    Xabar mexanizm **qiymatini** bosib chiqaradi (`StrEnum.__str__`),
+    ya'ni bu test 8-bo'limdagi kod jadvalining ikkinchi yarmi.
+    """
+    short = _errors(monkeypatch, _row(mechanism=mechanism, note="x" * 59))
+    assert short == (f"probe: {mechanism.value} uchun izoh yetarli emas",)
+    assert _errors(monkeypatch, _row(mechanism=mechanism, note="x" * 60)) == ()
+
+
+def test_every_broken_row_is_reported_not_only_the_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    problems = _errors(monkeypatch, _row(code="a", note=""), _row(code="b", note=""))
+    assert problems == ("a: izoh yo'q", "b: izoh yo'q")
+
+
+# --------------------------------------------------------------------------
+# 10. Reyestrning o'zi — literal jadval
+# --------------------------------------------------------------------------
+#
+# `where` va `lock` uchun shu paytgacha faqat **mavjudlik**
+# tekshirilardi (`_resolve` yechiladimi, fayl bormi), ya'ni `rbac` ning
+# mexanizmi `audit` niki bilan almashsa yoki qulf boshqa **mavjud**
+# test fayliga ko'chsa — hech narsa yiqilmasdi. `spec`, `posture` va
+# `mechanism` ustunlari esa umuman o'lchanmagan edi: `VACUOUS` ni
+# `EXTERNAL` ga («buzish uchun narsa yo'q» → «bizning ishimiz emas»)
+# almashtirish jim o'tardi, holbuki bu ikki holatning **sababi**
+# butunlay boshqa.
+
+#: (code, spec, doc_item, claim, nfr, posture, mechanism, where, lock)
+REGISTRY: tuple[tuple[str, str, str, int, str, Posture, Mechanism, str, str], ...] = (
+    (
+        "rbac", "01 §20", "RBAC", 0, "",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.admin.roles:PERMISSIONS", "tests/test_admin_roles.py",
+    ),
+    (
+        "mfa", "01 §20 + BRD NFR-S-01", "MFA для админ-ролей", 0, "NFR-S-01",
+        Posture.ABSENT, Mechanism.NAMED_ONLY,
+        "", "",
+    ),
+    (
+        "encryption", "01 §20", "шифрование", 0, "",
+        Posture.EXTERNAL, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "audit", "01 §20", "аудит", 0, "",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.admin.audit:record", "tests/test_admin_audit.py",
+    ),
+    (
+        "session_password_policy", "01 §20", "политика сессий и паролей", 0, "",
+        Posture.VACUOUS, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "geom_split", "01 §20", "разделение `geom_exact` / `geom_public`", 0, "",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.reports.models:Report", "tests/test_privacy_jitter_contract.py",
+    ),
+    (
+        "read_exact_geo", "01 §20 + BRD NFR-S-02", "право `outage.read_exact_geo`", 0, "NFR-S-02",
+        Posture.ENFORCED, Mechanism.SUBSTITUTED,
+        "app.api.v1.outages:OutagePublic", "tests/test_api_surface_contract.py",
+    ),
+    (
+        "pci_dss", "01 §20", "PCI DSS", 0, "",
+        Posture.VACUOUS, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "gdpr", "01 §20", "GDPR", 0, "",
+        Posture.EXTERNAL, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "data_localisation", "01 §20 + 01 NFR-S-04", "GDPR", 1, "",
+        Posture.EXTERNAL, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "iso_27001", "01 §20", "ISO 27001", 0, "",
+        Posture.EXTERNAL, Mechanism.UNNAMED,
+        "", "",
+    ),
+    (
+        "pdn_not_collected", "01 §20", "ПДн", 0, "",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.admin.security:USERS_ALLOWED_COLUMNS", "tests/test_security_posture_contract.py",
+    ),
+    (
+        "tg_id_pseudonymous", "01 §20", "ПДн", 1, "",
+        Posture.MISSTATED, Mechanism.NAMED_ONLY,
+        "app.reports.models:User.tg_id", "tests/test_api_surface_contract.py",
+    ),
+    (
+        "geo_grid_snap", "01 §20", "Геоданные", 0, "",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.geo.jitter:public_point", "tests/test_privacy_jitter_contract.py",
+    ),
+    (
+        "mahalla_reid_check", "01 §20 (OQ-04)", "Геоданные", 1, "",
+        Posture.ABSENT, Mechanism.NAMED_ONLY,
+        "", "",
+    ),
+    (
+        "rate_limit_reports", "BRD NFR-S-03", "", 0, "NFR-S-03",
+        Posture.ENFORCED, Mechanism.AS_WRITTEN,
+        "app.reports.intake:check_rate_limit", "tests/test_reports_intake.py",
+    ),
+    (
+        "rate_limit_api", "BRD NFR-S-03 + 01 §16", "", 0, "NFR-S-03",
+        Posture.ABSENT, Mechanism.NAMED_ONLY,
+        "", "",
+    ),
+)
+
+
+def test_the_registry_is_exactly_these_rows_in_this_order() -> None:
+    """Har ustun — alohida da'vo, ya'ni har biri alohida yiqiladi.
+
+    Tartib ham qulflanadi: reyestr §20 ni **o'qish tartibida**
+    (nasr → jadval → BRD NFR lari) yozadi va hisobotning ro'yxatlari
+    shundan quriladi.
+    """
+    actual = tuple(
+        (g.code, g.spec, g.doc_item, g.claim, g.nfr, g.posture, g.mechanism, g.where, g.lock)
+        for g in GUARANTEES
+    )
+    assert actual == REGISTRY
+
+
+# --------------------------------------------------------------------------
+# 11. ПДн detektorining ishoralari
+# --------------------------------------------------------------------------
+#
+# Uchala ro'yxatdan bugungacha faqat uchta ishora o'lchangan edi
+# (`username`, `phone`, `last_name`), ya'ni qolgan o'n bittasini
+# jimgina o'chirib qo'yish mumkin edi — va aynan o'sha ro'yxat
+# «qanday nom bilan kirib kelgan ПДн ko'rinadi» degan savolga javob
+# beradi.
+
+PDN_HINTS: dict[str, tuple[str, ...]] = {
+    "ФИО": ("name", "first_name", "last_name", "full_name", "fio", "patronymic"),
+    "телефон": ("phone", "msisdn", "tel", "mobile"),
+    "username": ("username", "user_name", "handle", "nickname", "login"),
+}
+
+
+def test_the_personal_data_hints_are_exactly_these() -> None:
+    assert security.PDN_COLUMN_HINTS == PDN_HINTS
+
+
+@pytest.mark.parametrize(
+    ("kind", "hint"),
+    [(kind, hint) for kind, hints in PDN_HINTS.items() for hint in hints],
+)
+def test_every_single_hint_is_detected(kind: str, hint: str) -> None:
+    assert security.pdn_columns_found({hint}) == {kind: (hint,)}
+
+
+def test_the_hits_come_back_sorted_not_in_hint_order() -> None:
+    """`sorted` — bezak emas: xato xabari barqaror bo'lishi kerak.
+
+    `телефон` ning ishoralari ataylab alifbo tartibida emas, ya'ni
+    `sorted` tushib qolsa natija boshqa bo'ladi.
+    """
+    found = security.pdn_columns_found({"phone", "msisdn", "tel", "mobile"})
+    assert found["телефон"] == ("mobile", "msisdn", "phone", "tel")
+
+
+# --------------------------------------------------------------------------
+# 12. Hisobotning shakli
+# --------------------------------------------------------------------------
+
+
+def test_the_report_carries_every_guarantee() -> None:
+    """`guarantees` — `GET /api/v1/admin/registries` dagi `total`.
+
+    `app/admin/registries.py: _probe_security` uni aynan shu maydondan
+    oladi, ya'ni qisqargan ro'yxat operatorga «reyestrda o'n olti
+    qator» deb ko'rsatardi.
+    """
+    assert security.evaluate().guarantees == GUARANTEES
+
+
+def test_the_flagged_lists_keep_registry_order() -> None:
+    """«O'qish tartibida» — `SecurityReport` ning docstringidagi da'vo."""
+    report = security.evaluate()
+    order = [g.code for g in GUARANTEES]
+    for flagged in (report.absent, report.undefended, report.misstated, report.substituted):
+        assert list(flagged) == sorted(flagged, key=order.index)
+
+
+def test_a_guarantee_and_its_report_are_immutable() -> None:
+    """Reyestr — o'qiladigan artefakt, ish holati emas.
+
+    `evaluate()` `GUARANTEES` ning **o'zini** qaytaradi, ya'ni
+    o'zgaruvchan qator hisobotni chaqiruvchi tomonidan jimgina
+    tahrirlanadigan qilardi.
+    """
+    with pytest.raises(FrozenInstanceError):
+        GUARANTEES[0].posture = Posture.ABSENT  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        security.evaluate().trustworthy = True  # type: ignore[misc]

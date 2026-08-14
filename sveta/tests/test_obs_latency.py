@@ -258,3 +258,190 @@ def test_the_design_still_caps_alerts_at_four_after_the_new_metric() -> None:
 
     assert len(alerts.ALERTS) == monitoring.ALERT_CAP == 4
     assert not [name for name in alerts.ALERTS if "p95" in name or "latency" in name]
+
+
+# --------------------------------------------------------------------------
+# 4-qatlam. 151-run mutatsiyasi ochgan bo'shliqlar
+#
+# O'lchov: `app/obs/latency.py` + `app/obs/readings.py` ga 32 mutatsiya —
+# 20 KILLED, 12 SURVIVOR; o'n ikkalasi ham butun bazasiz to'plamda
+# (3473 test) birma-bir tasdiqlandi, ya'ni yolg'on survivor yo'q.
+# Survivorlarning hammasi shu modulda va ular ikki oilaga tushadi:
+# gistogramma arifmetikasining **chegaralari** (rank aynan chelak
+# qirrasiga tushgan lahza, `+Inf` chelagi, kvantilning ochiq quyi
+# chegarasi) va **qorovullar** — import paytidagi ikkitasi hamda
+# `classify` ning bo'sh/qisman `webhook_path` i. Ikkalasi ham bugungi
+# ma'lumotda jim: birinchisi faqat aniq chegarada ko'rinadi,
+# ikkinchisi faqat konfiguratsiya o'zgarganda otiladi (149-run ning
+# «ertangi kirish» sinfi).
+# --------------------------------------------------------------------------
+
+
+def test_a_request_slower_than_the_last_edge_lands_in_the_inf_bucket() -> None:
+    """`bucket_index` ning oxirgi qatori — taqsimotning yuqori uchi.
+
+    `len(BUCKETS) - 1` qaytarish 30 soniyalik so'rovni «10 soniyadan
+    tez» deb yozardi. Eksport formati **buzilmasdi**: `_count` va
+    chelaklar yig'indisi baribir mos kelardi, `+Inf` chelagi esa
+    jimgina har doim bo'sh qolardi — ya'ni yagona alomat p95 ning
+    tizimli ravishda **yaxshi tomonga** siljishi bo'lardi, modul
+    docstringi esa aynan shundan qochish uchun yozilgan.
+    """
+    assert lat.bucket_index(30.0) == len(lat.BUCKETS)
+    assert lat.bucket_index(lat.BUCKETS[-1]) == len(lat.BUCKETS) - 1
+
+    counts = [0] * (len(lat.BUCKETS) + 1)
+    counts[lat.bucket_index(30.0)] = 1
+    histogram = lat.Histogram(counts=tuple(counts))
+    assert histogram.share_within(lat.BUCKETS[-1]) == 0.0
+    assert histogram.quantile(0.95) == lat.BUCKETS[-1]
+
+
+def test_the_rank_belongs_to_its_own_bucket_like_prometheus() -> None:
+    """`cumulative[i] >= rank` — `>` emas.
+
+    Farq faqat rank aynan kümülativ chegaraga tushganda ko'rinadi va
+    o'sha holat bugungi fikstyuralarda yo'q edi (143-run naqshi:
+    qulf bor, uni ajratadigan holat yo'q). Bitta tez va bitta sekin
+    so'rovda p50 — **tez** so'rovniki: `rank = 1` va birinchi chelak
+    uni allaqachon qamrab olgan. `>` bilan indeks bir chelak yuqoriga
+    siljiydi va p50 10 ms o'rniga 500 ms bo'lib chiqardi — o'ttiz
+    barobar, hech bir test yiqilmasdan.
+    """
+    histogram = _hist(fast=1, slow=1)
+    assert histogram.total == 2
+    assert histogram.quantile(0.5) == pytest.approx(0.01)
+
+
+def test_the_zero_quantile_is_refused() -> None:
+    """Kvantil oralig'i `(0, 1]` — quyi chegarasi **ochiq**.
+
+    `q = 0` da `rank = 0` bo'ladi va `next(...)` taqsimotdan qat'i
+    nazar birinchi chelakni tanlaydi, ya'ni funksiya har doim eng tez
+    chelakni qaytarardi. Bugungi to'plam buni ko'rmasdi — hech bir
+    test `0.0` bermaydi.
+    """
+    histogram = _hist(fast=1, slow=1)
+    with pytest.raises(ValueError):
+        histogram.quantile(0.0)
+    with pytest.raises(ValueError):
+        histogram.quantile(-0.1)
+    with pytest.raises(ValueError):
+        histogram.quantile(1.5)
+    assert histogram.quantile(1.0) == pytest.approx(0.5)
+
+
+def test_the_empty_bucket_guard_is_unreachable_for_valid_counts() -> None:
+    """`if inside <= 0` — **ekvivalent mutant** ning manzili, va nima uchun.
+
+    Mutatsiya (`return upper` → `return lower`) butun to'plamda omon
+    qoldi, lekin bu test bo'shlig'i emas: manfiy bo'lmagan sanoqlarda
+    shoxga umuman kirib bo'lmaydi. Dalil arifmetik — `index` bu
+    `cumulative[i] >= rank` shartini qanoatlantiruvchi **birinchi**
+    indeks, ya'ni `cumulative[index - 1] < rank <= cumulative[index]`
+    va ayirma qat'iy musbat; `index == 0` da esa `cumulative[0] >=
+    rank > 0`.
+
+    Test dalilni takrorlamaydi, uni **sanab** tekshiradi: eng ko'pi
+    ikkita to'ldirilgan chelakli barcha vektorlar × yuzta kvantil.
+    Qorovul kelajakda erishiladigan bo'lib qolsa (masalan sanoqlar
+    manfiy bo'lishiga ruxsat berilsa) shu yerda ko'rinadi.
+    """
+    size = len(lat.BUCKETS) + 1
+    reached = 0
+    for first in range(size):
+        for second in range(size):
+            counts = [0] * size
+            counts[first] += 3
+            counts[second] += 4
+            histogram = lat.Histogram(counts=tuple(counts))
+            cumulative = histogram.cumulative
+            for step in range(1, 101):
+                rank = step / 100 * histogram.total
+                index = next(i for i, value in enumerate(cumulative) if value >= rank)
+                before = cumulative[index - 1] if index else 0
+                reached += cumulative[index] - before <= 0
+    assert reached == 0
+
+
+def test_duplicate_or_descending_bucket_edges_are_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`sorted(set(...))` dagi `set` — takrorlangan qirraga qarshi.
+
+    Bugungi ro'yxatda takror yo'q, ya'ni `set` ni olib tashlash
+    **bugun** hech narsani o'zgartirmaydi. U ertangi tahrirda otiladi:
+    takrorlangan qirra `BUCKETS.index()` ni birinchi nusxaga
+    bog'lardi va `share_within` jimgina noto'g'ri chelakni o'qirdi.
+    """
+    monkeypatch.setattr(lat, "BUCKETS", (0.01, 0.3, 0.3, 10.0))
+    with pytest.raises(ValueError):
+        lat._check_buckets()
+
+    monkeypatch.setattr(lat, "BUCKETS", (0.3, 0.01))
+    with pytest.raises(ValueError):
+        lat._check_buckets()
+
+
+def test_a_target_that_is_not_a_bucket_edge_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Qorovulning o'zi, konstantaning holati emas.
+
+    `test_the_target_is_a_bucket_edge` bugungi qiymatni tekshiradi;
+    qorovulni olib tashlash esa undan **o'tib ketardi** va `TARGET_S`
+    ni 350 ms ga ko'chirish `share_within` ni `ValueError` bilan
+    yiqitardigan holatga import paytida emas, prodda birinchi scrape
+    da olib kelardi.
+    """
+    monkeypatch.setattr(lat, "TARGET_S", 0.35)
+    with pytest.raises(ValueError):
+        lat._check_buckets()
+
+
+def test_a_histogram_with_too_many_buckets_is_refused() -> None:
+    """Qorovul `!=`, `<` emas: ortiqcha chelak ham xato.
+
+    Kam chelak allaqachon tekshirilgan
+    (`test_a_histogram_with_the_wrong_number_of_buckets_is_refused`),
+    ortiqchasi esa yo'q edi — u `_bucket` qatorlaridan tashqarida
+    qolgan sanoqni `_count` ga qo'shib, chelaklar yig'indisini
+    `_count` dan kichik qilardi.
+    """
+    with pytest.raises(ValueError):
+        lat.Histogram(counts=(0,) * (len(lat.BUCKETS) + 2))
+
+
+def test_an_empty_histogram_still_refuses_a_value_that_is_not_an_edge() -> None:
+    """Tartib muhim: qorovul `total == 0` tekshiruvidan **oldin**.
+
+    Aks holda yuklamasiz gistogramma har qanday songa `None` bilan
+    javob berardi va «chegara emas» xatosi faqat trafik paydo
+    bo'lgandan keyin, ya'ni prodda ko'rinardi.
+    """
+    with pytest.raises(ValueError):
+        lat.EMPTY.share_within(0.35)
+
+
+def test_an_empty_webhook_path_does_not_swallow_every_request() -> None:
+    """`webhook_path and (...)` — bo'sh sozlamaga qarshi qorovul.
+
+    Usiz `path.startswith("" + "/")` **har** so'rovga to'g'ri kelardi
+    va butun trafik `webhook` yuzasiga tushardi: ommaviy p95 nolga
+    aylanib, `03` §6 R2.0 mezoni har doim yopiq ko'rinardi.
+    """
+    for path, expected in (
+        ("/api/v1/regions", lat.PUBLIC),
+        ("/api/v1/health", lat.PROBE),
+        ("/docs", lat.OTHER),
+        ("", lat.OTHER),
+    ):
+        assert lat.classify(path, api_prefix="/api/v1", webhook_path="") == expected
+
+
+def test_a_path_that_merely_starts_with_the_webhook_path_is_not_the_webhook() -> None:
+    """Prefiks `/` bilan tugaydi — «yo'l bo'lagi», «satr boshi» emas."""
+    hook = "/telegram/webhook"
+    assert lat.classify(hook, api_prefix="/api/v1", webhook_path=hook) == lat.WEBHOOK
+    assert lat.classify(f"{hook}/retry", api_prefix="/api/v1", webhook_path=hook) == lat.WEBHOOK
+    assert lat.classify(f"{hook}ish", api_prefix="/api/v1", webhook_path=hook) == lat.OTHER

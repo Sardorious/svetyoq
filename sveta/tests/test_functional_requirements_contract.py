@@ -860,3 +860,365 @@ def test_the_registry_does_not_import_the_product() -> None:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 assert not alias.name.startswith("app."), alias.name
+
+
+# --------------------------------------------------------------------------
+# 11. Qorovullar va hisobotning shakli (155-run, mutatsiya qamrovi)
+# --------------------------------------------------------------------------
+#
+# **Nima uchun bu bo'lim bor.** 87-run modulni yozganda 41 mutatsiya
+# yurgizgan va «0 survivor» deb yozgan. O'sha o'lchov **eski harness**
+# bilan olingan: verdikt `returncode != 0` edi va `pytest` ning `rc=4`
+# (buyruq qatori xatosi) ham `KILLED` deb o'qilardi — 119-, 120- va
+# 126-runlar shu yolg'onni uch marta ochgan. 155-run o'lchovni tuzatilgan
+# harness bilan takrorladi: **55 mutatsiya → 25 KILLED, 30 SURVIVOR**.
+#
+# Survivorlar ikki oilaga tushdi va ikkalasi ham tanish:
+#
+# 1. **`__post_init__` ning o'n bir tarmog'idan o'ntasi hech qachon
+#    otilmagan** (111-run ning «qorovulning o'zi testlanmagan» sinfi).
+#    Bugungi oltita qator to'g'ri bo'lgani uchun har bir qorovulni
+#    zaiflashtirish 3545 testni yashil qoldirardi.
+# 2. **Hisobotning shakli umuman o'lchanmagan** (154-run ning sinfi):
+#    o'q lug'atlarini «uchragan sinflardan» qurish, uchta sarlavha
+#    mantiqining o'z o'qi o'rniga qo'shnisiniki o'qishi va `accurate`
+#    ning to'rtala kon'yunktidan **har birini** olib tashlash — bularning
+#    hammasi bugungi ma'lumotda bir xil javob beradi.
+#
+# Har bir tekshiruv sun'iy reyestrda ishlaydi: haqiqiy qatorlar bugun
+# to'g'ri va aynan shu sababdan hech narsani ajratmaydi.
+
+
+def _row(**over: object) -> fr.Delta:
+    """Qorovullar uchun to'g'ri sun'iy qator; `over` bitta katakni buzadi."""
+    fields: dict[str, object] = {
+        "code": "Z-0",
+        "title": "x",
+        "module": "M8",
+        "priority": "P0",
+        "delivered": fr.Delivered.BUILT,
+        "witness": fr.Witness.EXERCISED,
+        "openness": fr.Openness.SETTLED,
+        "note": "x",
+        "binds": ("app.geo.models:District",),
+    }
+    fields.update(over)
+    return fr.Delta(**fields)  # type: ignore[arg-type]
+
+
+def _report(*deltas: fr.Delta, unnamed: tuple[fr.UnnamedSurface, ...] = ()) -> object:
+    return fr.FunctionalRequirementsReport(deltas=deltas, unnamed=unnamed)
+
+
+# --- 11.1. `__post_init__` — o'nta otilmagan tarmoq ---------------------
+
+
+def test_guard_rejects_two_rows_with_the_same_code() -> None:
+    """Takrorlangan kod ikkinchi qatorni jimgina yutardi.
+
+    `by_delivered` va qolgan uchala lug'at kodlar bo'yicha yig'iladi:
+    nusxa kod hisobotda ikki marta chiqadi va reyestr baribir «oltita
+    qator» deb ko'rsatib turaveradi.
+    """
+    with pytest.raises(fr.FunctionalRequirementsError, match="takrorlanadi"):
+        _report(_row(code="Z-1"), _row(code="Z-1", module="M6"))
+
+
+def test_guard_rejects_binds_given_as_a_bare_string() -> None:
+    """`("x")` — kortej emas, **satr**; modul docstringi buni nomlaydi.
+
+    Sabab matnda emas, xabarda: satr bo'ylab iteratsiya harflarni
+    beradi, ya'ni shakl qorovuli ham otiladi va ikkala buzilish bitta
+    istisnoga qo'shilib ketardi. Shuning uchun aynan **kortej**
+    tarmog'i talab qilinadi.
+    """
+    with pytest.raises(fr.FunctionalRequirementsError, match="kortej emas"):
+        _report(_row(binds="app.geo.models:District"))
+
+
+def test_guard_rejects_a_bind_without_a_module_path() -> None:
+    """Nuqtasiz dalil — modul yo'li emas, shunchaki so'z."""
+    with pytest.raises(fr.FunctionalRequirementsError, match="shakli buzilgan"):
+        _report(_row(binds=("District",)))
+
+
+def test_guard_reads_every_bind_not_only_the_first() -> None:
+    """Qorovul kortejning **hamma** elementidan o'tadi."""
+    with pytest.raises(fr.FunctionalRequirementsError, match="shakli buzilgan"):
+        _report(_row(binds=("app.geo.models:District", "District")))
+
+
+def test_guard_reads_the_unnamed_surfaces_too() -> None:
+    """Teskari yo'nalishdagi qatorlar ham shu qorovuldan o'tadi.
+
+    Ular hisobotning `undeclared` sonini beradi (`admin/registries.py`),
+    ya'ni ularning dalili ham tekshirilishi kerak.
+    """
+    broken = fr.UnnamedSurface(code="X-9", module="M8", title="x", why="x", binds=("District",))
+    with pytest.raises(fr.FunctionalRequirementsError, match="shakli buzilgan"):
+        _report(_row(), unnamed=(broken,))
+
+
+def test_guard_admits_only_the_three_modules_the_section_declares_changed() -> None:
+    """Meros qilingan modul yorlig'i qabul qilinmaydi.
+
+    `M1`–`M12` epigrafda bor, lekin §8 ularning **uchtasini** o'zgargan
+    deb ataydi. Qolganlari haqida paket hech narsa bilmaydi, ya'ni
+    «bu `M1` ning deltasi» degan qator hukm chiqarib bo'lmaydigan
+    da'vo bo'lardi. Eski test faqat `M42` ni — umuman mavjud
+    bo'lmagan yorliqni — otardi.
+    """
+    assert "M1" in fr.UNNAMED_MODULES
+    with pytest.raises(fr.FunctionalRequirementsError, match="noma'lum modul"):
+        _report(_row(module="M1"))
+
+
+def test_guard_reads_every_row_not_only_the_first() -> None:
+    """Yorliq va noaniqlik qorovullari butun reyestr bo'ylab yuriladi."""
+    with pytest.raises(fr.FunctionalRequirementsError, match="noma'lum modul"):
+        _report(_row(code="Z-1"), _row(code="Z-2", module="M42"))
+
+
+def test_guard_demands_a_gap_from_a_built_row_with_an_open_decision() -> None:
+    """«Qurilgan, lekin qaror yopilgan» qator farqsiz qola olmaydi.
+
+    Bu `F-6` ning holati: dislaymer qurilgan, `N` esa «подлежит
+    определению» deb yozilgan va kod uni jimgina tanlagan. Farq
+    yozilmasa hisobot qatorni toza `BUILT` deb ko'rsatardi.
+
+    ⚠️ Qorovul aynan `gap` ni o'qiydi, `note` ni emas: izoh har
+    qatorda bor, ya'ni `note` bo'yicha tekshiruv hech qachon
+    otilmagan bo'lardi.
+    """
+    with pytest.raises(fr.FunctionalRequirementsError, match="farq yozilmagan"):
+        _report(_row(openness=fr.Openness.FROZEN, gap="", note="izoh bor"))
+
+
+def test_a_settled_row_may_be_built_without_a_gap() -> None:
+    """Qorovulning ikkinchi yarmi: `SETTLED` da farq talab qilinmaydi.
+
+    Qator hech narsani ochiq deb e'lon qilmagan bo'lsa, «qaror
+    jimgina yopildi» degan gap ma'nosiz — talab faqat ochiq
+    qarorlarga tegishli.
+    """
+    assert _report(_row(openness=fr.Openness.SETTLED, gap="")) is not None
+
+
+# --- 11.2. Hisobotning shakli ------------------------------------------
+
+
+def test_every_axis_keeps_a_bucket_for_a_class_no_row_uses() -> None:
+    """O'q lug'atlari **sinflardan** quriladi, uchragan qiymatlardan emas.
+
+    154-run ning sinfi. Bugun oltala qator o'n beshala sinfni to'ldiradi,
+    ya'ni ikkala qurish usuli bir xil javob beradi va
+    `test_every_class_of_every_axis_is_used` ikkalasidan ham o'tadi.
+    Bo'shliq yopilgan kuni — sinf ishlatilmay qolgan kuni — kalit
+    hisobotdan **yo'qolardi** va o'sha testning o'zi ham ma'nosini
+    yo'qotardi: bo'sh chelak qolmasa, bo'sh chelak qidirish bekor.
+    """
+    single = fr.FunctionalRequirementsReport(deltas=(fr.DELTAS[2],), unnamed=())
+    assert set(single.by_delivered) == set(fr.Delivered)
+    assert set(single.by_witness) == set(fr.Witness)
+    assert set(single.by_openness) == set(fr.Openness)
+    assert single.by_delivered[fr.Delivered.DORMANT] == ()
+    assert single.by_witness[fr.Witness.VACUOUS] == ()
+    assert single.by_openness[fr.Openness.HARDENED] == ()
+
+
+def test_the_module_split_keeps_every_declared_module_and_holds_codes() -> None:
+    """`by_module` — o'lik xossa edi: uni birorta test yoki vitrina o'qimasdi.
+
+    Shuning uchun uning ikkala qarori ham o'lchanmagan: kalitlar
+    `SPEC_MODULES` dan olinadi (ya'ni deltasi yo'q modul ham
+    ko'rinadi) va chelaklarga **kod** yoziladi, sarlavha emas.
+    """
+    report = fr.evaluate()
+    assert report.by_module == {
+        "M8": ("F-1", "F-2", "F-3", "F-4"),
+        "M6": ("F-5",),
+        "M9": ("F-6",),
+    }
+    single = fr.FunctionalRequirementsReport(deltas=(fr.DELTAS[4],), unnamed=())
+    assert set(single.by_module) == set(fr.SPEC_MODULES)
+    assert single.by_module["M6"] == ("F-5",)
+    assert single.by_module["M9"] == ()
+
+
+def test_the_two_module_counts_come_from_the_two_lists() -> None:
+    """`modules_named` ham o'qilmagan xossa edi.
+
+    `modules_inherited == 12` tekshirilardi, uning ikkala yarmi esa
+    emas: nomlangan uchtaga bitta qo'shilsa yig'indi baribir hujjatdan
+    parse qilingan `12` ga teng bo'lib qolardi, chunki hech kim
+    yarimlarni alohida so'ramasdi.
+    """
+    report = fr.evaluate()
+    assert report.modules_named == len(fr.SPEC_MODULES) == 3
+    assert report.modules_inherited - report.modules_named == len(fr.UNNAMED_MODULES)
+
+
+def test_the_mahalla_binding_is_read_case_insensitively() -> None:
+    """`.lower()` bugun hech narsani o'zgartirmaydi — ertaga o'zgartiradi.
+
+    Reyestrdagi oltala dalil ham kichik harfda, ya'ni `b.lower()` va
+    `b` bir xil javob beradi. Sinf nomi ko'tarilgan birinchi dalil
+    (`…:MahallaRegistry` shaklidagi) ro'yxatdan **jimgina** chiqib
+    ketardi.
+    """
+    noisy = _row(code="Z-9", binds=("app.geo.pipeline:Mahalla",))
+    single = fr.FunctionalRequirementsReport(deltas=(noisy,), unnamed=())
+    assert [d.code for d in single.blocked_by_empty_mahallas] == ["Z-9"]
+    assert "mahalla" not in "app.geo.pipeline:Mahalla"
+
+
+def test_an_unwitnessed_row_with_an_open_decision_is_not_a_deferral() -> None:
+    """`unwitnessed_deferrals` ikkala kon'yunktni ham talab qiladi.
+
+    Bugun `AC` siz ikkala qatorning ham qarori yopilgan (`F-4`
+    `HARDENED`, `F-6` `FROZEN`), ya'ni ikkinchi shartni butunlay olib
+    tashlash bir xil juftlikni berardi. Xossaning butun ma'nosi esa
+    aynan kesishmada: `AC` yo'q **va** e'lon qilingan noaniqlik
+    jimgina yopilgan.
+    """
+    held = _row(
+        code="Z-8",
+        witness=fr.Witness.UNWRITTEN,
+        openness=fr.Openness.OPEN,
+        gap="farq bor",
+    )
+    single = fr.FunctionalRequirementsReport(deltas=(held,), unnamed=())
+    assert single.by_witness[fr.Witness.UNWRITTEN] == ("Z-8",)
+    assert single.unwitnessed_deferrals == ()
+
+
+def _one_axis_reports() -> dict[str, object]:
+    """Uchta reyestr; har biri **bitta** o'qda yiqiladi, qolgan ikkitasida toza."""
+    return {
+        "delivered": fr.FunctionalRequirementsReport(
+            deltas=(_row(code="Z-1", delivered=fr.Delivered.SUBSTITUTED),), unnamed=()
+        ),
+        "witness": fr.FunctionalRequirementsReport(
+            deltas=(_row(code="Z-2", witness=fr.Witness.VACUOUS),), unnamed=()
+        ),
+        "openness": fr.FunctionalRequirementsReport(
+            deltas=(_row(code="Z-3", openness=fr.Openness.FROZEN, gap="farq bor"),), unnamed=()
+        ),
+    }
+
+
+def test_each_headline_boolean_reads_its_own_axis() -> None:
+    """Uchala sarlavha mantiqi bugun ajralmaydi — hammasi `False`.
+
+    82-run to'rtala shartni `accurate` ichida ajratgan, lekin
+    shartlarning **o'zi** qaysi o'qni o'qishini hech narsa
+    o'lchamagan: `deltas_hold` ni `toothless` ga, `acceptance_holds`
+    ni `closed_deferrals` ga, `deferrals_hold` ni `diverged` ga
+    ulash 3545 testni yashil qoldirardi.
+    """
+    reports = _one_axis_reports()
+    delivered, witness, openness = (reports["delivered"], reports["witness"], reports["openness"])
+
+    assert (delivered.deltas_hold, delivered.acceptance_holds, delivered.deferrals_hold) == (
+        False,
+        True,
+        True,
+    )
+    assert (witness.deltas_hold, witness.acceptance_holds, witness.deferrals_hold) == (
+        True,
+        False,
+        True,
+    )
+    assert (openness.deltas_hold, openness.acceptance_holds, openness.deferrals_hold) == (
+        True,
+        True,
+        False,
+    )
+
+
+def test_accuracy_fails_on_each_of_the_four_conjuncts_alone() -> None:
+    """`accurate` ning to'rtala kon'yunkti **alohida** yiqita oladi.
+
+    Mavjud `test_accuracy_needs_all_four_conditions` ikkita nuqtani
+    ko'radi: hammasi buzilgan haqiqiy reyestr va hammasi toza bitta
+    qator. Ular orasida har qanday kon'yunktni olib tashlash mumkin
+    edi — to'rtala mutatsiya ham 3545 testdan o'tardi.
+    """
+    reports = _one_axis_reports()
+    for axis, report in reports.items():
+        assert report.accurate is False, axis
+
+    clean = _row(code="Z-4")
+    surface = fr.UnnamedSurface(
+        code="X-9",
+        module="M8",
+        title="x",
+        why="x",
+        binds=("app.geo.models:Region",),
+    )
+    assert fr.FunctionalRequirementsReport(deltas=(clean,), unnamed=()).accurate is True
+    assert fr.FunctionalRequirementsReport(deltas=(clean,), unnamed=(surface,)).accurate is False
+
+
+def test_the_three_axis_predicates_read_the_declared_sets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`diverged`/`toothless`/`closed_deferrals` — siyosat to'plamidan.
+
+    Uchala to'plam bugun bitta-ikkita a'zoli, ya'ni ularni literal
+    bilan almashtirish bugungi ma'lumotda **ekvivalent**. Siyosat esa
+    aynan shu uchta konstantada e'lon qilingan (`test_..._is_the_only_one`
+    ularni o'qiydi), ya'ni xossa ham o'sha yerdan o'qishi shart.
+    Qulf to'plamni almashtirib, xossani qayta chaqiradi.
+    """
+    monkeypatch.setattr(
+        fr, "DELIVERED_KEPT", frozenset({fr.Delivered.BUILT, fr.Delivered.SUBSTITUTED})
+    )
+    assert [d.code for d in fr.evaluate().diverged] == ["F-2", "F-4", "F-5"]
+
+    monkeypatch.setattr(
+        fr,
+        "WITNESS_LIVE",
+        frozenset({fr.Witness.EXERCISED, fr.Witness.DERIVABLE, fr.Witness.VACUOUS}),
+    )
+    assert [d.code for d in fr.evaluate().toothless] == ["F-4", "F-5", "F-6"]
+
+    monkeypatch.setattr(
+        fr,
+        "OPENNESS_HELD",
+        frozenset({fr.Openness.OPEN, fr.Openness.SETTLED, fr.Openness.MOOT}),
+    )
+    assert [d.code for d in fr.evaluate().closed_deferrals] == ["F-1", "F-4", "F-6"]
+
+
+# --- 11.3. `MODULE_PACKAGES` — yorliqning hududi ------------------------
+
+
+def test_the_module_package_table_is_locked_verbatim() -> None:
+    """Jadvaldan prefiks tushishi hech narsani yiqitmasdi.
+
+    Yagona o'quvchi — `test_every_unnamed_surface_binds_to_something_that_exists`
+    va u `any(...)` bilan so'raydi: qatorning **kamida bitta** dalili
+    o'z modulining paketida bo'lsa yetadi. `M6` dan `app.core.i18n` ni,
+    `M9` dan `app.jobs` ni olib tashlash shu sababdan sezilmasdi.
+
+    Jadval — qaror (qaysi paket qaysi modulning hududi), ya'ni 106-run
+    ning `UZ_SESSION_LIMITS` i bilan bir sinf: haqiqiy o'quvchi
+    paydo bo'lgunicha u so'zma-so'z qulflanadi va prefiksni olib
+    tashlash **ko'rinadigan** tahrirga aylanadi.
+
+    ⚠️ Ikkita prefiks (`app.db`, `app.analytics`) reyestrning birorta
+    dalilida uchramaydi — «hudud» ularni faqat e'lon qiladi.
+    `PROGRESS.md` ning «Ochiq savollar» iga yozildi.
+    """
+    assert fr.MODULE_PACKAGES == {
+        "M8": ("app.geo", "app.api.v1.geo", "app.db"),
+        "M6": ("app.bot", "app.core.i18n"),
+        "M9": ("app.stats", "app.analytics", "app.jobs"),
+    }
+    for module, prefixes in fr.MODULE_PACKAGES.items():
+        for prefix in prefixes:
+            path = APP_DIR / Path(*prefix.split(".")[1:])
+            assert path.with_suffix(".py").exists() or (path / "__init__.py").exists(), (
+                f"{module}: {prefix}"
+            )

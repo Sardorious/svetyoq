@@ -40,6 +40,7 @@ from pathlib import Path
 
 from app.admin.audit import AuditAction
 from app.clustering.models import Outage
+from app.notifications.models import Subscription
 from app.obs import metrics
 from app.release import measures as m
 from app.reports.models import Report
@@ -132,6 +133,26 @@ def _indicators(cell: str) -> list[str]:
 
 def test_the_section_still_has_seven_rows() -> None:
     assert len(_rows()) == SECTION_ROWS
+
+
+def test_the_spec_address_points_at_the_section_this_file_parses() -> None:
+    """`SPEC` — hisobotni o'qigan odam ochadigan yagona manzil.
+
+    U `GET /api/v1/admin/registries` orqali tashqariga chiqadi va
+    `BOUND_OUTSIDE_THE_DESIGN_TABLE` ning istisnosi ham unga tayanadi —
+    lekin o'sha tekshiruv `mandate == m.SPEC` shaklida, ya'ni
+    **tavtologiya**: `SPEC` qayerga ko'chsa, istisno ham u bilan
+    ko'chadi. 162-run `03 §11` ni `03 §6` ga (mavjud, lekin **boshqa**
+    bo'lim — reliz gate lari) va `03 §12` ga (umuman yo'q) o'zgartirdi;
+    ikkalasi ham sezilmadi.
+
+    Shuning uchun manzil ikki qismli qulflanadi: shakli `03 §<son>` va
+    soni — aynan shu fayl parse qiladigan sarlavhaning nomeri.
+    """
+    number = m.SPEC.removeprefix("03 §")
+    assert m.SPEC == f"03 §{number}", m.SPEC
+    assert SECTION == f"## {number}. Nima o'lchanadi", m.SPEC
+    assert SECTION in ROADMAP_DOC.read_text(encoding="utf-8")
 
 
 def test_stage_order_matches_the_registry() -> None:
@@ -300,6 +321,22 @@ def test_reports_may_exist_without_an_outage() -> None:
     """
     assert Report.__table__.columns["outage_id"].nullable
     assert m.MEASURE_BY_CODE["matching_reports"].coverage is m.Coverage.DERIVABLE
+
+
+def test_unsubscribing_is_a_soft_delete_without_a_history() -> None:
+    """`unsubscribe_share` ning `DERIVABLE` da'vosi — va uning chegarasi.
+
+    O'chirish yumshoq (`subscriptions.is_active`), ya'ni **joriy**
+    nisbat bitta `COUNT(*)` bilan olinadi. `deactivated_at` esa yo'q,
+    shuning uchun davr kesimida (oyma-oy) bu son chiqmaydi. Ustun
+    qo'shilgan kunda bu test qizil bo'ladi va da'voni qayta o'qishni
+    talab qiladi; `EXTERNAL` ga siljish esa (162-run mutatsiyasi)
+    qatorni bo'shliqlar ro'yxatidan butunlay chiqarib yuborardi.
+    """
+    columns = Subscription.__table__.columns
+    assert "is_active" in columns
+    assert "deactivated_at" not in columns
+    assert m.MEASURE_BY_CODE["unsubscribe_share"].coverage is m.Coverage.DERIVABLE
 
 
 def test_the_review_queue_leaves_no_trace() -> None:

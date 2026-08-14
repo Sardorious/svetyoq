@@ -575,3 +575,365 @@ def test_the_probe_unions_its_two_reasons() -> None:
     assert overlap == {"K-9"}
     probe = registries.REGISTRY_BY_CODE["success"].probe(None)  # type: ignore[misc]
     assert probe.flagged == len(report.broken_promises) + len(report.undefined) - 1
+
+
+# --------------------------------------------------------------------------
+# 8-qatlam: mutatsiya bilan topilgan bo'shliqlar (157-run)
+# --------------------------------------------------------------------------
+#
+# 84-run bu modulni «18 mutatsiya, 0 survivor» deb yozgan, lekin o'sha
+# o'lchov **tuzatilmagan harness** bilan olingan: verdikt
+# `returncode != 0` edi va `pytest` ning `rc=4` (bitta ham test yurmagan
+# run) yolg'on `KILLED` berardi; `verdict()` faqat 126-runda tuzatilgan.
+# 157-run 61 mutatsiya yozdi va **34 tasi tirik qoldi** (56 %). Uchta
+# oila:
+#
+# (a) `_check_registry` ning o'nta shartidan **oltitasi** hech qachon
+#     otilmagan. Eng qimmati — `undefined` qorovuli: 5-qatlamning
+#     `("K-9", {"reading": SERVED})` parametri uni otadi deb o'ylangan,
+#     aslida esa **boshqa** qorovul (`SERVED`, dalilsiz) birinchi
+#     yiqilardi va `undefined` tarmog'iga navbat kelmasdi. Ikkala sikl
+#     ham to'liq emas edi: oxirgi KPI va oxirgi `UNNAMED` qatori
+#     o'lchanmasdi.
+# (b) **Hisobotning shakli** — 154/155/156 ning sinfi to'rtinchi marta.
+#     `by_target` va `disclaimed` — o'quvchisiz xossalar; o'q lug'atini
+#     «uchragan sinflardan» qurish bugun bir xil javob beradi va
+#     `test_every_reading_class_is_used` o'z ma'nosini yo'qotardi;
+#     `accurate` ning **birinchi** kon'yunkti (`targets_are_answerable`)
+#     olib tashlanishi mumkin edi — qolgan ikkitasi 7-qatlamda alohida
+#     o'lchangan.
+# (c) **Parser va konstantalar:** `parse_kpi_table` ning uchta qorovuli
+#     (jadval tugagani, katak soni, jadvalning yo'qligi) haqiqiy hujjatda
+#     hech qachon otilmaydi; sarlavha regexpining `$` langari va
+#     `_ROW_RE` ning `.+` i sezilmasdi; uchta matn konstantasi
+#     **qisqartirilsa** ham hujjatda topilardi (`in` tekshiruvi
+#     bo'lakni ham o'tkazadi); ikkita dalil kortejidan bittadan element
+#     jimgina tushib qolardi.
+#
+# ⚠️ Uslub: qorovul testlarida `match=` **shart** — bitta buzilgan qator
+# bir necha qorovulni birdan otishi mumkin, mutantni faqat xabar
+# ajratadi.
+
+
+def _guard(
+    *,
+    kpis: tuple[sm.Kpi, ...] | None = None,
+    unnamed: tuple[sm.UnnamedMeasure, ...] | None = None,
+) -> None:
+    """`_check_registry()` ni almashtirilgan reyestr bilan qayta chaqiradi.
+
+    Modul darajasidagi chaqiruv import paytida bo'lib bo'lgan, ya'ni
+    qorovulni «otish» uchun uni qo'lda qayta chaqirish kerak.
+    """
+    original_kpis, original_unnamed = sm.KPIS, sm.UNNAMED
+    try:
+        if kpis is not None:
+            sm.KPIS = kpis  # type: ignore[misc]
+        if unnamed is not None:
+            sm.UNNAMED = unnamed  # type: ignore[misc]
+        sm._check_registry()
+    finally:
+        sm.KPIS = original_kpis  # type: ignore[misc]
+        sm.UNNAMED = original_unnamed  # type: ignore[misc]
+
+
+# --- (a) `_check_registry` ning otilmagan tarmoqlari ---
+
+
+def test_guard_rejects_a_duplicated_kpi_code() -> None:
+    """Nusxa kod `KPI_BY_CODE` da jimgina yutilardi.
+
+    Nomi ataylab o'zgarishsiz qoldirilmaydi: aks holda nom qorovuli
+    ham otilib, qaysi biri ishlaganini ajratib bo'lmasdi.
+    """
+    kpis = (sm.KPIS[0], replace(sm.KPIS[1], code=sm.KPIS[0].code), *sm.KPIS[2:])
+    with pytest.raises(sm.SuccessMetricsError, match="kodlari takrorlangan"):
+        _guard(kpis=kpis)
+
+
+def test_guard_rejects_a_duplicated_kpi_name() -> None:
+    """Kod boshqa, nom bir xil — jadvalda ikkita bir xil qator."""
+    kpis = (sm.KPIS[0], replace(sm.KPIS[1], kpi=sm.KPIS[0].kpi), *sm.KPIS[2:])
+    with pytest.raises(sm.SuccessMetricsError, match="nomlari takrorlangan"):
+        _guard(kpis=kpis)
+
+
+def test_guard_rejects_a_duplicated_unnamed_code() -> None:
+    """Teskari yo'nalishning kodlari ham noyob."""
+    unnamed = (sm.UNNAMED[0], replace(sm.UNNAMED[1], code=sm.UNNAMED[0].code), *sm.UNNAMED[2:])
+    with pytest.raises(sm.SuccessMetricsError, match="teskari yo'nalish kodlari"):
+        _guard(unnamed=unnamed)
+
+
+def test_guard_rejects_an_unnamed_measure_without_evidence() -> None:
+    """«Repo o'lchaydi» degan da'vo dalilsiz turolmaydi."""
+    unnamed = (replace(sm.UNNAMED[0], binds=()), *sm.UNNAMED[1:])
+    with pytest.raises(sm.SuccessMetricsError, match="dalilsiz"):
+        _guard(unnamed=unnamed)
+
+
+def test_guard_reads_the_last_unnamed_measure() -> None:
+    """Sikl to'liq: buzilish ataylab **oxirgi** qatorga qo'yiladi."""
+    unnamed = (*sm.UNNAMED[:-1], replace(sm.UNNAMED[-1], binds=()))
+    with pytest.raises(sm.SuccessMetricsError, match="dalilsiz"):
+        _guard(unnamed=unnamed)
+
+
+def test_guard_reads_the_last_kpi_row() -> None:
+    """KPI sikli ham to'liq — `KPIS[:-1]` sezilmasdi."""
+    kpis = (*sm.KPIS[:-1], replace(sm.KPIS[-1], note=""))
+    with pytest.raises(sm.SuccessMetricsError, match="izohsiz qator"):
+        _guard(kpis=kpis)
+
+
+def test_guard_rejects_an_undefined_row_that_is_not_blind() -> None:
+    """Bu qorovulga hech qachon navbat kelmagan.
+
+    5-qatlamning `("K-9", {"reading": SERVED})` parametri uni otadi deb
+    o'ylangan edi, aslida `K-9` da dalil yo'q va **birinchi** yiqiladigan
+    qorovul «`SERVED`, lekin dalil yo'q» bo'lardi. Shuning uchun bu yerda
+    dalil ataylab beriladi: shunda faqat `undefined` tarmog'i qoladi.
+    """
+    kpis = tuple(
+        replace(k, reading=sm.Reading.SERVED, binds=("app.release.success:SPEC",))
+        if k.code == "K-9"
+        else k
+        for k in sm.KPIS
+    )
+    with pytest.raises(sm.SuccessMetricsError, match="ta'rifsiz, lekin `BLIND` emas"):
+        _guard(kpis=kpis)
+
+
+# --- (b) hisobotning shakli ---
+
+
+def test_only_served_rows_are_answerable() -> None:
+    """`READING_ANSWERS` ning **kengayishi** sezilsin.
+
+    Mavjud tekshiruv `{"K-10", "K-11"} <= served` deb so'raydi, ya'ni
+    to'plamga `DERIVABLE` yoki `EMITTED` qo'shilsa ham o'tardi — va
+    aynan shu ikkala kengaytma tirik qolgan edi.
+    """
+    report = sm.evaluate()
+    assert {k.code for k in report.answerable} == {"K-3", "K-10", "K-11"}
+
+
+def test_the_answerable_class_is_read_from_the_policy_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`READING_ANSWERS` — siyosat, literal emas.
+
+    Bugun to'plamda bitta sinf bor, ya'ni uni `is Reading.SERVED` bilan
+    almashtirish **ekvivalent** ko'rinadi. Qulf shuning uchun to'plamni
+    kengaytiradi va javob o'zgarishini talab qiladi.
+    """
+    monkeypatch.setattr(
+        sm, "READING_ANSWERS", frozenset({sm.Reading.SERVED, sm.Reading.DERIVABLE})
+    )
+    assert sm.KPI_BY_CODE["K-4"].is_answerable is True
+    assert "K-4" in {k.code for k in sm.evaluate().answerable}
+
+
+def test_the_blocked_set_is_exactly_what_code_cannot_close() -> None:
+    """`READING_BLOCKED` ning birinchi o'quvchisi.
+
+    Konstantani birorta kod o'qimasdi — uni bo'shatish sezilmasdi.
+    U reyestrning o'z sinflariga qarshi yechiladi: olti sinf uchga
+    bo'linadi — javob bor (`READING_ANSWERS`), javob **qarz**
+    (`DERIVABLE`/`EMITTED` — yozilishi kerak bo'lgan kod), va javob
+    kod bilan yopilmaydi (`READING_BLOCKED`).
+    """
+    debt = {sm.Reading.DERIVABLE, sm.Reading.EMITTED}
+    assert sm.READING_BLOCKED & sm.READING_ANSWERS == frozenset()
+    assert sm.READING_BLOCKED & debt == set()
+    assert sm.READING_BLOCKED | sm.READING_ANSWERS | debt == set(sm.Reading)
+    by_reading = sm.evaluate().by_reading
+    for reading in sm.READING_BLOCKED:
+        assert by_reading[reading], reading
+
+
+def test_a_promise_with_a_meter_is_not_a_broken_promise() -> None:
+    """`is_promised and not is_answerable` — ikkala yarmi ham kerak.
+
+    Bugun sonli ikkala maqsad ham javobsiz, ya'ni ikkinchi kon'yunktni
+    butunlay olib tashlash bir xil javob berardi.
+    """
+    kpis = tuple(
+        replace(k, target=sm.Target.QUANTIFIED) if k.code == "K-10" else k for k in sm.KPIS
+    )
+    served_promise = next(k for k in kpis if k.code == "K-10")
+    assert served_promise.is_promised is True
+    assert served_promise.is_answerable is True
+    assert served_promise.is_broken_promise is False
+    report = sm.SuccessReport(kpis=kpis, unnamed=sm.UNNAMED)
+    assert "K-10" not in {k.code for k in report.broken_promises}
+
+
+def test_every_reading_class_keeps_its_bucket_even_when_empty() -> None:
+    """Chelaklar `Reading` dan quriladi, uchragan sinflardan emas.
+
+    Bugun oltala sinf ham to'la, ya'ni lug'atni «uchraganidan» qurish
+    bir xil javob berardi — va `test_every_reading_class_is_used`
+    o'zining ma'nosini yo'qotardi: bo'sh chelak qurilmasa, bo'sh chelak
+    qidirish bekor.
+    """
+    kpis = tuple(k for k in sm.KPIS if k.reading is not sm.Reading.EXTERNAL)
+    by_reading = sm.SuccessReport(kpis=kpis, unnamed=()).by_reading
+    assert sm.Reading.EXTERNAL in by_reading
+    assert by_reading[sm.Reading.EXTERNAL] == ()
+
+
+def test_by_target_names_its_rows_and_keeps_empty_classes() -> None:
+    """`by_target` ning birinchi o'quvchisi — u o'lik xossa edi."""
+    by_target = sm.evaluate().by_target
+    assert by_target[sm.Target.QUANTIFIED] == ("K-9", "K-12")
+    assert by_target[sm.Target.DISCLAIMED] == ("K-10", "K-11")
+    assert len(by_target[sm.Target.DEFERRED]) == sm.SPEC_KPIS - 4
+    kpis = tuple(k for k in sm.KPIS if k.target is not sm.Target.DISCLAIMED)
+    assert sm.SuccessReport(kpis=kpis, unnamed=()).by_target[sm.Target.DISCLAIMED] == ()
+
+
+def test_the_disclaimed_rows_are_the_two_the_repo_serves() -> None:
+    """`disclaimed` ham o'quvchisiz xossa edi — bosh topilmaning yarmi."""
+    assert {k.code for k in sm.evaluate().disclaimed} == {"K-10", "K-11"}
+
+
+def test_answerable_but_disclaimed_needs_both_halves() -> None:
+    """Kesishma — `answerable` **va** `DISCLAIMED`.
+
+    Bugun ikkala `DISCLAIMED` qator ham `SERVED`, ya'ni birinchi yarmini
+    olib tashlash bir xil javob berardi.
+    """
+    kpis = tuple(
+        replace(k, reading=sm.Reading.BLIND, binds=()) if k.code == "K-10" else k for k in sm.KPIS
+    )
+    report = sm.SuccessReport(kpis=kpis, unnamed=sm.UNNAMED)
+    assert {k.code for k in report.disclaimed} == {"K-10", "K-11"}
+    assert {k.code for k in report.answerable_but_disclaimed} == {"K-11"}
+
+
+def test_targets_are_answerable_counts_meters_not_promises() -> None:
+    """Bosh xossa va'dalarni emas, **o'lchagichsiz** va'dalarni sanaydi.
+
+    Bugun har bir va'da o'lchagichsiz, ya'ni `not broken_promises` ni
+    `not promised` ga almashtirish sezilmasdi — va §4 tuzalgan kunda
+    xossa yolg'on `False` qaytarardi.
+    """
+    kpis = tuple(
+        replace(k, reading=sm.Reading.SERVED, binds=("app.release.success:SPEC",))
+        if k.code in {"K-9", "K-12"}
+        else k
+        for k in sm.KPIS
+    )
+    report = sm.SuccessReport(kpis=kpis, unnamed=())
+    assert {k.code for k in report.promised} == {"K-9", "K-12"}
+    assert report.broken_promises == ()
+    assert report.targets_are_answerable is True
+
+
+def test_accurate_needs_its_first_conjunct_too() -> None:
+    """`accurate` ning uchinchi kon'yunkti ham alohida o'lchansin.
+
+    7-qatlam `undefined` va `unnamed` yarmini ajratadi, `gate` yarmini
+    esa yo'q: bugun uchalasi ham buzilgan, ya'ni **birinchi** kon'yunktni
+    olib tashlash bir xil javob berardi.
+    """
+    kpis = tuple(replace(k, undefined=False) for k in sm.KPIS)
+    report = sm.SuccessReport(kpis=kpis, unnamed=())
+    assert report.undefined == ()
+    assert report.unnamed == ()
+    assert report.targets_are_answerable is False
+    assert report.accurate is False
+
+
+# --- (c) parser va matn konstantalari ---
+
+
+def _synthetic(body: str) -> str:
+    return f"## 4. Success Metrics\n\n{body}\n\n## 5. Keyingi bo'lim\n"
+
+
+_SYNTH_HEADER = "| KPI | Baseline (Ташкент) | Статус baseline | Target Ph.1 | Статус target |"
+_SYNTH_SEP = "|---|---|---|---|---|"
+_SYNTH_ROW = "| X | 1 | — | подлежит замеру | `[ГИПОТЕЗА]` |"
+
+
+def test_the_table_has_not_ended_before_it_has_produced_a_row() -> None:
+    """«Jadval tugadi» — sarlavha emas, **qator** bo'lgandan keyin.
+
+    Sarlavhadan keyin darhol keladigan jadval bo'lmagan qator jadvalni
+    tugatmasligi kerak: aks holda birinchi tasodifiy quvurli qator
+    haqiqiy jadvalni yutib yuborardi.
+    """
+    doc = _synthetic("\n".join([_SYNTH_HEADER, "<!-- izoh -->", _SYNTH_SEP, _SYNTH_ROW]))
+    header, rows = sm.parse_kpi_table(doc)
+    assert header == sm.SPEC_COLUMNS
+    assert len(rows) == 1
+
+
+def test_the_parser_rejects_a_row_with_the_wrong_cell_count() -> None:
+    """Katak soni qorovuli haqiqiy hujjatda hech qachon otilmaydi."""
+    doc = _synthetic("\n".join([_SYNTH_HEADER, _SYNTH_SEP, "| X | 1 | — | подлежит |"]))
+    with pytest.raises(sm.SuccessMetricsError, match="katak soni"):
+        sm.parse_kpi_table(doc)
+
+
+def test_the_parser_rejects_a_section_without_a_table() -> None:
+    """Bo'limda jadval bo'lmasa — xato, bo'sh natija emas."""
+    with pytest.raises(sm.SuccessMetricsError, match="jadval yo'q"):
+        sm.parse_kpi_table(_synthetic("faqat matn"))
+
+
+def test_an_empty_pipe_line_ends_the_table() -> None:
+    """`_ROW_RE` kamida bitta katak talab qiladi.
+
+    `||` — jadval qatori emas; u qator deb o'qilsa, katak soni qorovuli
+    otilib, bo'lim butunlay o'qilmay qolardi.
+    """
+    doc = _synthetic("\n".join([_SYNTH_HEADER, _SYNTH_SEP, _SYNTH_ROW, "||"]))
+    _, rows = sm.parse_kpi_table(doc)
+    assert len(rows) == 1
+
+
+def test_the_heading_is_matched_whole() -> None:
+    """Sarlavha **aynan** shu bo'lsin, prefiksi emas.
+
+    `## 4. Success Metrics — черновик` boshqa bo'lim: langari
+    yo'qolsa, reyestr qoralamani o'lchay boshlardi.
+    """
+    with pytest.raises(sm.SuccessMetricsError, match="topilmadi"):
+        sm.section_text("## 4. Success Metrics — черновик\n\nmatn\n")
+
+
+def test_the_warning_is_the_whole_sentence() -> None:
+    """`in` tekshiruvi bo'lakni ham o'tkazadi — jumla to'liq bo'lsin."""
+    section = sm.section_text(_doc())
+    assert f"{sm.WARNING_PHRASE}." in section
+    assert f"{sm.COMMERCIAL_PHRASE}**." in section
+
+
+def test_the_hypothesis_tag_is_a_whole_token() -> None:
+    """Belgi hujjatda **teskari tirnoq ichida** turadi, ya'ni butun."""
+    section = sm.section_text(_doc())
+    assert f"`{sm.TAG_HYPOTHESIS}`" in section
+    assert f"`{sm.TAG_DATA}`" in section
+
+
+def test_k4_binds_both_ends_of_the_activation_window() -> None:
+    """`DERIVABLE` ning da'vosi — **ikkala** uchi bazada.
+
+    Bitta dalil tushib qolsa, qator «bir uchi bor» degan holatga
+    tushardi va sabab jimgina yolg'onga aylanardi.
+    """
+    binds = sm.KPI_BY_CODE["K-4"].binds
+    assert any(b.endswith("User.created_at") for b in binds)
+    assert any(b.endswith("Report.user_id") for b in binds)
+
+
+def test_u3_binds_both_quality_signals() -> None:
+    """`U-3` ikkita o'lchovni nomlaydi — javob vaqti **va** xato ulushi."""
+    entry = next(u for u in sm.UNNAMED if u.code == "U-3")
+    assert {b.partition(":")[0] for b in entry.binds} == {
+        "app.obs.latency",
+        "app.obs.counters",
+    }

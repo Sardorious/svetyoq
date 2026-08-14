@@ -295,3 +295,156 @@ def test_the_consequence_of_the_map_gate_is_spelled_out() -> None:
     row = {r[0]: r for r in _gate_rows()}["G-4"]
     assert "xarita" in row[3].lower()
     assert "xarita" in i18n.t("release.gate.g4.blocks", "uz").lower()
+
+
+# --------------------------------------------------------------------------
+# 5-qatlam — qatorning qolgan to'rtta maydoni (160-run, mutatsiya)
+# --------------------------------------------------------------------------
+#
+# 2-qatlam har bir **chegarani** hujjatdan parse qiladi, lekin qatorning
+# qolgan maydonlari — `direction`, `kind`, `unit`, `spec` — o'lchanmagan
+# qolgan edi: 160-run ularning har biridan tirik mutant topdi. Ularning
+# hammasi `GET /api/v1/admin/gates` javobiga tushadi, ya'ni jimgina
+# xato hisobotni **to'g'ri ko'rinishda** qoldiradi.
+#
+# Kutilgan qiymatlar ataylab **literal jadval**: ular koddan
+# hisoblanmaydi, aks holda test kodning nusxasi bo'lib qolardi va har
+# qanday mutatsiya bilan birga siljirdi.
+
+#: `kind` — mezonni kim yopadi. `MANUAL` ning ro'yxati **to'liq**:
+#: har ikkala yo'nalishdagi siljish (odam → mashina va aksincha) shu
+#: tenglikda ushlanadi.
+MANUAL_CRITERIA = {
+    "deploy_pipeline",
+    "observability",
+    "e2e_real_device",
+    "recluster_reproducible",
+    "moderation_independent",
+    "params_stable",
+    "moderation_sla",
+    "wrong_notify_measured",
+    "regions_no_code",
+}
+
+#: `unit` — formatlashning yagona ko'rsatkichi.
+UNIT_BY_CRITERION = {
+    "deploy_pipeline": gates.UNIT_FLAG,
+    "observability": gates.UNIT_FLAG,
+    "e2e_real_device": gates.UNIT_FLAG,
+    "recluster_reproducible": gates.UNIT_FLAG,
+    "moderation_independent": gates.UNIT_FLAG,
+    "confirmable_share": gates.UNIT_SHARE,
+    "reported_area_share": gates.UNIT_SHARE,
+    "params_stable": gates.UNIT_FLAG,
+    "moderation_sla": gates.UNIT_FLAG,
+    "answer_p90": gates.UNIT_SECONDS,
+    "map_refresh": gates.UNIT_SECONDS,
+    "string_parity": gates.UNIT_SHARE,
+    "notify_delivery_p90": gates.UNIT_SECONDS,
+    "wrong_notify_measured": gates.UNIT_FLAG,
+    "aggregate_diff": gates.UNIT_SHARE,
+    "coverage_index": gates.UNIT_FLAG,
+    "regions_active": gates.UNIT_COUNT,
+    "regions_no_code": gates.UNIT_FLAG,
+}
+
+#: `direction` — `≤` bilan yozilgan mezonlar. Qolgan hammasi `≥`.
+AT_MOST_CRITERIA = {"answer_p90", "map_refresh", "notify_delivery_p90", "aggregate_diff"}
+
+#: `spec` — mezon qaysi bo'limdan o'qilgani. `03 §6` — faqat jadval
+#: qatori; qolganlari §4 dagi reliz tafsiloti.
+SPEC_BY_CRITERION = {
+    "deploy_pipeline": "03 §6",
+    "observability": "03 §6",
+    "e2e_real_device": "03 §4 R0.1",
+    "recluster_reproducible": "03 §6",
+    "moderation_independent": "03 §6",
+    "confirmable_share": "03 §4 pilot",
+    "reported_area_share": "03 §4 pilot",
+    "params_stable": "03 §4 pilot",
+    "moderation_sla": "03 §4 pilot",
+    "answer_p90": "03 §4 R1.0",
+    "map_refresh": "03 §4 R1.0",
+    "string_parity": "03 §4 R1.0",
+    "notify_delivery_p90": "03 §4 R1.1",
+    "wrong_notify_measured": "03 §4 R1.1",
+    "aggregate_diff": "03 §4 R1.2",
+    "coverage_index": "03 §4 R1.2",
+    "regions_active": "03 §6",
+    "regions_no_code": "03 §6",
+}
+
+#: `spec` satri → hujjatdagi haqiqiy sarlavha. Reyestrning har bir
+#: manbasi shu jadval orqali `03` ga **yechiladi**.
+SECTION_BY_SPEC = {
+    "03 §6": GATES_SECTION,
+    "03 §4 R0.1": "### R0.1 —",
+    "03 §4 pilot": PILOT_SECTION,
+    "03 §4 R1.0": R10_SECTION,
+    "03 §4 R1.1": R11_SECTION,
+    "03 §4 R1.2": R12_SECTION,
+}
+
+
+def test_each_criterion_says_who_closes_it() -> None:
+    """Odam yopadigan mezon mashinaga o'tsa, hisobot **kimdir** ni yo'qotadi.
+
+    `03` §6 ning ma'nosi shunda: «o'lchanmagan» so'zi ikkala holatda
+    bir xil ko'rinadi, lekin `MANUAL` da u kimningdir vazifasi.
+    Moderatsiya SLA si mashinaga o'tsa u abadiy `UNMEASURED` bo'lib
+    qolardi va G-4 hech qachon yopilmasdi — sababi esa hisobotda
+    ko'rinmasdi.
+    """
+    manual = {c.code for c in gates.CRITERIA if c.kind is gates.CriterionKind.MANUAL}
+    assert manual == MANUAL_CRITERIA
+    machine = {c.code for c in gates.CRITERIA} - manual
+    assert len(machine) == len(manual), "18 mezon: to'qqiztasi mashina, to'qqiztasi odam"
+
+
+def test_each_criterion_carries_the_unit_its_number_is_read_in() -> None:
+    """`60` — soniyami, sonmi, ulushmi? Birlikni faqat qator biladi."""
+    assert {c.code: c.unit for c in gates.CRITERIA} == UNIT_BY_CRITERION
+    # `UNIT_FLAG` — «bor/yo'q», ya'ni chegarasi faqat `FLAG_TRUE` bo'ladi.
+    # Teskarisi rost emas: `string_parity` ning chegarasi ham `1.0`, lekin
+    # u bayroq emas — ulush, va `0.99` u yerda ma'noli qiymat.
+    for criterion in gates.CRITERIA:
+        if criterion.unit == gates.UNIT_FLAG:
+            assert criterion.threshold == gates.FLAG_TRUE, criterion.code
+            assert criterion.direction is gates.Direction.MIN, criterion.code
+
+
+def test_the_direction_matches_the_inequality_in_the_document() -> None:
+    """`≤10 s` ni `≥10 s` deb o'qish gate ni **teskarisiga** aylantiradi.
+
+    Chegaraning soni to'g'ri bo'lgani uchun 2-qatlam buni ko'rmasdi:
+    `p90 = 45 s` bo'lgan tizim `MET`, `p90 = 4 s` bo'lgani `UNMET`
+    ko'rinardi. Shuning uchun jadvaldan tashqari **xulq-atvor** ham
+    tekshiriladi.
+    """
+    at_most = {c.code for c in gates.CRITERIA if c.direction is gates.Direction.MAX}
+    assert at_most == AT_MOST_CRITERIA
+    # `≤` — katta son yomon.
+    assert (
+        gates.CRITERION_BY_CODE["answer_p90"].check(gates.MAX_ANSWER_P90_S * 10)
+        is gates.CriterionStatus.UNMET
+    )
+    # `≥` — kichik son yomon.
+    assert (
+        gates.CRITERION_BY_CODE["regions_active"].check(0.0) is gates.CriterionStatus.UNMET
+    )
+
+
+def test_every_criterion_names_the_section_it_was_read_from() -> None:
+    """`spec` — vitrinaning yagona manbasi, va u hujjatda mavjud bo'lsin.
+
+    Ikkita savol, ikkita tekshiruv: qator **qaysi** bo'limdan olingan
+    (literal jadval) va o'sha bo'lim `03` da hali ham bor
+    (`SECTION_BY_SPEC` orqali yechish). Faqat ikkinchisi qolsa,
+    `03 §4 R0.1` ni `03 §6` ga almashtirish sezilmasdi — ikkalasi ham
+    hujjatda mavjud sarlavha.
+    """
+    assert {c.code: c.spec for c in gates.CRITERIA} == SPEC_BY_CRITERION
+    text = _doc()
+    for spec in sorted(set(SPEC_BY_CRITERION.values())):
+        assert spec in SECTION_BY_SPEC, f"`{spec}` uchun sarlavha ko'rsatilmagan"
+        assert SECTION_BY_SPEC[spec] in text, f"`{spec}` → sarlavha yo'qolgan"

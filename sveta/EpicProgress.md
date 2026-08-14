@@ -5,7 +5,7 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-13 (147-run).
+**Oxirgi yangilanish:** 2026-08-14 (163-run).
 
 ---
 
@@ -54,6 +54,427 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   xil; «3 часа» ↔ 120 daq lug'atda ham; §26.1 to'qqiz hujjatining
   birortasi repoda yo'q; butun BRD «джиттер» ni bilmaydi).
   **BRD paketi §8–§26 to'liq bog'landi** — §1–§7/§9–§12 uchun 👤 savol.
+* **✅ 163-run: `01` §17 MA'LUMOT MODELI — 72-RUNNING O'LCHOVI RAD
+  ETILDI (34 SURVIVOR, 37 %), VA SINF `app/release/` DAN TASHQARIGA
+  CHIQDI.** Nishon `app/db/data_model.py` (704 qator) — `app/release/`
+  dan **tashqaridagi** eng katta o'lchanmagan modul; nishon
+  `PROGRESS.md` jurnalidan tasdiqlandi (72-run «22 mutatsiya,
+  0 survivor», ya'ni 126-rundan oldingi `verdict`). **93 mutatsiya →
+  59 KILLED, 34 SURVIVOR**, ikkitasi **ekvivalent** (`idx < 0` →
+  `idx <= 0` — `section_text` qaytargan matn hech qachon sarlavha
+  bilan boshlanmaydi; `entity.lower()` → `.casefold()` — entity
+  nomlari faqat ASCII). Ikki bosqich: tor tanlov (1 fayl, 46 test,
+  ~8 s) → butun bazasiz to'plam (3699 test, ikkita parallel ishchi
+  nusxa); bittasi ham fikrini o'zgartirmadi. Topilmalar:
+  **to'qqizala `StrEnum` qiymati** (mavjud test holatlarni sanaydi,
+  nomini so'ramaydi — qiymat esa `counts` kalitlariga va
+  `evaluate()` diagnostikasiga chiqadi); **reyestrning ikkinchi
+  ustuni `Reliance`** — `Fidelity` haqiqatga bog'langan,
+  `Reliance` ni hech narsa bog'lamaydi, ya'ni 72-run ning asosiy
+  qarori («ikki o'q bir-birini takrorlamaydi») o'lchanmagan edi →
+  literal `REGISTRY` jadvali; **`by_reliance` har doim bo'sh ro'yxat**
+  (`f.fidelity is reliance` — ikki alohida `StrEnum`, shart doim
+  `False`); `SPEC` `01 §17`→`01 §18` (`## 18. Integrations` —
+  mavjud sarlavha); parserning oltita qirrasi (§17 chegarasining
+  **ikkala** yarmi, ochko'z mermaid, kardinallik uzunligi, `UK`,
+  bo'sh `key`, blokdan tashqaridagi tushunarsiz qator); «Изменения»
+  ro'yxatining `- ` bo'shlig'i va yopuvchi bo'sh qatori;
+  `TYPE_EQUIVALENTS` ning o'lchanmagan besh kaliti; izohlanmagan
+  `NARROWED`; manzilning yarmi va yo'q ustun; kalitli atributlar
+  (`sum(counts.values()) == len(findings)` — **ichki** muvozanat,
+  ikkala son birga kamayadi); `faithful` ning birinchi konyunkti;
+  FK qidiruvidagi `break`. +22 test
+  (`tests/test_data_model_contract.py` ning yangi 8–11-bo'limlari),
+  mahsulot kodi tegilmadi.
+* **✅ 162-run: `03` §11 O'LCHOV QAMROVI — 67-RUNNING O'LCHOVI RAD
+  ETILDI (30 SURVIVOR, 43 %), VA SHU BILAN 155-RUN OCHGAN SINF
+  YOPILDI.** Nishon `app/release/measures.py` (457 qator) — eski-harness
+  modullarining **oxirgisi**; nishon `PROGRESS.md` jurnalidan tasdiqlandi
+  (67-run «25 mutatsiya, 3 survivor tuzatildi», ya'ni 126-rundan
+  oldingi `verdict`). **69 mutatsiya → 39 KILLED, 30 SURVIVOR**,
+  bittasi **ekvivalent** (`counts` da `result[str(c)] += 1` →
+  `result[c] += 1`: `dict` mavjud teng kalitni almashtirmaydi, ya'ni
+  kuzatiladigan farq yo'q). Ikki bosqich: tor tanlov (8 fayl, 351 test,
+  ~7 s) → butun bazasiz to'plam (3678 test, ikkita parallel ishchi
+  nusxa); bittasi ham fikrini o'zgartirmadi. Topilmalar: **to'qqizala
+  qorovul xabari** sezilmasdi (mavjud testlar `pytest.raises(ValueError)`
+  ni **match siz** yozgan — yiqilish fakti tekshirilardi, sababi emas);
+  **`_check_registry()` chaqiruvining o'zi** (o'nala qorovul testi
+  funksiyani o'zi chaqiradi, modul satri qulflanmagan edi — `ast`);
+  sakkizta `StrEnum` qiymatidan **oltitasi**; `SPEC` `03 §11`→`03 §6`
+  (istisno ro'yxati `mandate == m.SPEC` tavtologiyasiga tayanadi);
+  reyestrning **to'qqizta havolasi** (mavjudlik tekshirilardi,
+  to'g'riligi yo'q → literal `REGISTRY` jadvali); `first_gap` ning
+  bosqich sharti (`evaluate()` allaqachon saralaydi); `Binding` ning
+  `frozen=True` i; `unsubscribe_share` ning `DERIVABLE` da'vosi.
+  +21 test (`tests/test_release_measures.py` +19,
+  `tests/test_release_measures_contract.py` +2), mahsulot kodi
+  tegilmadi. **Eski harness bilan olingan sakkizala «0/1 survivor»
+  da'vosining birortasi ham tasdiqlanmadi.**
+* **✅ 161-run: `01` §28 BOG'LIQLIKLAR REYESTRI — 76-RUNNING O'LCHOVI
+  RAD ETILDI (30 SURVIVOR, 50 %).** Nishon `app/release/dependencies.py`
+  (541 qator) — eski-harness modullaridan biri; nishon `PROGRESS.md`
+  jurnalidan tasdiqlandi (76-run «17 mutatsiya, 1 survivor», ya'ni
+  126-rundan oldingi `verdict`). **60 mutatsiya → 29 KILLED,
+  30 SURVIVOR**, bittasi mutatsiya qilib bo'lmaydi (`Row.is_witnessable`
+  ni teskarisiga aylantirish import-vaqt qorovulini **kuchaytiradi** va
+  `rc=4` beradi). Ikki bosqich: tor tanlov (5 fayl, 226 test) →
+  butun bazasiz to'plam (3665 test, ikkita parallel ishchi nusxa);
+  bittasi ham fikrini o'zgartirmadi. Topilmalar: qorovulning o'n bir
+  tarmog'idan **sakkiztasi** hech qachon otilmagan (eng qimmati —
+  **`_check_registry()` chaqiruvining o'zi**: modul satri o'chirilsa
+  `monkeypatch` li o'nala test baribir yashil qolardi); `Referent`/
+  `Supply`/`Hold` ning **o'n ikkita `StrEnum` qiymati**; `SPEC` ning
+  manzili (`01 §28`→`01 §29` sezilmasdi — ikkalasi ham mavjud sarlavha);
+  yettita `binds` elementi (`test_every_bind_resolves_to_a_real_symbol`
+  — mavjudlik tekshiruvi, test emas); `HELD` va `Row.holds`. Hisobotning
+  shakli bu modulda **sog'lom** chiqdi — 76-run ning o'zi `accurate`
+  dagi survivorni topib tuzatgan. +13 test
+  (`tests/test_dependencies_contract.py`), mahsulot kodi tegilmadi.
+* **✅ 160-run: `03` §6 RELIZ GATE LARI — 66-RUNNING O'LCHOVI RAD
+  ETILDI (27 SURVIVOR, 42 %).** Nishon `app/release/gates.py`
+  (563 qator). **65 mutatsiya → 38 KILLED, 27 SURVIVOR**; batafsili
+  `PROGRESS.md` da. +13 test, mahsulot kodi tegilmadi.
+* **✅ 159-run: `01` §23 MINTAQAVIY QABUL — 70-RUNNING O'LCHOVI RAD
+  ETILDI (40 SURVIVOR, 62 % — SERIYADAGI ENG YUQORI ULUSH).** Nishon
+  `app/release/acceptance.py` (580 qator) — 158 qoldirgan «to'rtta
+  eski-harness moduli» dan eng kattasi; nishon `PROGRESS.md`
+  jurnalidan tasdiqlandi (70-run «20 mutatsiya, 0 survivor», ya'ni
+  126-rundan oldingi `verdict`). **64 mutatsiya → 24 KILLED,
+  40 SURVIVOR**, `rc≠0/1` yo'q. O'lchov **ikki bosqichli**: tor tanlov
+  (112 test) qirq nomzod berdi, qirqalasi ham butun bazasiz to'plamda
+  (3628 test) tasdiqlandi; **38 tasi qulflandi**
+  (`tests/test_region_acceptance_contract.py` ning yangi **8-bo'limi**,
+  +24 test; fayl 30 → 54 test), **ikkitasi ekvivalent**. To'rt oila:
+  (a) beshala vitrinada `shows_index == shows_maturity`, ya'ni
+  `index_share`/`maturity_share`/`showcases_without_index` o'zaro
+  almashtirilsa sezilmasdi va ikkala `>=` chegarasi ham o'lchanmagan
+  edi — qulf sun'iy vitrina fikstyurasi va chegarani **aynan
+  maqsadda** tekshirish; (b) `_check_registry` ning **oltita** tarmog'i
+  hech qachon otilmagan (qorovul import paytida yuradi → faqat
+  zaiflashtiriladi, qulf `monkeypatch` + qayta chaqirish);
+  (c) `Scope`/`Evidence` ning beshala `StrEnum` qiymati, vitrinaning
+  `spec`/`where` manzillari va **oltita** qatorning `binds`
+  kortejidan jimgina tushib qoladigan element; (d) **hisobotning
+  shakli** — 154…158 sinfi oltinchi marta: `unmet` filtrining
+  `UNMEASURED` ga kengayishi va `restated_count` dagi `is_restated`
+  (bugun `met_count` bilan tasodifan teng). Mahsulot kodi, migratsiya,
+  konfiguratsiya, hujjatlar **tegilmadi**.
+* **✅ 158-run: `01` §25 RELIZ REJASI — 77-RUNNING O'LCHOVI RAD ETILDI
+  (22 SURVIVOR, 44 %).** Nishon `app/release/plan.py` (597 qator) —
+  157 qoldirgan «beshta eski-harness moduli» dan eng kattasi; nishon
+  `PROGRESS.md` jurnalidan tasdiqlandi (77-run «37 mutatsiya,
+  1 survivor», ya'ni 126-rundan oldingi `verdict`). **50 mutatsiya →
+  28 KILLED, 22 SURVIVOR**, `rc≠1` yo'q. O'lchov **ikki bosqichli**:
+  tor tanlov (231 test) 22 nomzod berdi, yigirma ikkalasi ham butun
+  bazasiz to'plamda (3616 test) birma-bir tasdiqlandi va yigirma
+  ikkalasi ham qulflandi (`tests/test_release_plan_contract.py` ning
+  yangi **11-bo'limi**, +12 test; fayl 51 → 63 test), ekvivalent yo'q.
+  Uch oila: (a) `_check_registry` ning o'n sakkizta shartidan
+  **yettitasi** hech qachon otilmagan — qatorlar soni (`SPEC_ROWS`
+  ma'lumot sifatida o'qilardi, qorovul sifatida emas), kodlarning
+  takrorlanishi, izohning majburiyligi, mazmun dalilining
+  **yetishmasligi**, `UNPLANNED` ning ikkala sharti va uning
+  **siklining to'liqligi** (`UP-2` umuman tekshirilmasdi);
+  (b) **hisobotning shakli** — 154/155/156/157 sinfi beshinchi marta:
+  `by_alias`/`by_ship`/`by_gate` chelaklarini «uchragan sinflardan»
+  qurish bugun bir xil javob beradi (qolgan xossalar — `accurate` ning
+  uchala kon'yunkti, `is_shippable`, `is_answerable`,
+  `phase_zero_bound`, `colliding` — o'lchangan); (c) `collides` ning
+  siyosat to'plami (`COLLIDING` literal bilan ekvivalent — `monkeypatch`
+  bilan qulflandi), uchala `StrEnum` ning qiymatlari va **oltita**
+  qator hamda **ikkala** `UNPLANNED` bandining dalil kortejidan
+  jimgina tushib qoladigan element. Mahsulot kodi, migratsiya,
+  konfiguratsiya, hujjatlar **tegilmadi**.
+* **✅ 157-run: `01` §4 MUVAFFAQIYAT METRIKALARI — 84-RUNNING O'LCHOVI
+  RAD ETILDI (34 SURVIVOR, 56 %).** Nishon `app/release/success.py`
+  (727 qator) — 156 qoldirgan «oltita eski-harness moduli» dan eng
+  kattasi; nishon `PROGRESS.md` jurnalidan tasdiqlandi (84-run
+  «18 mutatsiya, 0 survivor», ya'ni 126-rundan oldingi `verdict`).
+  **61 mutatsiya → 27 KILLED, 34 SURVIVOR**, `rc=4` yo'q. Ikki bosqich
+  **kerak bo'lmadi**: ishchi nusxada to'liq to'plam ~35 s da yuradi,
+  ya'ni o'ttiz to'rtala survivor ham darhol butun bazasiz to'plamda
+  (3590 test) o'lchandi va o'ttiz to'rtalasi ham qulflandi
+  (`tests/test_success_metrics_contract.py` ning yangi **8-qatlami**,
+  +26 test; fayl 43 → 69 test), ekvivalent yo'q. Uch oila:
+  (a) `_check_registry` ning o'nta shartidan **oltitasi** hech qachon
+  otilmagan, va bittasi **yolg'on qulflangan** edi — 5-qatlamning
+  `("K-9", {"reading": SERVED})` parametri `undefined` qorovulini
+  otadi deb o'ylangan, aslida `K-9` da dalil yo'q va birinchi
+  yiqiladigani «`SERVED`, lekin dalil yo'q» qorovuli bo'lardi;
+  qolganlari — KPI kodlari va nomlarining takrorlanishi, `UNNAMED`
+  kodlarining takrorlanishi, `UNNAMED` ning dalilsizligi, ikkala
+  siklning to'liqligi; (b) **hisobotning shakli** — 154/155/156 sinfi
+  to'rtinchi marta: ikkita **o'lik xossa** (`by_target`, `disclaimed`)
+  va bitta **o'lik konstanta** (`READING_BLOCKED`), o'q lug'ati
+  «uchragan sinflardan» qurilsa bir xil javob, `accurate` ning
+  **birinchi** kon'yunkti, `targets_are_answerable` ning manbai,
+  `is_broken_promise` ning ikkinchi kon'yunkti,
+  `answerable_but_disclaimed` ning birinchi yarmi, `READING_ANSWERS`
+  ning kengayishi; (c) **parser va matn konstantalari** — uchta
+  otilmaydigan qorovul (sintetik hujjat bilan qulflandi), sarlavha
+  regexpining `$` langari, `_ROW_RE` ning `.+` i, uchta matn
+  konstantasining qisqarishi (`in` bo'lakni ham o'tkazadi), `K-4` va
+  `U-3` dalil kortejidan tushib qolgan element. Mahsulot kodi,
+  migratsiya, konfiguratsiya, hujjatlar **tegilmadi** — yagona
+  o'zgargan fayl `tests/test_success_metrics_contract.py`.
+* **✅ 156-run: `01` §24 YO'L XARITASI — 82-RUNNING O'LCHOVI RAD
+  ETILDI (30 SURVIVOR, 60 %).** Nishon `app/release/roadmap.py`
+  (780 qator) — 155 qoldirgan «yettita eski-harness moduli» dan eng
+  kattasi; nishon `PROGRESS.md` jurnalidan tasdiqlandi (82-run
+  «18 mutatsiya, 1 survivor», ya'ni 126-rundan oldingi `verdict`).
+  **50 mutatsiya → 20 KILLED, 30 SURVIVOR**, `rc=4` yo'q; o'ttizalasi
+  butun bazasiz to'plamda (3563 test) birma-bir tasdiqlandi va
+  o'ttizalasi ham qulflandi (`tests/test_roadmap_contract.py` ning
+  yangi **8-bo'limi**, +27 test), ekvivalent yo'q. Uch oila:
+  (a) `_check_registry` ning yigirma to'rtta shartidan **o'n
+  yettitasi** hech qachon otilmagan (mezon/faza sonining qulfi,
+  takrorlangan kod qorovulining ikkala yarmi, uchala ro'yxatning
+  tartibi, izohning majburiyligi, dalilning ortiqchaligi, mezonlar
+  uchun dalilning yetishmasligi, `AHEAD` ning ikkala qorovuli,
+  sikllarning to'liqligi); (b) **hisobotning shakli** — 154/155
+  sinfi uchinchi marta (`by_landing` ning vazifalar sikli,
+  `by_bearing` chelaklari, `gate_holds` ning birinchi tarmog'idagi
+  `and` va uning har ikkala yarmi, `accurate` ning `gate_holds`
+  kon'yunkti, ikkala `closes_gate`); (c) ma'lumot va siyosat
+  (`LANDING_NEEDS_EVIDENCE` dan `RECORDED`, `AH-1` ning
+  `nearest_phase` i, `P0-2`/`EX-5` ning `near` i). Mahsulot kodi,
+  migratsiya, konfiguratsiya, hujjatlar **tegilmadi** — yagona
+  o'zgargan fayl `tests/test_roadmap_contract.py`.
+* **✅ 154-run: `01` §7 KO'LAM REYESTRI — QOROVULNING OTILMAGAN
+  TARMOQLARI VA HISOBOTNING SHAKLI QULFLANDI.** Nishon
+  `app/release/scope.py` (869 qator, oilaning eng katta o'lchanmagan
+  reyestri; nishon `PROGRESS.md` jurnalidan tasdiqlandi — 106–116 va 153
+  runlar o'n ikki modulni o'lchagan, `scope.py` yo'q edi) — **42
+  mutatsiya yozildi, uchtasi qorovulni kuchaytirgani uchun `rc=4` berdi
+  → 39 baholi: 22 KILLED, 17 SURVIVOR (44 %)**. O'n yettalasi butun
+  bazasiz to'plamda (3520 test) birma-bir tasdiqlandi — yolg'on
+  survivor yo'q — o'n oltitasi qulflandi (+25 test,
+  `tests/test_scope_contract.py` ning yangi **11-bo'limi**), bittasi
+  ekvivalent. **Ikki oila:** (a) `_check_registry` ning o'n bir
+  tarmog'idan **oltitasi** hech qachon otilmagan (gorizont yechilmagan
+  asosda, `MISDATED` ning erta tomoni, `ABSENT` qatorining `HOLLOW`
+  bo'lishi, dalil talabining `BUILT` dan boshqa to'rt sinfi,
+  `UNLISTED` kodlarining nusxasi); (b) **yangi oila — hisobotning
+  shakli:** o'q lug'atlarini «uchragan sinflardan» qurish,
+  `boundaries_hold` dagi `and`→`or`, `accurate` ning uchta shartidan
+  bittasini olib tashlash va `standings_touched` ni butun reyestrdan
+  hisoblash — **bugun hammasi bir xil javob beradi**, chunki mavjud
+  testlar uchala shartni bir vaqtda tuzatadi va hamma sinf to'lgan.
+  Ikki konstanta (`PRESENCE_BUILT`, `PRESENCE_OUTSIDE`) ni umuman
+  **hech kim o'qimasdi** — endi ular reyestr qatorlariga qarshi
+  yechiladi. Mahsulot kodi, migratsiya, konfiguratsiya tegilmadi.
+* **✅ 153-run: `01` §26+§27 RISK REYESTRINING QOROVULLARI QULFLANDI —
+  sakkizta qorovuldan TO'RTTASI hech qachon otilmagan edi.** Nishon
+  `app/release/risks.py` (956 qator, `app/release/` oilasining eng katta
+  o'lchanmagan reyestri; nishon `PROGRESS.md` jurnalidan tasdiqlandi —
+  108–116 runlar oilaning o'n modulini o'lchagan, `risks.py` ro'yxatda
+  yo'q edi): **43 mutatsiya → 29 KILLED, 14 SURVIVOR** (33 %); o'n
+  to'rttalasi butun bazasiz to'plamda (3507 test) birma-bir tasdiqlandi
+  (yolg'on survivor yo'q), o'n uchtasi qulflandi (+13 test, mavjud
+  `tests/test_risk_register_contract.py` ning yangi **8- va
+  9-bo'limlari**; yangi fayl yaratilmadi), bittasi **ekvivalent** deb
+  isbotlandi. **Topilma — 152 ning naqshi takrorlandi va u endi SINF:**
+  hujjatdan parse qilinadigan **ma'lumot** zich qoplangan (qatorlar,
+  ID lar, so'zma-so'z matn, `COVER_RANK` ning ishlatiladigan
+  juftliklari, hisobotning oltita ro'yxati — KILLED larning deyarli
+  hammasi birinchi o'tishda), `_check_registry()` ning **qorovullari**
+  esa yarmi o'lchanmagan: mavjud to'rtta qorovul testi
+  (`SCHEDULED`/`NOMINAL` bog'lanishi, `MECHANISED` bog'lanishsizligi,
+  izohsiz baho) sakkiztadan to'rttasini otadi, qolgan to'rttasi —
+  **takrorlangan kod**, **bo'sh mitigatsiya**, `Влияние` ustunining
+  **ikkala yo'nalishi** va **izohsiz sarflangan bashorat** — bugungi
+  reyestr to'g'ri bo'lgani uchun umuman otilmaydi. Eng qimmat uchtasi:
+  takrorlangan kod qorovulini `ENTRIES` dan `RISKS` ga toraytirish
+  (`RS-02` ↔ `AS-S3` bitta hodisani ikkala jadvalda yozadi, ya'ni ID ni
+  nusxalash bu yerda tabiiy xato, `ENTRY_BY_CODE` lug'ati esa ikkinchi
+  qatorni **jimgina yutardi**); `INSTRUMENTED` bandning bog'lanish
+  talabi (mavjud test faqat `MECHANISED` sinfini otadi — `AS-S6` ning
+  yagona «asbob bor» da'vosi dalilsiz qolardi); `RiskReport.covered` ni
+  **birorta test o'qimasdi** (shartni teskarisiga aylantirish hisobotga
+  ushlanmagan o'n to'rt qatorni «ushlangan» deb yozdirardi). Uch
+  survivor ma'lumot **chegarasida**: `CLAUSE_SEPARATORS` ga hujjatda
+  uchraydigan istalgan belgi (bo'shliq, harf) qo'shilishi mavjud
+  testdan o'tardi va `strip()` ni bo'shatib tashlab ketilgan bandni
+  yashirardi; `COVER_RANK` da `INSTRUMENTED` ↔ `DISPLACED` (juftlik
+  bugun yonma-yon turmaydi — chegara qarori, oshkora yozildi);
+  `ENTRIES` da ikkala jadvalning o'rni (qolgan hamma tekshiruv `RISKS`
+  va `ASSUMPTIONS` ga alohida qaraydi). **Ekvivalent:**
+  `unauditable_entries` dagi `len(...) == len(clauses)` → `>=` —
+  `unauditable_clauses` filtrlangan qism to'plam, uzunligi hech qachon
+  kattaroq bo'la olmaydi; dalil izohda emas, testda. Mahsulot kodi,
+  migratsiya, konfiguratsiya **tegilmadi**. **3520 passed, 1 skipped**
+  (+13), `requires_db` **298** (yurgizilmadi — bazasiz o'zgarish),
+  `ruff` toza.
+
+* **✅ 152-run: `01` §22 REYESTRINING QOROVULLARI QULFLANDI — kontrakt
+  BUGUNGI qatorlarni o'lchardi, ERTANGI qatorni to'sadigan tekshiruvni
+  emas.** Nishon `app/obs/monitoring.py` (501 qator, hech qachon
+  o'lchanmagan): **41 mutatsiya → 22 KILLED, 19 SURVIVOR** (46 % —
+  seriyadagi eng yuqori ulush); o'n to'qqizalasi butun bazasiz to'plamda
+  (3485 test) birma-bir tasdiqlandi (yolg'on survivor yo'q) va
+  o'n to'qqizalasi ham qulflandi (+22 test, mavjud
+  `tests/test_logging_monitoring_contract.py` ning yangi 4-qatlami).
+  **Topilma: modul ikki qismdan iborat va ular teskari qoplangan.**
+  Reyestrning **ma'lumoti** (qatorlar, iboralar, to'siqlar,
+  `binds`/`near`, `STATE_PRECEDENCE`) zich qulflangan — 22 mutatsiyadan
+  21 tasi birinchi o'tishda o'ldi, chunki uchala mavjud qatlam ham
+  hujjatni parse qilib ro'yxat bilan solishtiradi. Import paytida
+  yuradigan **uchta tekshiruvchi** (`_check_registry`,
+  `_check_alert_cap`, `_check_label_exemptions` — 14 qorovul) esa
+  **bittasi ham** o'lchanmagan edi: bugungi reyestr to'g'ri bo'lgani
+  uchun ular otilmaydi. 149 ning «ertangi kirish» sinfi, o'n to'rt
+  barobar zichroq. Eng qimmat ikkitasi — `len(ALERTS) != ALERT_CAP` ni
+  `>` yoki `<` ga yumshatish (`05` §10 cheklovi buzilgan **yoki
+  kamaygan** kuni reyestr `CONFLICTED` deb ko'rsatishda davom etardi,
+  ya'ni to'siq yo'q bo'lsa ham hisobot «spetsifikatsiya to'sqinlik
+  qilyapti» derdi) va `PRODUCT_FAMILIES` ↔ `LABEL_EXEMPT` kesishmasi
+  (mahsulot metrikasi jimgina `region` yorlig'idan ozod qilinardi —
+  `01` §22 ning yagona **bajarilgan** qatori shu bilan bo'shab qolardi).
+  Uchta survivor qorovul emas, **hisobot arifmetikasi**: `counts` da
+  `+= 1` → `= 1` (bugun har holatdan aynan bittasi — 143 naqshi),
+  `counts` ni faqat uchragan holatlardan qurish (bugun to'rtala holat
+  ham bor; bo'shliq yopilgan kuni kalit **yo'qolardi**) va
+  `Obstacle.state` jadvalining `E17 → BLOCKED` qatori (talab holati
+  baribir `CONFLICTED` qolgani uchun ko'rinmasdi). Yana ikkitasi —
+  hujjat **manzili**: `SPEC` va `ALERT_CAP_SPEC` hech qachon
+  solishtirilmagan. Mahsulot kodi, migratsiya, konfiguratsiya
+  tegilmadi. **3507 passed, 1 skipped** (+22), `requires_db` **298**
+  (yurgizilmadi — bazasiz o'zgarish), `ruff` toza.
+
+* **✅ 151-run: JAVOB VAQTI GISTOGRAMMASINING CHEGARALARI VA
+  QOROVULLARI QULFLANDI — qarz modulda emas, modulning YARMIDA edi.**
+  Nishon `app/obs/latency.py` (309 qator) + `app/obs/readings.py` (187),
+  ikkalasi ham hech qachon o'lchanmagan: **32 mutatsiya → 20 KILLED,
+  12 SURVIVOR** (37 %); o'n ikkalasi butun bazasiz to'plamda (3473 test)
+  birma-bir tasdiqlandi (yolg'on survivor yo'q), **o'n bittasi qulflandi**
+  (+12 test: `tests/test_obs_latency.py` ga 10, `test_obs_metrics.py` ga 2),
+  bittasi **ekvivalent** deb isbotlandi.
+  🟢 **149/150 ning `grep` qoidasi birinchi marta rejani QISQARTIRDI:**
+  150 ning tartibida `stats/methodology.py` ham bor edi, jurnal esa uni
+  **65-runda 30 mutatsiya** bilan o'lchangan deb ko'rsatdi — nishondan
+  chiqarildi. `obs/monitoring.py` (501 qator) vaqt yetmagani uchun 152 ga.
+  **Topilma:** o'n ikkala survivor ham `latency.py` da. `readings.py`
+  (eksport yo'li) 15 mutatsiyadan **13 tasini birinchi o'tishda** o'ldirdi —
+  uning har qatori Prometheus matniga chiqadi va matn qatorma-qator
+  qulflangan. `latency.py` da qarz ikki oilada. **(a) Arifmetikaning
+  chegaralari:** `bucket_index` ning `+Inf` qatori — `len(BUCKETS) - 1`
+  qaytarish 30 soniyalik so'rovni «10 soniyadan tez» deb yozardi va
+  **eksport formatini buzmasdi** (`_count` ↔ chelaklar yig'indisi mos
+  qolardi, `+Inf` shunchaki bo'shab qolardi), ya'ni yagona alomat p95 ning
+  tizimli ravishda **yaxshi tomonga** siljishi; `cumulative[i] >= rank`
+  → `>` — farq faqat rank aynan kümülativ chegaraga tushganda ko'rinadi
+  (143 naqshi: shart to'g'ri, uni ajratadigan holat fikstyurada yo'q) va
+  bitta tez + bitta sekin so'rovda p50 10 ms o'rniga **500 ms** chiqardi;
+  kvantil oralig'ining ochiq quyi chegarasi (`q > 0`). **(b) Qorovullar —
+  149 ning «ertangi kirish» sinfi**, bugungi konfiguratsiyada birortasi
+  otilmaydi: import paytidagi ikkitasi (`sorted(set(BUCKETS))` va
+  `TARGET_S in BUCKETS`), `Histogram` chelaklari sonining `!=` si (kam
+  chelak tekshirilgan, **ortiqchasi** yo'q), `share_within` dagi tartib
+  (chegara tekshiruvi `total == 0` dan **oldin**) va eng qimmat ikkitasi —
+  `classify` ning `webhook_path` i: bo'sh sozlamada `startswith("" + "/")`
+  **har** so'rovga to'g'ri kelardi va butun trafik `webhook` yuzasiga
+  tushib, ommaviy p95 nolga aylanardi (`03` §6 R2.0 mezoni har doim
+  yopiq ko'rinardi); prefiksdan `/` ni olib tashlash `/telegram/webhookish`
+  ni webhook deb o'qirdi. **Ekvivalent mutant:** `quantile` dagi
+  `if inside <= 0` — `index` «shartni qanoatlantiruvchi **birinchi**
+  indeks» bo'lgani uchun ayirma manfiy bo'lmagan sanoqlarda qat'iy musbat;
+  dalil kod o'qishdan emas, **sanoqdan** (169 vektor × 100 kvantil) olindi
+  va testda qotirildi. Mahsulot kodi, migratsiya, konfiguratsiya
+  tegilmadi. **3783 passed, 1 skipped** (+12), `requires_db` **298**
+  (o'zgarmadi), `ruff` toza.
+
+* **✅ 150-run: `01` §21 ANALITIKASINING CHIQISH NUQTALARI QULFLANDI —
+  kontrakt «funksiya bormi» ni so'rardi, «u nima chiqaradi» ni emas.**
+  Nishon `app/analytics/track.py` (237 qator) + `catalogue.py` (158),
+  hech qachon o'lchanmagan: **42 mutatsiya → 26 KILLED, 16 SURVIVOR**
+  (38 %); o'n oltalasi butun bazasiz to'plamda (3457 test) birma-bir
+  tasdiqlandi (yolg'on survivor yo'q) va o'n oltalasi ham qulflandi
+  (+16 test: `tests/test_analytics.py` ga 12, `test_analytics_contract.py`
+  ga 4). 🔴 **149 ning bashorati xato edi:** «`track.py` ga nol import» —
+  aslida ikkita fayl import qiladi va 13 test yurgizadi; 148 ning
+  haqiqiy topilmasi rejaga tekshirilmasdan ko'chirilgan. **Yangi qoida:
+  «nol import» ham nishondan oldin `grep` bilan tasdiqlanadi.**
+  **Topilma:** `01` §21 ning to'qqizta chiqish nuqtasidan **oltitasi hech
+  qachon chaqirilmagan** — kontrakt testi funksiya nomini va `app/` dagi
+  chaqiruv **matnini** qidirardi, `test_analytics.py` esa `emit()` ni
+  to'g'ridan-to'g'ri chaqirib uchtasini yurgizardi. Shu sababli hodisa
+  nomini almashtirish (`verdict_shown` → **ishga tushirishning asosiy
+  metrikasi** jimgina nolga tushardi), `region=None` qo'yish (`01` §22)
+  va `district_id` ↔ `mahalla_id` ni joyini almashtirish (grafik
+  **to'g'ri ko'rinardi**) butun to'plamni yashil qoldirardi. Ikkinchi
+  sinf — `emit()` ning uchta rad etish sababi (`unknown_event` /
+  `reserved_key` / `emit_failed`) ajratilmagani: `if spec is None`
+  shoxini ham, `LOGRECORD_RESERVED` to'sig'ini ham olib tashlash
+  sezilmasdi, chunki natija baribir `False`. `observable` ning sukut
+  qiymati esa **import paytida** `dashboards._check_observability()`
+  bilan qulflangan (`rc=4`, verdikt qo'lda o'qildi). Mahsulot kodi,
+  migratsiya, konfiguratsiya tegilmadi. **3771 passed, 1 skipped**
+  (+16), `requires_db` **298** (yurgizildi), `ruff` toza.
+
+* **✅ 149-run: `01` §19 PARSERINING QOROVULLARI QULFLANDI — modulning
+  ikkinchi yarmi faqat BUGUNGI matnda o'lchanardi.** Nishon
+  `app/notifications/channels.py` (745 qator, hech qachon o'lchanmagan):
+  **28 mutatsiya → 19 KILLED, 9 SURVIVOR**; to'qqizalasi butun to'plamda
+  tasdiqlandi (yolg'on survivor yo'q) va to'qqizalasi ham qulflandi
+  (+10 test, mavjud `tests/test_notification_channels_contract.py` ning
+  yangi 12-bo'limi). 🔴 **Reja yarim eskirgan edi:** 148 «`params.py` va
+  `channels.py`» degan, `params.py` esa 130-runda **12/12** o'lchangan —
+  ro'yxat §4 ning navbatidan olingan, u esa 130 dan keyin yangilanmagan
+  (quyida, §4 ning birinchi qatoriga ogohlantirish qo'shildi).
+  **Topilma:** modul ikki yarimdan iborat. Koddagi holatni **baholaydigan**
+  reyestr zich qoplangan — 14 mutatsiyadan 13 tasi birinchi o'tishda
+  o'ldi. §19 ni **parse qiladigan** yarim esa faqat bugungi matnda
+  o'lchanadi, uning qorovullari hujjat **o'zgarganda** otiladi va bugun
+  jim turadi: `_SECTION_RE` ning `$` anchori, `^##\s+\d+\.` chegarasi
+  (`###` ni ham kesardi), meros radiusning «Ташкента» iborasi,
+  «qoidadan keyin yana jadval», **yo'q** ustun tekshiruvi, qator
+  uzunligi, `" ".join(tail)`, yarim artefakt maydoni va banddagi dalil
+  talabi. 148 dan farqi: u **ertangi xatti-harakat**ni o'lchamagan edi,
+  bu — **ertangi kirish**ni. Eng qimmati M03: «Ташкента» siz regex
+  paragrafdagi **birinchi** metr soniga bog'lanadi, o'sha son esa
+  «obuna radiusi hali Toshkentniki» degan ochiq savolning yagona
+  o'lchovi. Bitta survivor (M09) xatti-harakatni emas, **xabarni**
+  ushlaydi — `zip(strict=True)` baribir `ValueError` beradi, farq faqat
+  diagnostikada; bu docstringda ochiq qayd etilgan. Mahsulot kodi,
+  migratsiya, konfiguratsiya tegilmadi. **3755 passed, 1 skipped**
+  (+10), `requires_db` **298** (o'zgarmadi), `ruff` toza.
+
+* **✅ 148-run: BILDIRISHNOMA TRANSPORTI QULFLANDI — `bot/notifier.py`
+  test qatlamida butunlay ochiq edi.** 147 qoldirgan tartibning (1) bandi.
+  Nishon: `notifications/events.py` (17 mutatsiya), `notifications/sender.py`
+  (3), `app/bot/notifier.py` (6) — **26 mutatsiya → 16 KILLED, 10 SURVIVOR**;
+  o'ntalasi ham butun to'plamda tasdiqlandi (yolg'on survivor yo'q) va
+  o'ntalasi ham qulflandi. 🔴 **Asosiy topilma:** `app/bot/notifier.py` ni
+  birorta test **import qilmasdi** — yagona murojaat
+  `test_notification_channels_contract.py` dagi `_resolve(...)`, ya'ni
+  **mavjudlik** tekshiruvi. Modulning yagona vazifasi — Telegram xatosini
+  doimiy (`PermanentSendError` → `skipped`) va vaqtinchalik (`SendError` →
+  backoff) ga ajratish — hech qachon o'lchanmagan edi; oltitadan beshtasi
+  tirik qoldi. **Survivorlarning sinfi bitta: xatoning turi natijada
+  ko'rinmaydi.** Yuborish yiqilganda javob ham, matn ham o'zgarmaydi —
+  farq faqat navbatning **ertangi** xulq-atvorida chiqadi. Eng qimmati:
+  429 (`TelegramRetryAfter`) ni doimiy deb o'qish eng ko'p xabar ketayotgan
+  lahzadagi barcha bildirishnomalarni `skipped` ga tushirib **jimgina**
+  yo'q qilardi (`05` §6.3 aynan shu holat uchun yozilgan); teskarisi —
+  bloklangan chatni vaqtinchalik deb o'qish — navbatni urinishlar
+  tugagunicha ushlab turardi. Qolganlari: `PermanentSendError` ning
+  `SendError` dan meros olishi (bugun birorta chaqiruv joyi unga
+  tayanmaydi, lekin `daily_digest` ning ikki tarmog'i «avval xususiy,
+  keyin umumiy» tartibi faqat meros bilan to'g'ri o'qiladi — ya'ni
+  **kontrakt darajasidagi** qulf, 124 ning refleksivlik sinfi);
+  `NullSender` ning matnni va jurnaldagi `length` ni yozishi (tokensiz
+  muhitdagi yagona «yetkazildi» dalili); `sender()` ning `finally` da
+  sessiyani yopishi (5 soniyalik vazifada soatiga ~720 soket);
+  `_iso(None)` ning payload da `null` bo'lishi — aylanma buni **yashiradi**
+  (`_parse_dt` ning `if not value` qorovuli bo'sh satrni ham yutadi),
+  JSONB ni SQL bilan o'qiydigan metrika esa `''` da yiqiladi; va
+  `radius_m` ning butun songa castlanishi (dataclass tekshirmaydi, qiymat
+  esa PostGIS dan `float` bo'lib keladi). Yangi fayl —
+  `tests/test_notification_transport.py` (10 test), yana ikkita test
+  `tests/test_notifications_outbox.py` ga. Mahsulot kodi, migratsiya,
+  konfiguratsiya **tegilmadi**. Yig'indi **3745 passed, 1 skipped**
+  (`requires_db` **298**, o'zgarmadi), `ruff` toza.
 * **✅ 147-run: 145 ning raqami TASDIQLANDI va obuna/fan-out qulflandi.**
   146 qoldirgan tartibning (1) va (2) bandlari. **(1)** 145 ning sakkizta
   survivori **bazasiz** to'plamda (`-m "not requires_db"`, 3435 test)
@@ -262,9 +683,27 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   **tegilmadi**; yagona o'zgargan fayl — `.gitignore` (uchta yangi
   sandbox qoldig'i: `rm` mountda `Operation not permitted`,
   `allow_cowork_file_delete` esa CLAUDE.md §1 bo'yicha taqiqlangan).
-* **Yashil holat:** **155** test fayli; butun to'plam **3734 test**
+* **Yashil holat:** **156** test fayli; butun to'plam **3927 test**
+  (158-run: bazasiz qism **3628 passed, 299 skipped**; `-m requires_db`
+  **299** — bu runda yurgizilmadi, o'zgarish bazaga tegmaydi).
+  <sub>Eskirgan o'lchov: **3889 test**
+  (157-run: bazasiz qism **3616 passed, 299 skipped**).</sub>
+  <sub>Eskirgan o'lchov: **3862 test**
+  (155-run: bazasiz qism **3563 passed**).</sub>
+  <sub>Eskirgan o'lchov: **3844 test**
+  (154-run: bazasiz qism **3545 passed, 1 skipped**).</sub>
+  <sub>Eskirgan o'lchov: **3819 test**
+  (153-run: bazasiz qism **3520 passed, 1 skipped**).</sub>
+  <sub>Eskirgan o'lchov: **3806 test**
+  (152-run: bazasiz qism **3507 passed, 1 skipped**).</sub>
+  <sub>Eskirgan o'lchov: **3784 test**
+  (151-run: jami **3783 passed, 1 skipped** PostGIS bilan; `-m requires_db`
+  **298 passed**, 147 dan beri o'zgarmagan — 148…151 qo'shgan 50 test bazasiz).</sub>
+  <sub>Eskirgan o'lchov: **3746 test** (148-run: **3745 passed, 1 skipped**;
+  `-m requires_db` **298 passed**).</sub>
+  <sub>Eskirgan o'lchov: **155** test fayli, **3734 test**
   (147-run: bazasiz qism **3435 passed, 1 skipped**; `-m requires_db`
-  **298 passed** PostGIS bilan; jami **3733 passed, 1 skipped**).
+  **298 passed**; jami **3733 passed, 1 skipped**).</sub>
   <sub>Eskirgan o'lchov: **3727 test**
   (146-run: bazasiz **3435 passed, 1 skipped**; `-m requires_db`
   **291 passed**; jami **3726 passed, 1 skipped**).</sub>
@@ -293,6 +732,37 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `phase0_plan`, `ux_requirements`, `user_stories` va `nfr_appendix`
   ham 12/12 — **eski kontraktlarning mutatsiya qarzi to'liq yopildi**
   (107–116-runlar seriyasi).
+* 🔴 **`app/release/` oilasida o'lchanmagan modul yo'q — lekin
+  sakkiztasining o'lchovi ISHONCHSIZ** (155-run). 66–87 runlar
+  reyestrni yaratgan running o'zida mutatsiya yurgizgan, o'shanda esa
+  harnessning verdikti `returncode != 0` edi va `pytest` ning `rc=4`
+  (bitta ham test yurmagan run) «ushladi» deb yozilardi; `verdict()`
+  faqat **126-runda** tuzatilgan. 155 birinchisini qayta o'lchadi:
+  `functional_requirements.py` — 87-run «41 mutatsiya, 0 survivor»
+  degan, aslida **55 mutatsiya → 25 KILLED, 30 SURVIVOR (55 %)**,
+  o'ttizalasi ham bazasiz to'plamda tasdiqlandi va qulflandi
+  (`tests/test_functional_requirements_contract.py` ning 11-bo'limi,
+  +18 test), ekvivalent yo'q. Ikki oila: `__post_init__` ning o'n bir
+  tarmog'idan **o'ntasi** hech qachon otilmagan, va **hisobotning
+  shakli** (o'q lug'atlari, ikkita o'lik xossa — `by_module`,
+  `modules_named`, uchta sarlavha mantiqining o'q tanlovi, `accurate`
+  ning to'rtala kon'yunkti) umuman o'lchanmagan. **156 ikkinchisini
+  qayta o'lchadi:** `roadmap.py` — 82-run «18 mutatsiya, 1 survivor»
+  degan, aslida **50 mutatsiya → 20 KILLED, 30 SURVIVOR (60 %)**,
+  o'ttizalasi ham tasdiqlandi va qulflandi
+  (`tests/test_roadmap_contract.py` ning 8-bo'limi, +27 test),
+  ekvivalent yo'q. **157–160 yana to'rttasini qayta o'lchadi:**
+  `success.py` (84-run «18, 0» → **34 survivor**), `plan.py`
+  (77-run «37, 1» → **22 survivor**), `acceptance.py` (70-run
+  «20, 0» → **40 survivor, 62 %**) va `gates.py` (66-run
+  «15, 1» → 65 mutatsiya, 38 KILLED, **27 SURVIVOR, 42 %**;
+  qulflari `tests/test_release_gates.py` ning 5–7-bo'limlarida va
+  `tests/test_release_gates_contract.py` ning 5-qatlamida, +13 test,
+  ekvivalent yo'q). Sakkiztadan **ikkitasi qoldi**:
+  `dependencies` (541, 76-run), `measures` (457, 67-run).
+  Takrorlanadigan sinf: qorovulning otilmagan tarmoqlari,
+  hisobotning shakli (`@property` va dataklass maydonlari),
+  `StrEnum` **qiymatlari** va dalil/manba kortejlari.
 * **Mutatsiya mahsulot kodida — o'lchov 120-runda QAYTA qilindi.**
   🔴 119-run ning harnessi `pytest` ni `--timeout=120` bilan chaqirardi,
   bu sandboxda `pytest-timeout` esa **yo'q**: `pytest` `rc=4` (usage
@@ -1205,7 +1675,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` |
 | REL — reliz gate lari (`03` §6) + o'lchov qamrovi (`03` §11) + mintaqaviy qabul (`01` §23) + risk reyestri (`01` §26/§27) + bog'liqliklar (`01` §28) + reliz rejasi (`01` §25) + yo'l xaritasi (`01` §24) | 🔄 | `app/release/` |
 | SEC — xavfsizlik kafolatlari (`01` §20 + BRD «Безопасность» NFR) | 🔄 | `app/admin/security.py` |
-| DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` |
+| DATA — ma'lumot modeli (`01` §17 ER diagrammasi ↔ sxema) | 🔄 | `app/db/data_model.py` (163: mutatsiya bilan o'lchandi — 34 survivor qulflandi, kontrakt 68 test) |
 | INT — tashqi integratsiyalar (`01` §18) | 🔄 | `app/integrations/registry.py` |
 | ARCH — arxitektura konteynerlari (`01` §29 ↔ `03` §Q-1) | 🔄 | `app/core/architecture.py` |
 | VIT — reyestrlar vitrinasi (`GET /admin/registries`) | 🔄 | `app/admin/registries.py` |
@@ -1350,7 +1820,8 @@ qolmadi. `01` va `02` esa reyestrlar qatlami bilan bog'langan (§2).
 
 | Nima | Kimni bloklaydi |
 |---|---|
-| 🟡 **Mutatsiya bilan o'lchanmagan toza modullar** (130-run sanog'i: 92 toza moduldan **42 tasi** o'lchangan — bugun `notifications/params.py`, `jobs/runner.py`, `notifications/events.py` qo'shildi). Bazasiz nishonlar navbati: `app/notifications/{sender,channels}.py`, `app/analytics/{track,catalogue}.py`, `app/obs/{readings,latency,monitoring}.py`, `app/stats/methodology.py`, `app/core/{i18n,config,logging,errors}.py`, `app/db/spatial.py` va `app/release/` ning o'lchanmagan reyestrlari (`risks`, `scope`, `roadmap`, `success`, `functional_requirements`, `plan`, `acceptance`, `gates`, `dependencies`, `measures`, `channels`). ⚠️ 130 ning qoidasi: reyestr/kontrakt testi bor modul **o'lchangan hisoblanmaydi** — `app/jobs/*.py` ning `_tick` o'ramlari va `app/obs/collector.py` shu savol bilan qayta ko'riladi. ⚠️ **131 ning tuzatishi: ro'yxatning granularligi noto'g'ri.** Tozalik modulning emas, **funksiyaning** xossasi: `AsyncSession` ni import qiladigan 23 modul ichida bazasiz sinxron funksiyalar bor va bir qismi allaqachon bazasiz test bilan qoplangan, ya'ni **bugunoq o'lchansa bo'ladi** — `stats/service.py` (`floor_to`, `resolve_period`, `_coverage_input`, `_index_for`, `region_index`, `public_limits`; `tests/test_stats_service.py`, 18 test), `clustering/snapshot.py` (`compute_etag`, `empty_payload`, `_feature`), `geo/registry.py` (`pick_for_point`, `_from_row`), `notifications/outbox.py` (`backoff_s`), `notifications/subscriptions.py` (`params_from_config`, `_validated_radius`), `geo/pipeline.py` (`validate_point`), `reports/intake.py` (`ensure_not_blocked`), `admin/audit.py` (`jsonable`, `cli_actor`), `clustering/lookup.py` (`decide`, `text`). Ya'ni «servis nishoni bazaga tegadi» degan 125 dan beri turgan sabab faqat **modul nomiga** tayangan edi. ⚠️ `app/jobs/daily_digest.py` ning bazasiz yarmi (`chat_ids`, `deliver`) uchun 131 statik bashorat yozdi — 132 uni o'lchov bilan tekshiradi | keyingi mutatsiya runlari (bazasiz — lekin `pytest` kerak, ya'ni **131 dan boshlab diskka bog'liq**) |
+| 🟢 **151-run: NAVBAT QAYTA YIG'ILDI** (149/150 ning talabi bajarildi). Quyidagi ikki qator endi `PROGRESS.md` ning **run jurnalidan** (392-qatordan boshlab, 2026-08-13 holati) mashina bilan olingan, 130-run sanog'idan emas. ⚠️ Qoida kuchida qoladi: **nishonni tanlashdan oldin modul nomini jurnalda `grep` qiling** — 151 aynan shu bilan `stats/methodology.py` ni ro'yxatdan chiqardi (u **65-runda 30 mutatsiya** bilan o'lchangan, lekin ikkita keyingi run uni navbatda ko'rsatib turgan edi). ⚠️ Ikkinchi qoida (150): «test qatlamidan nol import» kabi **izohlar** ham `grep -rl` bilan tasdiqlansin — 149 ning bunday da'vosi xato chiqqan edi. | keyingi mutatsiya runlari |
+| 🟡 **Mutatsiya bilan O'LCHANGAN modullar** (151-run da jurnaldan qayta yig'ildi) — bulardan nishon **olinmaydi**: `clustering/{confirmation,status,scale,geometry,independence,formulas}.py`; `stats/{coverage,aggregate,heatmap,duration,boundaries,maturity,mahalla_coverage,methodology}.py`; `geo/{jitter,quality,h3_cells,mahallas,osm}.py` va `geo/queries.py` ning `_period_filter`/`district_boundaries`/mahalla so'rovlari; `reports/{velocity,sources,queries}.py`; `core/{etag,timeutil}.py`; `admin/{auth,roles,digest}.py`; `obs/{metrics,alerts,counters}.py` va **`obs/{latency,readings}.py` (151)**, **`obs/monitoring.py` (152)**; `notifications/{params,events,render,sender,queries,outbox,subscriptions,service,channels}.py`; `bot/{reply,notifier}.py`; `jobs/runner.py`; `analytics/{track,catalogue}.py`; `clustering/repository.py`; `release/gates.py`, **`release/risks.py` (153)**, **`release/scope.py` (154)** va `release/{business_requirements,business_reporting,business_acceptance,business_architecture,business_glossary,business_environment,business_interfaces,business_rules,phase0_plan,ux_requirements,user_stories,nfr_appendix}.py`. **Hali O'LCHANMAGAN nomzodlar** (151 da `grep` bilan tasdiqlangan — jurnalda birorta mutatsiya verdikti yo'q): `analytics/dashboards.py`, 🔴 **`stats/service.py`** — alohida holat: 135/136 unga **statik gipotezalar** yozgan (`floor_to` ning `tz=utc` i, `min(qualities)` ↔ `max`, `resolve_period` chegaralari, `_index_for`/`_coverage_input` ning sukut qiymatlari) va ularning bir qismi 136 da qulflangan, lekin **hech qachon o'lchanmagan** — jurnaldagi to'rtta «mutatsiya» eslatmasi o'sha bashoratlar, verdikt emas; `stats/export.py`, `core/{config,logging,errors,glossary,architecture,api_requirements}.py`, `db/{session,models,base}.py`, `geo/{bbox,pipeline,registry,models}.py`, `admin/{audit,digest_service,registries,security,service}.py`, `clustering/{lookup,params,snapshot,service}.py`, `bot/{service,handlers,keyboards,factory,webhook}.py`, `integrations/registry.py`, `reports/{intake,moderation}.py`, `jobs/*.py` ning `_tick` o'ramlari, `api/v1/*.py` va `api/openapi.py`. ✅ **`app/release/` oilasida o'lchanmagan modul QOLMADI** (155…162 sakkizala eski-harness modulini qayta o'lchadi; `db/data_model.py` — 163). ⚠️ **163 ning tuzatishi: bu ro'yxatning o'zi ham hosila** — nishonni har safar `PROGRESS.md` ning **run jurnalidan** qayta tasdiqlang (`awk '/^\| 20/' PROGRESS.md | grep mutatsiya`), bu bo'lim 130-runda qotgan navbatni takrorlaydi. ⚠️ 130 ning qoidasi: reyestr/kontrakt testi bor modul **o'lchangan hisoblanmaydi**. ⚠️ 131 ning tuzatishi: tozalik modulning emas, **funksiyaning** xossasi — `AsyncSession` ni import qiladigan modul ichida ham bazasiz sinxron funksiyalar bor va ular bugunoq o'lchanadi. ⚠️ **152+153 ning kuzatuvi — bu endi SINF, modul emas:** reyestr moduli ikki yarimdan iborat va ular teskari qoplangan — hujjatdan parse qilinadigan **ma'lumot** zich qulflangan (mutatsiyalarning deyarli hammasi birinchi o'tishda o'ladi), import paytida yuradigan **`_check_*` qorovullari** esa yarmi umuman o'lchanmagan, chunki bugungi reyestr to'g'ri bo'lgani uchun ular otilmaydi. Nishon tanlanganda modulda `_check_` ni `grep` qiling va **qorovulning nechta sharti test bilan otiladi** ni sanang. ⚠️ **154 ning qo'shimchasi — sinfning IKKINCHI yarmi:** reyestr modulining `evaluate()`/`*Report` yarmi ham o'lchanmagan bo'lib chiqadi. Uchta naqsh takrorlanadi: (1) o'q lug'ati (`by_*`) sinflar ro'yxatidan emas, **uchragan qiymatlardan** qurilsa bugun bir xil javob beradi; (2) bir nechta shartdan iborat xossa (`accurate`, `boundaries_hold`) mavjud testda **bir vaqtda** tuzatiladi, ya'ni shartlarning biri ortiqcha bo'lib qolsa sezilmaydi; (3) hosila ro'yxatning **manbai** (`standings_touched`) kengaytirilsa bugungi qiymat o'zgarmaydi. Nishon tanlanganda `@property` larni ham sanang. ⚠️ 151 ning kuzatuvi: **eksport/javob yo'lidagi modul qarzsizga yaqin** (`readings.py` 13/15 birinchi o'tishda), **hisob-kitob va qorovul moduli qarzdor** (`latency.py` 12 survivor) — 144 ning «yozuv yo'li ↔ o'qish yo'li» qoidasining uchinchi kesimi. | keyingi mutatsiya runlari |
 | 🟡 `make lint` ning `ruff format --check` qadami repo bilan mos emas (124 fayl `0.16.2` da, 130 fayl `0.8.6` da — repo hech qachon `ruff format` bilan formatlanmagan). CI faqat `ruff check` ni yurgizadi, reliz bloklanmaydi. Uch yo'l: bir marta formatlash + versiyani qulflash / qadamni olib tashlash / farqni qayd etib qoldirish | REL (`03` §6), butun repo |
 | 🔴🔴 **2026-08-13, 140-run dan keyin — 122-rundan beri yozilgan DIAGNOZ NOTO'G'RI.** 👤 odam `cleanup-sessions.ps1` ni ishga tushirdi va natija: `[=] topilmadi: C:\Users\5\AppData\Roaming\Claude\local-agent-mode-sessions`, `0 ta papka o'chirildi`, **`C: bo'sh joy 8.5 GB`**. Ya'ni (a) skriptning yo'li **eskirgan** — u qaraydigan papka umuman yo'q; (b) Windows tomonda **disk to'la emas**. Shundan keyin `bash` yana uch marta chaqirildi — bir xil `useradd failed: /etc/passwd.NNNNN: No space left on device`. **Xulosa: `No space left on device` sandboxning O'Z Linux VM ida, foydalanuvchining C diskida emas** — `cleanup-sessions.ps1` uni hech qachon tuzata olmasdi. 122–140 runlar (19 ta) noto'g'ri bloklovchini qayd etib kelgan. Endi yagona ma'lum yo'l — **yangi sandbox VM** (Cowork ni qayta ishga tushirish / yangi sessiya) yoki Anthropic tomonidagi tiklash; skriptning o'zi ham 👤 tuzatilishi kerak (yangi yo'l topilsin yoki skript olib tashlansin) | butun `pytest`/`ruff`/`requires_db`/mutatsiya qatlami |
 | ⛔⛔ ~~**`cleanup-sessions.ps1` — 131-runda BUTUN RUN bloklandi.**~~ (yuqoridagi qator buni **bekor qiladi** — sabab boshqa joyda edi; quyidagi matn tarix uchun qoldirilgan) `bash` ning uchala urinishi ham `ensure user: useradd failed: /etc/passwd.NNNNN: No space left on device` bilan yiqildi: sandbox foydalanuvchisi yaratilmaydi, ya'ni `df`/`ls` ham bajarilmaydi va 130 ning `TMPDIR=/dev/shm/tNNN` yechimi yaramaydi (unga yetish uchun ham muhit kerak). Bosqichma-bosqich: 122–129 — `initdb` ga joy yo'q (`requires_db` skip); 130 — `pytest` faqat `/dev/shm` bilan; **131 — hech narsa**. Bugun na `pytest`, na `ruff` yurdi; run statik audit rejimida o'tkazildi | endi **hamma narsa**: mutatsiya seriyasi ham (bazasiz nishonlar ham `pytest` talab qiladi), `requires_db` ham, `ruff` ham |
@@ -1439,9 +1910,10 @@ ma'lumot bo'lmasligi kerak. Ziddiyat chiqsa — `PROGRESS.md` haq.
 ## 6. Sandboxda PostGIS ko'tarish (retsept)
 
 Cheklovlar: `/sessions` (`$HOME`) to'la bo'lishi mumkin → hamma narsa
-`/tmp` ga; bitta `bash` chaqiruvining haqiqiy chegarasi **120 s**
-(`timeout_ms` dan qat'i nazar; 144-run o'lchadi — eski «~180 s»
-yozuvi noto'g'ri, mutatsiya partiyasi 2 mutantdan oshmasin); server chaqiruv oxirida o'ladi →
+`/tmp` ga; bitta `bash` chaqiruvining standart chegarasi **120 s**, `timeout_ms`
+bilan uni **~178 s** gacha ko'tarish mumkin va undan nariga o'tmaydi
+(159-run o'lchadi); partiyaning umumiy vaqti shu chegaraga sig'sin —
+to'liq to'plamli mutatsiya uchun ikkita ishchi × 3 mutant ≈ 160 s; server chaqiruv oxirida o'ladi →
 `pg_ctl start` va `pytest` **bitta** chaqiruvda; `/tmp` dagi eski
 `pgdata*` **va `mamba/envs`** boshqa sandbox foydalanuvchisiniki
 bo'lishi mumkin (`nobody:755` — o'qish mumkin, yozish yo'q) → yangi

@@ -47,6 +47,38 @@ def test_payload_is_json_native() -> None:
     assert all(isinstance(v, (str, int, float, type(None))) for v in payload.values())
 
 
+def test_missing_time_is_null_in_the_payload_not_an_empty_string() -> None:
+    """Vaqt yo'q bo'lsa payload da `null`, `""` emas (148-run, mutatsiya E3).
+
+    Aylanma (`as_payload` → `from_payload`) buni **yashiradi**: `_parse_dt`
+    ning `if not value` qorovuli bo'sh satrni ham `None` qiladi, ya'ni
+    mutant butun to'plamdan jimgina o'tadi. Lekin payload ni faqat
+    `from_payload` o'qimaydi — u JSONB da yotadi va `05` §10 ning
+    metrikasi undan to'g'ridan-to'g'ri `payload->>'region_id'` uslubida
+    o'qiydi. `null` va `''` SQL da bir xil emas: `IS NULL` bo'shni
+    ko'rmaydi, `::timestamptz` esa unda **xato** beradi.
+    """
+    payload = make_event(started_at=None, changed_at=None).as_payload()
+    assert payload["started_at"] is None
+    assert payload["changed_at"] is None
+
+
+def test_payload_radius_is_a_whole_number_of_metres() -> None:
+    """`radius_m` — JSONB ga **butun son** bo'lib tushadi (148-run, E9).
+
+    `int(...)` casti keraksizdek ko'rinadi (`OutageEvent.radius_m: int`),
+    lekin dataclass tekshirmaydi va hodisa bazadan keladi: PostGIS
+    `ST_Distance` va `numeric` ustunlar `float`/`Decimal` beradi.
+    Cast yo'qolsa payload da `420.7` yotadi va uni o'qigan
+    `payload->>'radius_m'` `"420.7"` qaytaradi — `::int` bilan
+    yiqiladigan qiymat, obunachi qidiruvining radiusi esa jimgina
+    kengayadi.
+    """
+    payload = make_event(radius_m=420.7).as_payload()
+    assert payload["radius_m"] == 420
+    assert isinstance(payload["radius_m"], int)
+
+
 def test_naive_datetime_is_treated_as_utc() -> None:
     event = make_event(started_at=datetime(2026, 8, 7, 19, 0))
     assert events.from_payload(event.as_payload()).started_at == datetime(

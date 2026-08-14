@@ -765,3 +765,198 @@ def test_each_condition_alone_makes_the_plan_inaccurate() -> None:
     assert only_unplanned.accurate is False
 
     assert rp.PlanReport(rows=clean, unplanned=()).accurate is True
+
+
+# --------------------------------------------------------------------------
+# 11. O'lchanmagan qorovullar, hisobotning shakli va dalil kortejlari
+#
+# 158-run: 77-run bu fayl uchun «37 mutatsiya, 1 survivor» degan edi va
+# o'sha o'lchov 126-rungacha bo'lgan harness bilan olingan (`pytest` ning
+# `rc=4` i yolg'on `KILLED` berardi). Qayta o'lchov: 50 mutatsiya →
+# 28 KILLED, 22 SURVIVOR. Quyidagi qatlam o'sha yigirma ikkitasini
+# qulflaydi. Uchta oila:
+#
+#   (a) `_check_registry` ning yetti sharti hech qachon otilmagan —
+#       9-bo'lim faqat `Alias` va dalil **ortiqchaligi** tarmoqlarini
+#       otardi;
+#   (b) hisobotning **shakli** — chelaklar «uchragan sinflardan»
+#       qurilsa bugun bir xil javob beradi (154/155/156/157 ning sinfi);
+#   (c) dalil kortejlaridan bittadan element jimgina tushib qolardi:
+#       `test_every_bind_resolves_to_a_real_symbol` — mavjudlik
+#       tekshiruvi, test emas.
+# --------------------------------------------------------------------------
+
+
+def _check_unplanned(
+    monkeypatch: pytest.MonkeyPatch, items: tuple[rp.UnplannedSurface, ...]
+) -> None:
+    """`UNPLANNED` bo'yicha qorovullar uchun — `_check_with` ning juftligi."""
+    monkeypatch.setattr(rp, "UNPLANNED", items)
+    rp._check_registry()
+
+
+def test_the_row_count_is_guarded_not_merely_asserted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`SPEC_ROWS` — qorovul, bezak emas.
+
+    1-bo'lim `len(rp.ROWS) == rp.SPEC_ROWS` ni **ma'lumot** sifatida
+    o'qiydi; reyestrdan qator tushib qolsa ikkala son ham birga
+    o'zgarmaydi, lekin qorovul o'chirilgan bo'lsa hech kim aytmasdi.
+    """
+    with pytest.raises(ValueError, match="kutilgani"):
+        _check_with(monkeypatch, rp.ROWS[:-1])
+
+
+def test_duplicate_codes_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`ROW_BY_CODE` — lug'at: takrorlangan kod qatorni jimgina yutadi."""
+    duplicated = rp.ROWS[:-1] + (replace(rp.ROWS[-1], code="RP-1"),)
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        _check_with(monkeypatch, duplicated)
+
+
+def test_a_row_without_a_note_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Izoh matni ataylab tekshirilmaydi — **borligi** esa tekshiriladi."""
+    with pytest.raises(ValueError, match="izohsiz"):
+        _check_with(monkeypatch, _swap("RP-2", note=""))
+
+
+def test_a_row_that_claims_content_needs_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """9-bo'lim faqat teskarisini otardi: `ABSENT` + ortiqcha dalil.
+
+    Dalilsiz `BUILT`/`PARTIAL`/`CONTRADICTED` — aynan shu reyestrda eng
+    xavfli holat: baho beriladi, uni kuzatadigan joy esa ko'rsatilmaydi.
+    """
+    with pytest.raises(ValueError, match="partial"):
+        _check_with(monkeypatch, _swap("RP-3", ship_binds=()))
+
+
+def test_an_unplanned_surface_needs_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValueError, match=r"UP-1` dalilsiz"):
+        _check_unplanned(
+            monkeypatch, (replace(rp.UNPLANNED[0], binds=()), rp.UNPLANNED[1])
+        )
+
+
+def test_an_unplanned_surface_needs_a_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValueError, match="izohsiz"):
+        _check_unplanned(
+            monkeypatch, (replace(rp.UNPLANNED[0], why_not_covered=""), rp.UNPLANNED[1])
+        )
+
+
+def test_the_unplanned_loop_reaches_the_last_item(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sikl to'liqligi: buzilish ataylab **oxirgi** bandga qo'yiladi."""
+    with pytest.raises(ValueError, match=r"UP-2` dalilsiz"):
+        _check_unplanned(
+            monkeypatch, (rp.UNPLANNED[0], replace(rp.UNPLANNED[1], binds=()))
+        )
+
+
+def test_the_report_keeps_a_bucket_for_every_class_even_when_no_row_uses_it() -> None:
+    """Hisobotning **shakli** reyestrning bugungi tarkibiga bog'liq emas.
+
+    Bugun uchala o'qning ham to'rttala sinfi to'la, ya'ni chelaklarni
+    «uchragan sinflardan» qurish bir xil javob beradi. Ertaga bir sinf
+    bo'shab qolsa esa u hisobotdan **yo'qolardi** — «bu sinfda qator
+    yo'q» degan javob «bunday sinf yo'q» ga aylanardi.
+    """
+    only_shared = rp.PlanReport(rows=(rp.ROW_BY_CODE["RP-3"],), unplanned=())
+    assert set(only_shared.by_alias) == set(rp.Alias)
+    assert set(only_shared.by_ship) == set(rp.Ship)
+    assert set(only_shared.by_gate) == set(rp.Gate)
+    assert only_shared.by_alias[rp.Alias.SHARED] == (rp.ROW_BY_CODE["RP-3"],)
+    assert only_shared.by_alias[rp.Alias.FOREIGN] == ()
+    assert only_shared.by_ship[rp.Ship.CONTRADICTED] == ()
+    assert only_shared.by_gate[rp.Gate.EXTERNAL] == ()
+
+
+def test_collision_reads_the_policy_set_not_a_hard_coded_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`COLLIDING` — siyosat; bugun u bitta sinfdan iborat.
+
+    Shuning uchun `self.alias is Alias.REASSIGNED` bugun **bir xil**
+    javob beradi va to'plamning o'zi o'lchanmay qolardi. Qulf —
+    to'plamni almashtirib xossani qayta so'rash.
+    """
+    monkeypatch.setattr(rp, "COLLIDING", frozenset({rp.Alias.SHARED}))
+    assert rp.ROW_BY_CODE["RP-3"].collides is True
+    assert rp.ROW_BY_CODE["RP-4"].collides is False
+
+
+def test_the_vocabulary_publishes_the_values_it_promises() -> None:
+    """Uchala o'qning ham qiymatlari — modulning tashqi lug'ati.
+
+    `admin/registries.py` reyestrni vitrinaga chiqaradi, ya'ni bu
+    satrlar modul ichidagi tafsilot emas. Tartib ham qulflanadi:
+    `by_*` chelaklarining tartibi shundan keladi.
+    """
+    assert [a.value for a in rp.Alias] == ["shared", "reassigned", "split", "foreign"]
+    assert [s.value for s in rp.Ship] == ["built", "partial", "absent", "contradicted"]
+    assert [g.value for g in rp.Gate] == [
+        "instrumented",
+        "unrecorded",
+        "unquantified",
+        "external",
+    ]
+
+
+#: Har bir qator qaysi dalillarga tayanadi. Kortejdan bittadan element
+#: tushib qolsa reyestr baribir o'z qorovullaridan o'tardi (dalil
+#: **bo'sh** emas), ya'ni baho jimgina asossiz qolardi.
+SHIP_EVIDENCE: dict[str, tuple[str, ...]] = {
+    # Ziddiyatning to'rtala oyog'i: yig'ish, snapshot, ommaviy o'qish,
+    # yoqishning granulyarligi.
+    "RP-1": (
+        "app.geo.registry:active_regions",
+        "app.jobs.build_map_snapshot:run",
+        "app.api.v1.map:get_map",
+        "tools.region_admin:cmd_activate",
+    ),
+    # «Город целиком, UZ-first, карта, статистика» — to'rtala qism.
+    "RP-2": (
+        "app.core.i18n:DEFAULT_LANGUAGE",
+        "app.api.v1.map:get_map",
+        "app.stats.service:region_coverage",
+        "app.geo.registry:active_regions",
+    ),
+    # Mexanizm bor (`process`), kalibrlash yo'q (`Settings` ning
+    # standart radiusi) — ikkalasi birga `PARTIAL` ni beradi.
+    "RP-3": ("app.notifications.service:process", "app.core.config:Settings"),
+    # Vitrina qurilgan, rasmiy manba yo'q — ikkalasi birga `PARTIAL`.
+    "RP-4": (
+        "app.stats.mahalla_coverage:WARNING_MISSING",
+        "app.reports.sources:AUTHORITATIVE_CODES",
+    ),
+    "RP-5": (),
+}
+
+GATE_EVIDENCE: dict[str, tuple[str, ...]] = {
+    # Ikkita bloklovchi tekshiruv **va** ulardan keyin yuradigan ko'chirish.
+    "RP-1": (
+        "app.geo.quality:check_validity",
+        "app.geo.quality:check_closed_rings",
+        "app.geo.quality:SQL_PROMOTE",
+    ),
+    "RP-2": (),
+    "RP-3": (),
+    "RP-4": (),
+    "RP-5": (),
+}
+
+UNPLANNED_EVIDENCE: dict[str, tuple[str, ...]] = {
+    # Ilova ham, uning ommaviy yo'nalishi ham.
+    "UP-1": ("app.main:create_app", "app.api.v1.geo:router"),
+    # Rollar ham, audit ham: moderatsiya ikkalasisiz «qurilgan» emas.
+    "UP-2": ("app.admin.roles:Permission", "app.admin.audit:record"),
+}
+
+
+def test_every_row_names_exactly_the_evidence_its_verdict_rests_on() -> None:
+    for row in rp.ROWS:
+        assert row.ship_binds == SHIP_EVIDENCE[row.code], row.code
+        assert row.gate_binds == GATE_EVIDENCE[row.code], row.code
+
+
+def test_each_unplanned_surface_names_exactly_its_evidence() -> None:
+    for item in rp.UNPLANNED:
+        assert item.binds == UNPLANNED_EVIDENCE[item.code], item.code

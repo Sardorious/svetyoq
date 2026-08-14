@@ -241,3 +241,166 @@ def test_key_lists_cover_every_gate_and_criterion() -> None:
     assert len(gates.GATE_KEYS) == 2 * len(gates.GATES)
     assert len(gates.CRITERION_KEYS) == len(gates.CRITERIA)
     assert set(gates.GATE_KEYS) >= {"release.gate.g4.blocks", "release.gate.g0.summary"}
+
+
+# --------------------------------------------------------------------------
+# 5-bo'lim — reyestr qorovulining O'ZI (160-run, mutatsiya)
+# --------------------------------------------------------------------------
+#
+# 66-run «15 mutatsiya, 1 survivor» degan edi; o'sha harness `rc != 0` ni
+# KILLED deb o'qirdi va `pytest` ning `rc=4` i (collection error) yolg'on
+# KILLED berardi — tuzatilgani 126-run. Qayta o'lchovda 65 mutatsiyadan
+# 27 tasi tirik qoldi.
+#
+# Quyidagi uchtasi bir sinfdan: `_check_registry()` **hech qachon
+# otilmagan**, chunki bugungi reyestr to'g'ri. Yuqoridagi
+# `test_every_criterion_code_is_unique` va `test_no_gate_is_empty`
+# reyestrning bugungi holatini tekshiradi, qorovulning o'zini emas —
+# ya'ni qorovul butunlay o'chirilsa ham ular yashil qolardi.
+#
+# Shuning uchun qulf: `monkeypatch` bilan reyestrni ataylab buzish va
+# `_check_registry()` ni **qayta chaqirish**. Fikstyuralar ataylab tor —
+# nusxa birinchi elementda emas va mezonsiz gate birinchi qatorda emas,
+# aks holda `CRITERIA[:1]` / `GATES[:1]` mutantlari sezilmasdi.
+
+
+def _flag(code: str) -> Criterion:
+    return Criterion(
+        code=code, kind=CriterionKind.MANUAL, unit=gates.UNIT_FLAG, spec="s", threshold=1.0
+    )
+
+
+def test_the_registry_guard_rejects_a_duplicate_criterion_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nusxa **ikki marta** uchraganda ham xato — «uch marta» emas.
+
+    Nusxa ataylab birinchi mezon emas: qorovul faqat `CRITERIA[:1]` ni
+    ko'rsa hech narsa topmasdi va `CRITERION_BY_CODE` o'lchovni notug'ri
+    gate ga tushirardi.
+    """
+    monkeypatch.setattr(gates, "CRITERIA", (_flag("a"), _flag("b"), _flag("b")))
+    with pytest.raises(ValueError, match="mezon kodi takrorlangan"):
+        gates._check_registry()
+
+
+def test_the_registry_guard_accepts_a_clean_criterion_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Qorovul har qanday reyestrni rad etmaydi — aks holda u qorovul emas."""
+    monkeypatch.setattr(gates, "CRITERIA", (_flag("a"), _flag("b"), _flag("c")))
+    gates._check_registry()
+
+
+def test_the_registry_guard_rejects_an_empty_gate_anywhere_in_the_table(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mezonsiz gate `all(...)` bo'yicha o'z-o'zidan `CLOSED` bo'lardi.
+
+    Bo'sh gate ataylab **birinchi** qator emas: `GATES[:1]` bilan
+    cheklangan qorovul uni ko'rmasdi.
+    """
+    monkeypatch.setattr(
+        gates,
+        "GATES",
+        (
+            Gate(code="G-x", release="rx", criteria=(_flag("a"),)),
+            Gate(code="G-y", release="ry", criteria=()),
+        ),
+    )
+    with pytest.raises(ValueError, match="gate mezonsiz"):
+        gates._check_registry()
+
+
+# --------------------------------------------------------------------------
+# 6-bo'lim — hisobotning SHAKLI (160-run, mutatsiya)
+# --------------------------------------------------------------------------
+
+
+def test_the_report_carries_the_measured_value_not_only_the_verdict() -> None:
+    """`CriterionResult.value` — hisobotning dalili, `status` esa xulosasi.
+
+    Mavjud testlar faqat `status` ni so'raydi, ya'ni `value` ning o'rniga
+    `None` yozilsa hech biri buni ko'rmasdi: `GET /api/v1/admin/gates`
+    javobida har bir mezon «o'lchanmagan» sonni ko'rsatardi, holbuki
+    holati `MET` bo'lib turardi — hisobotning eng chalg'ituvchi shakli.
+    """
+    report = gates.evaluate({"confirmable_share": 0.73, "answer_p90": 4.5})
+    by_code = {
+        item.criterion.code: item for result in report.gates for item in result.criteria
+    }
+    assert by_code["confirmable_share"].value == pytest.approx(0.73)
+    assert by_code["answer_p90"].value == pytest.approx(4.5)
+    # Berilmagan mezon — `None`, ya'ni «o'lchanmagan» ham qiymat orqali ko'rinadi.
+    assert by_code["map_refresh"].value is None
+
+
+def test_the_criterion_key_is_built_from_the_code() -> None:
+    """`Criterion.key` ↔ `CRITERION_KEYS` — ikkalasi bitta manbadan.
+
+    `CRITERION_KEYS` kodni f-satrga **o'zi** qo'yadi, ya'ni `key`
+    xossasi kodni boshqa maydonga (masalan `spec` ga) almashtirsa
+    ro'yxat baribir to'g'ri qolardi — i18n kontrakti esa faqat ro'yxatni
+    o'qiydi. Buzilishi API da ko'rinardi: `admin.read_gates` yorliqni
+    aynan `item.criterion.key` orqali tarjima qiladi.
+    """
+    for criterion in gates.CRITERIA:
+        assert criterion.key == f"release.criterion.{criterion.code}"
+    assert gates.CRITERION_KEYS == tuple(c.key for c in gates.CRITERIA)
+
+
+def test_a_flag_criterion_is_closed_by_one_and_not_by_zero() -> None:
+    """`FLAG_TRUE` — «bajarildi», `0.0` — «bajarilmadi».
+
+    `FLAG_TRUE` `0.0` ga tushsa `value >= 0.0` har doim rost bo'lardi:
+    o'n bitta bayroq mezoni «yo'q» deb qayd etilgan holatda ham `MET`
+    ko'rinardi, ya'ni to'qqizta gate dan oltitasi o'z-o'zidan yopilardi.
+    """
+    assert gates.FLAG_TRUE == pytest.approx(1.0)
+    flag = gates.CRITERION_BY_CODE["deploy_pipeline"]
+    assert flag.check(gates.FLAG_TRUE) is CriterionStatus.MET
+    assert flag.check(0.0) is CriterionStatus.UNMET
+
+
+# --------------------------------------------------------------------------
+# 7-bo'lim — lug'at: `StrEnum` qiymatlari va birliklar (160-run, mutatsiya)
+# --------------------------------------------------------------------------
+#
+# Bularning hammasi `GET /api/v1/admin/gates` javobiga **satr sifatida**
+# tushadi (`str(item.criterion.kind)`, `str(item.status)`, `unit`), ya'ni
+# ular ichki nom emas, tashqi kontrakt. A'zoni qayta nomlash mavjud
+# testlarda ushlanardi, **qiymatni** o'zgartirish esa yo'q.
+
+
+def test_the_enum_values_are_the_wire_format() -> None:
+    """O'n bitta qiymat — javobdagi satrlar. Ular o'zgarsa mijoz buziladi."""
+    assert (CriterionKind.MACHINE, CriterionKind.MANUAL) == ("machine", "manual")
+    assert (Direction.MIN, Direction.MAX) == ("min", "max")
+    assert (CriterionStatus.MET, CriterionStatus.UNMET, CriterionStatus.UNMEASURED) == (
+        "met",
+        "unmet",
+        "unmeasured",
+    )
+    assert (GateStatus.CLOSED, GateStatus.BLOCKED, GateStatus.UNKNOWN) == (
+        "closed",
+        "blocked",
+        "unknown",
+    )
+
+
+def test_the_two_unmeasured_words_stay_apart() -> None:
+    """`CriterionStatus.UNMEASURED` ↔ `GateStatus.UNKNOWN` — boshqa savol.
+
+    Mezon uchun «o'lchanmagan», gate uchun «noma'lum»: ikkovi bitta
+    satrga aylansa hisobotni o'qigan odam gate ning **hamma** mezoni
+    o'lchanmagan deb o'ylardi, holbuki `UNKNOWN` bitta o'lchanmagan
+    mezondan ham kelib chiqadi.
+    """
+    assert str(CriterionStatus.UNMEASURED) != str(GateStatus.UNKNOWN)
+
+
+def test_the_units_are_four_distinct_wire_values() -> None:
+    """Birlik — formatlashning yagona ko'rsatkichi (`10` soniyami, ulushmi?)."""
+    units = (gates.UNIT_SHARE, gates.UNIT_SECONDS, gates.UNIT_COUNT, gates.UNIT_FLAG)
+    assert units == ("share", "seconds", "count", "flag")
+    assert len(set(units)) == len(units)

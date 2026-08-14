@@ -772,3 +772,251 @@ def test_todays_counts() -> None:
     # reyestrning eng katta xossasi va u pasaysa sabab ko'rinishi kerak.
     assert report.unauditable_count == 14
     assert len(report.unauditable_entries) == 7
+
+
+# --------------------------------------------------------------------------
+# 8. Reyestrning **o'z** qorovullari — har biri alohida (153-run)
+# --------------------------------------------------------------------------
+#
+# 3-bo'limdagi to'rtta test `_check_registry()` ning sakkizta qorovulidan
+# faqat to'rttasini otadi (`SCHEDULED`/`NOMINAL` bog'lanishi, `MECHANISED`
+# bog'lanishsizligi, izohsiz baho). Qolgan to'rttasi — takrorlangan kod,
+# bo'sh mitigatsiya, `Влияние` ustunining ikkala yo'nalishi va izohsiz
+# sarflangan bashorat — bugungi reyestr to'g'ri bo'lgani uchun **hech
+# qachon otilmaydi**: ularning har birini zaiflashtirish 3507 testni
+# yashil qoldirardi. Qorovul o'zi ham kod, va o'lchanmagan kod ertaga
+# yangi qator qo'shgan odamni ushlamaydi.
+
+
+def _install(
+    monkeypatch: pytest.MonkeyPatch,
+    risk_rows: tuple[risks.Entry, ...],
+    assumption_rows: tuple[risks.Entry, ...],
+) -> None:
+    """`_swap` ning umumiy shakli: ikkala ro'yxatni butunlay qo'yadi."""
+    monkeypatch.setattr(risks, "RISKS", risk_rows)
+    monkeypatch.setattr(risks, "ASSUMPTIONS", assumption_rows)
+    monkeypatch.setattr(risks, "ENTRIES", risk_rows + assumption_rows)
+
+
+def test_a_duplicated_code_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ikkita qator bitta ID da — indeks jimgina bittasini yutardi.
+
+    `ENTRY_BY_CODE` lug'at, ya'ni takror kod ikkinchi qatorni **o'chirib
+    tashlaydi** va reyestr o'n sakkiz qator deb ko'rsatib turaveradi.
+    """
+    _install(monkeypatch, (*risks.RISKS, risks.RISKS[0]), risks.ASSUMPTIONS)
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        risks._check_registry()
+
+
+def test_the_duplicate_check_spans_both_tables(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Takrorlanish §26 ↔ §27 **orasida** ham qidiriladi.
+
+    Qorovul `RISKS` dan emas, `ENTRIES` dan sanaydi. Faqat §26 ni
+    ko'radigan qorovul aynan xavfli holatni o'tkazib yuborardi: bitta
+    hodisa ikkala jadvalda ham bor (`RS-02` ↔ `AS-S3`), ya'ni ID ni
+    nusxalash bu yerda tabiiy xato.
+    """
+    clone = replace(risks.ASSUMPTIONS[0], code=risks.RISKS[0].code)
+    _install(monkeypatch, risks.RISKS, (clone, *risks.ASSUMPTIONS[1:]))
+    with pytest.raises(ValueError, match="takrorlangan kod"):
+        risks._check_registry()
+
+
+def test_a_row_without_a_mitigation_clause_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bo'sh `clauses` — «mitigatsiya nomlangan» va'dasining yo'qligi.
+
+    Xabar ham tekshiriladi: qorovulsiz `Entry.cover` ning `max()` i bo'sh
+    ketma-ketlikda yiqilardi va o'quvchi `ValueError: max() arg is an
+    empty sequence` dan reyestrda nima yetishmayotganini bilmasdi.
+    """
+    broken = replace(risks.ENTRY_BY_CODE["RS-01"], clauses=())
+    _swap(monkeypatch, "RS-01", broken)
+    with pytest.raises(ValueError, match="mitigatsiya bandi yo'q"):
+        risks._check_registry()
+
+
+def test_a_risk_without_an_impact_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """§26 ning `Влияние` ustuni majburiy — u qatorning yarim bahosi."""
+    broken = replace(risks.ENTRY_BY_CODE["RS-01"], impact="")
+    _swap(monkeypatch, "RS-01", broken)
+    with pytest.raises(ValueError, match="ustuni bo'sh"):
+        risks._check_registry()
+
+
+def test_an_assumption_with_an_impact_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Teskari yo'nalish: §27 da bunday ustun **yo'q**.
+
+    Uni to'ldirish reyestrni hujjatdan ajratardi va
+    `test_the_two_tables_have_the_columns_the_registry_assumes` buni
+    ko'rmasdi — u hujjatning sarlavhasini o'qiydi, reyestrning
+    qiymatlarini emas.
+    """
+    broken = replace(risks.ENTRY_BY_CODE["AS-S1"], impact="Критическое")
+    _swap(monkeypatch, "AS-S1", broken)
+    with pytest.raises(ValueError, match="ustuni yo'q"):
+        risks._check_registry()
+
+
+def test_an_instrumented_clause_must_carry_a_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bog'lanish talabi `MECHANISED` ga xos emas.
+
+    `test_a_mechanised_clause_must_carry_a_binding` qorovulning bitta
+    sinfini otadi, holbuki qoida `SCHEDULED` va `NOMINAL` dan
+    **boshqa hammasi** haqida. `INSTRUMENTED` — bugungi yagona uchinchi
+    sinf (`AS-S6`), va aynan u dalilsiz qolsa «asbob bor» degan da'vo
+    tekshirilmasdan qolardi.
+    """
+    entry = risks.ENTRY_BY_CODE["AS-S6"]
+    broken = replace(
+        entry,
+        clauses=(
+            risks.Clause(text="x", cover=risks.Cover.INSTRUMENTED, note="sabab"),
+        ),
+    )
+    _swap(monkeypatch, "AS-S6", broken)
+    with pytest.raises(ValueError, match="bog'lanishsiz"):
+        risks._check_registry()
+
+
+def test_a_spent_forecast_without_a_note_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sarflangan bashorat izohsiz qolmasin.
+
+    Bandlarning izohi ataylab saqlanadi, ya'ni «baho izohsiz» qorovuli
+    qanoatlanadi va faqat `onset` qorovuli otiladi — xabar `onset`
+    qiymatini nomlaydi.
+    """
+    entry = risks.ENTRY_BY_CODE["RS-02"]
+    assert entry.forecast_is_spent
+    broken = replace(
+        entry,
+        note="",
+        clauses=tuple(replace(c, note=c.note or "sabab") for c in entry.clauses),
+    )
+    _swap(monkeypatch, "RS-02", broken)
+    with pytest.raises(ValueError, match="`materialised` izohsiz"):
+        risks._check_registry()
+
+
+# --------------------------------------------------------------------------
+# 9. Chegara qarorlari va reyestrning shakli (153-run)
+# --------------------------------------------------------------------------
+
+
+def test_the_separator_set_is_exactly_what_the_document_uses() -> None:
+    """`CLAUSE_SEPARATORS` — hujjatdan **hisoblanadi**, tekshirilmaydi.
+
+    `test_separator_set_is_the_one_the_document_uses` har belgining
+    hujjatda uchrashini so'raydi, ya'ni ro'yxatga hujjatdagi **istalgan**
+    belgini qo'shish (masalan bo'shliq yoki kirill harfi) o'sha testni
+    yashil qoldiradi. Ro'yxat esa `strip()` da ishlatiladi: ortiqcha
+    belgi «qoplanmagan matn qoldi» tekshiruvini bo'shatadi va tashlab
+    ketilgan band jimgina yo'qoladi.
+    """
+    cells = _mitigation_cells()
+    used: set[str] = set()
+    for entry in risks.ENTRIES:
+        remainder = cells[entry.code]
+        for clause in entry.clauses:
+            remainder = remainder.replace(clause.text, "", 1)
+        used |= {ch for ch in remainder if not ch.isspace()}
+    assert used == set(risks.CLAUSE_SEPARATORS)
+
+
+def test_an_instrumented_mechanism_is_weaker_than_a_displaced_one() -> None:
+    """⚠️ **Chegara, survivor emas** (`DISPLACED` ↔ `DEGENERATE` bilan bir xil).
+
+    Bu juftlik ham bugungi reyestrda yonma-yon turmaydi: `INSTRUMENTED`
+    faqat `AS-S6` da va yolg'iz. Ya'ni tartibni almashtirish bugun hech
+    bir qatorning bahosini o'zgartirmaydi.
+
+    Sabab (`COVER_RANK` izohi): `INSTRUMENTED` hech nimadan himoya
+    qilmaydi — u faqat «savolga bugun javob bersa bo'ladi» deydi;
+    `DISPLACED` esa ishlaydigan mexanizm, garchi boshqa sirtda bo'lsa
+    ham. Teskari tartib `AS-S6` ni `RS-10` dan xavfsizroq ko'rsatardi.
+    """
+    assert risks.COVER_RANK[risks.Cover.INSTRUMENTED] < risks.COVER_RANK[risks.Cover.DISPLACED]
+    mixed = replace(
+        risks.ENTRY_BY_CODE["RS-02"],
+        clauses=(
+            risks.Clause(
+                text="x",
+                cover=risks.Cover.INSTRUMENTED,
+                binds=("app.release.risks:ENTRIES",),
+            ),
+            risks.Clause(
+                text="y",
+                cover=risks.Cover.DISPLACED,
+                binds=("app.release.risks:ENTRIES",),
+            ),
+        ),
+    )
+    assert mixed.cover is risks.Cover.DISPLACED
+
+
+def test_entries_are_the_two_tables_in_document_order() -> None:
+    """`ENTRIES` — §26 dan keyin §27, hujjatdagi tartibda.
+
+    Tartib ma'noli: `ENTRY_BY_CODE`, hisobotning har ro'yxati va
+    `_check_registry` ning xato xabari shundan chiqadi. Ikkala jadvalni
+    o'rin almashtirish bugungi **birorta** testni yiqitmasdi, chunki
+    qolgan hamma tekshiruv `RISKS` va `ASSUMPTIONS` ga alohida qaraydi.
+    """
+    assert risks.ENTRIES == risks.RISKS + risks.ASSUMPTIONS
+    assert [e.kind for e in risks.ENTRIES] == (
+        [risks.Kind.RISK] * len(risks.RISKS)
+        + [risks.Kind.ASSUMPTION] * len(risks.ASSUMPTIONS)
+    )
+
+
+def test_covered_is_exactly_the_mechanised_rows() -> None:
+    """`RiskReport.covered` — hisobotning yagona «yaxshi» ro'yxati.
+
+    Uni birorta test o'qimasdi, ya'ni ro'yxatni teskarisiga aylantirish
+    (`if not e.is_covered`) 3507 testni yashil qoldirardi: hisobot
+    ushlanmagan o'n to'rt qatorni «ushlangan» deb qaytarardi.
+    """
+    report = risks.evaluate()
+    assert [e.code for e in report.covered] == ["RS-01", "RS-03", "RS-04", "RS-09"]
+    assert list(report.covered) == list(report.by_cover[risks.Cover.MECHANISED])
+    assert len(report.covered) + 14 == len(report.entries)
+
+
+def test_the_undeclared_risk_names_both_of_its_fixes() -> None:
+    """E'lon qilinmagan riskning kodi va **ikkala** bog'lanishi.
+
+    `test_every_bind_resolves_to_a_real_symbol` faqat mavjud
+    bog'lanishlarni yechadi — ro'yxatdan bittasini olib tashlash undan
+    o'tib ketardi. Ikkalasi ham kerak: `purge_exact_geom` — `05` §3.2
+    ning saqlash muddati, `setup_logging` — 56-run topgan SQL
+    jurnali. Bittasi tuzatilib ikkinchisi qolsa risk saqlanadi.
+    """
+    assert [u.code for u in risks.UNDECLARED] == ["exact_geo_retention"]
+    assert risks.UNDECLARED[0].binds == (
+        "app.reports.queries:purge_exact_geom",
+        "app.core.logging:setup_logging",
+    )
+
+
+def test_unauditable_entries_rests_on_a_subset_relation() -> None:
+    """⚠️ **Ekvivalent mutant hujjati, qulf emas.**
+
+    `unauditable_entries` da `len(...) == len(e.clauses)` ni `>=` ga
+    almashtirish o'lchovda survivor chiqdi va u **haqiqatan** ekvivalent:
+    `unauditable_clauses` — `clauses` ning filtrlangan **qism to'plami**,
+    ya'ni uzunligi hech qachon kattaroq bo'la olmaydi va `>=` aynan
+    `==` bilan bir xil javob beradi. Shuning uchun qulf o'rniga shu
+    xossaning o'zi tasdiqlanadi — dalil izohda emas, tekshiruvda.
+    """
+    for entry in risks.ENTRIES:
+        assert all(c in entry.clauses for c in entry.unauditable_clauses), entry.code
+        assert len(entry.unauditable_clauses) <= len(entry.clauses), entry.code

@@ -509,3 +509,319 @@ def test_gaps_are_everything_but_the_region_label() -> None:
         "geocoding_failure_alert",
         "source_1055_healthcheck",
     ]
+
+
+# --------------------------------------------------------------------------
+# 4-qatlam. Import paytidagi qorovullar — «ertangi kirish» (152-run)
+# --------------------------------------------------------------------------
+#
+# Yuqoridagi uchala qatlam **bugungi** reyestrni o'lchaydi: qator bormi,
+# matn hujjatnikimi, sabab hali haqiqatmi. `_check_registry`,
+# `_check_alert_cap` va `_check_label_exemptions` esa boshqa savolga
+# javob beradi — «**ertaga** noto'g'ri qator yozilsa, u import paytida
+# to'xtatiladimi?». 152-run ning mutatsiya o'lchovi shu farqni ochdi:
+# o'n to'rtta qorovulning bittasi ham o'lchanmagan edi, ya'ni ularni
+# zaiflashtirish (masalan `count(c) > 1` → `> 2`) butun to'plamni
+# yashil qoldirardi. Bugungi reyestr to'g'ri bo'lgani uchun qorovul
+# **otilmaydi** — uni o'lchashning yagona yo'li 151-run ning naqshi:
+# reyestrni `monkeypatch` bilan almashtirib, tekshiruvni **qayta**
+# chaqirish.
+
+#: `Obstacle.why` uchun to'g'ri (≥ 40) va qisqa (< 40) namunalar.
+_WHY = "To'siqning sababi bir jumlada tushuntiriladi."
+_SHORT_WHY = "Juda qisqa sabab — qirq belgidan kam."
+
+
+def _obstacle(
+    code: str = "blocker",
+    unblocks: mon.Unblocks = mon.Unblocks.H4,
+    why: str = _WHY,
+) -> mon.Obstacle:
+    return mon.Obstacle(code=code, unblocks=unblocks, why=why)
+
+
+def _requirement(
+    code: str = "row",
+    *,
+    phrase: str = "Требование из документа",
+    binds: tuple[str, ...] = (),
+    obstacles: tuple[mon.Obstacle, ...] = (),
+    near: tuple[str, ...] = (),
+) -> mon.Requirement:
+    return mon.Requirement(
+        code=code,
+        layer=mon.Layer.METRIC,
+        phrase=phrase,
+        binds=binds,
+        obstacles=obstacles,
+        near=near,
+    )
+
+
+def test_the_two_why_samples_are_on_the_two_sides_of_the_limit() -> None:
+    """Namunalar chegarani ajratadi, aks holda quyidagi test bo'sh o'lchaydi."""
+    assert len(_WHY) >= 40
+    assert 4 <= len(_SHORT_WHY) < 40
+
+
+def test_a_duplicated_requirement_code_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Takrorlangan kod `REQUIREMENT_BY_CODE` da **jimgina** yutiladi.
+
+    Lug'at oxirgi qatorni saqlaydi: ikkinchisi hisobotda ko'rinadi,
+    kod bo'yicha esa erishib bo'lmaydi. Qorovulning `count(c) > 1`
+    shartini yumshatish (`> 2`) aynan shu holatni o'tkazib yuborardi.
+    """
+    monkeypatch.setattr(
+        mon,
+        "REQUIREMENTS",
+        (
+            _requirement("row", binds=("app.obs.metrics:render",)),
+            _requirement("row", binds=("app.obs.readings:to_samples",)),
+        ),
+    )
+    with pytest.raises(ValueError, match="talab kodi takrorlangan"):
+        mon._check_registry()
+
+
+def test_a_blank_phrase_is_refused_even_when_it_has_spaces(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`strip()` — bo'shliqdan iborat matnga qarshi.
+
+    Bo'sh satr `not req.phrase` bilan ham ushlanadi; probel esa yo'q.
+    Bunday qator hujjat bilan solishtirishda **mavjud** bo'lib
+    ko'rinadi va parse qilingan matn bilan hech qachon mos kelmaydi.
+    """
+    monkeypatch.setattr(mon, "REQUIREMENTS", (_requirement(phrase="   \t "),))
+    with pytest.raises(ValueError, match="hujjatdagi matn bo'sh"):
+        mon._check_registry()
+
+
+def test_a_held_row_without_a_binding_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`HELD` — kodga havolasiz da'vo bo'la olmaydi (`03` §6 yumshatishi)."""
+    monkeypatch.setattr(mon, "REQUIREMENTS", (_requirement(binds=()),))
+    with pytest.raises(ValueError, match="koddagi tayanchi yo'q"):
+        mon._check_registry()
+
+
+def test_a_held_row_with_a_near_measure_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`near` — bo'shliqning belgisi; bajarilgan qatorda u ma'nosiz.
+
+    Bajarilgan talabda «eng yaqin o'lchov» turishi hisobotni
+    ikkiyoqlama qilardi: qator ham yopiq, ham taxminiy ko'rinardi.
+    """
+    monkeypatch.setattr(
+        mon,
+        "REQUIREMENTS",
+        (_requirement(binds=("app.obs.metrics:render",), near=("app.obs.metrics:GEO_UNMATCHED",)),),
+    )
+    with pytest.raises(ValueError, match="`near` bo'lmaydi"):
+        mon._check_registry()
+
+
+def test_an_unheld_row_with_a_binding_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bajarilmagan qatorda tayanch — «yarim bajarilgan» degan yolg'on.
+
+    `is_held` faqat to'siqlarning yo'qligiga qaraydi, ya'ni tayanch
+    holatga ta'sir qilmaydi: qorovulsiz reyestr «to'sqinlik qilyapti,
+    lekin kodi bor» degan o'qib bo'lmaydigan qatorni saqlab qolardi.
+    """
+    monkeypatch.setattr(
+        mon,
+        "REQUIREMENTS",
+        (_requirement(binds=("app.obs.metrics:render",), obstacles=(_obstacle(),)),),
+    )
+    with pytest.raises(ValueError, match="bajarilmagan, lekin tayanchi bor"):
+        mon._check_registry()
+
+
+def test_a_duplicated_obstacle_code_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bir xil kodli ikkita to'siq — `blocked_by` ni ikki marta sanaydi."""
+    monkeypatch.setattr(
+        mon,
+        "REQUIREMENTS",
+        (
+            _requirement(
+                obstacles=(
+                    _obstacle("same", mon.Unblocks.E17),
+                    _obstacle("same", mon.Unblocks.H4),
+                )
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="to'siq kodi takrorlangan"):
+        mon._check_registry()
+
+
+def test_a_short_reason_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qirq belgi — «bir jumla» ning o'lchovi.
+
+    `test_every_obstacle_explains_itself` bugungi sabablarni
+    o'lchaydi; qorovulni yumshatish (`< 40` → `< 4`) undan
+    o'tib ketardi va ertangi «нет данных» qabul qilinardi.
+    """
+    short = _requirement(obstacles=(_obstacle(why=_SHORT_WHY),))
+    monkeypatch.setattr(mon, "REQUIREMENTS", (short,))
+    with pytest.raises(ValueError, match="sabab juda qisqa"):
+        mon._check_registry()
+
+
+def test_a_malformed_reference_is_refused_in_near_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Havola shakli **ikkala** ro'yxatda tekshiriladi.
+
+    `binds` va `near` bitta sikldan o'tadi. Siklni `binds` bilan
+    cheklash bugun sezilmasdi (bugungi `near` lar to'g'ri), lekin
+    `near` ni ham kontrakt testi `modul:simvol` deb yechadi —
+    shakli buzilgan havola o'sha yerda `AttributeError` bo'lib
+    chiqardi, ya'ni xato import paytida emas, boshqa faylda.
+    """
+    monkeypatch.setattr(
+        mon,
+        "REQUIREMENTS",
+        (_requirement(obstacles=(_obstacle(),), near=("app.obs.metrics.GEO_UNMATCHED",)),),
+    )
+    with pytest.raises(ValueError, match="modul:simvol"):
+        mon._check_registry()
+
+
+def test_a_fifth_alert_breaks_the_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ziddiyatning yuqori tomoni: beshinchi ogohlantirish qo'shilgan.
+
+    Bu — reyestrning eng qimmat tripwire i: `05` §10 ning cheklovi
+    buzilgan kuni `CONFLICTED` holati yolg'onga aylanadi (to'siq
+    allaqachon yo'q), hisobot esa hamon «spetsifikatsiya to'sqinlik
+    qilyapti» deb ko'rsatardi.
+    """
+    monkeypatch.setattr(alerts, "ALERTS", (*alerts.ALERTS, "sveta_extra_alert"))
+    with pytest.raises(ValueError, match=re.escape(mon.ALERT_CAP_SPEC)):
+        mon._check_alert_cap()
+
+
+def test_a_removed_alert_breaks_the_conflict_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qorovul `!=`, `>` emas: kamaygan ro'yxat ham ziddiyatni buzadi.
+
+    To'rtta o'rniga uchta ogohlantirish qolsa, cheklov endi
+    to'sqinlik qilmaydi — beshinchisiga joy bor. `>` shartida bu
+    holat jimgina o'tib ketardi.
+    """
+    monkeypatch.setattr(alerts, "ALERTS", alerts.ALERTS[:-1])
+    with pytest.raises(ValueError, match=re.escape(mon.ALERT_CAP_SPEC)):
+        mon._check_alert_cap()
+
+
+def test_the_cap_is_pointless_without_a_conflicted_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Teskari tomoni: ziddiyatli qator yo'qolsa, `ALERT_CAP` yetim qoladi."""
+    monkeypatch.setattr(
+        mon, "REQUIREMENTS", (_requirement(obstacles=(_obstacle("blocker", mon.Unblocks.E17),)),)
+    )
+    with pytest.raises(ValueError, match="ziddiyat yo'qolgan"):
+        mon._check_alert_cap()
+
+
+def test_an_exemption_for_an_unknown_family_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Yozuv xatosi ro'yxatni **kengroq** qilib ko'rsatardi.
+
+    Mavjud bo'lmagan oila nomi hech qanday oilani bo'shatmaydi, lekin
+    `test_every_exported_family_carries_a_region_label` uchun sabab
+    bo'lib turaveradi — va haqiqiy yorliqsiz oila e'tibordan chetda
+    qolardi.
+    """
+    monkeypatch.setattr(mon, "LABEL_EXEMPT", {"sveta_no_such_family": _WHY})
+    with pytest.raises(ValueError, match="LABEL_EXEMPT"):
+        mon._check_label_exemptions()
+
+
+def test_a_product_family_that_does_not_exist_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`05` §10 jadvali nom bilan yozilgan — nom eksportda bo'lishi shart.
+
+    Metrika qayta nomlangan kunda ro'yxat jimgina bo'sh sanoqqa
+    aylanardi: `test_the_seven_metrics_of_the_design_are_all_exported`
+    o'sha ro'yxatning **o'zini** yuradi, ya'ni u bilan birga
+    siljiydi.
+    """
+    monkeypatch.setattr(mon, "PRODUCT_FAMILIES", ("sveta_no_such_family",))
+    with pytest.raises(ValueError, match="PRODUCT_FAMILIES"):
+        mon._check_label_exemptions()
+
+
+def test_a_product_family_cannot_be_exempted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ikkala ro'yxatda turgan oila — `01` §22 ning birinchi qatoriga zid."""
+    monkeypatch.setattr(mon, "PRODUCT_FAMILIES", (metrics.HTTP_REQUESTS.name,))
+    with pytest.raises(ValueError, match="yorliqdan ozod bo'lmaydi"):
+        mon._check_label_exemptions()
+
+
+@pytest.mark.parametrize(
+    ("unblocks", "state"),
+    [
+        (mon.Unblocks.PRODUCT, mon.State.VACUOUS),
+        (mon.Unblocks.SPEC, mon.State.CONFLICTED),
+        (mon.Unblocks.E17, mon.State.BLOCKED),
+        (mon.Unblocks.H4, mon.State.BLOCKED),
+    ],
+)
+def test_each_obstacle_kind_has_its_own_price(
+    unblocks: mon.Unblocks, state: mon.State
+) -> None:
+    """To'siq turi → holat, kutilgan qiymat **qo'lda** yozilgan.
+
+    Jadvalni `STATE_OF_UNBLOCK` dan o'qish tavtologiya bo'lardi.
+    Farq mazmunli: odam ishi (`E17`, `H4`) — `BLOCKED`, ya'ni
+    kutiladi; spetsifikatsiya ziddiyati — `CONFLICTED`, ya'ni
+    tahrir kerak; mahsulotda yo'q quyi tizim — `VACUOUS`, ya'ni
+    tahrirdan keyin ham o'lchov bo'sh. `E17` ni `CONFLICTED` deb
+    o'qish mahalla poligonlarini «hujjat muammosi» ga aylantirardi.
+    """
+    assert _obstacle("any", unblocks).state is state
+
+
+def test_counts_add_up_when_two_rows_share_a_state() -> None:
+    """Hisoblagich **yig'adi**, oxirgisini yozib qo'ymaydi.
+
+    Bugungi reyestrda har holatdan aynan bittasi bor
+    (`test_counts_cover_every_state` buni yozadi), ya'ni `+= 1` ni
+    `= 1` ga almashtirish bugun ko'rinmaydi. Beshinchi qator
+    qo'shilgan kuni hisobot «bittadan» deb ko'rsatishda davom
+    etardi.
+    """
+    report = mon.MonitoringReport(
+        requirements=(
+            _requirement("a", obstacles=(_obstacle("x", mon.Unblocks.H4),)),
+            _requirement("b", obstacles=(_obstacle("y", mon.Unblocks.E17),)),
+            _requirement("c", obstacles=(_obstacle("z", mon.Unblocks.SPEC),)),
+        )
+    )
+    assert report.counts == {"held": 0, "conflicted": 1, "vacuous": 0, "blocked": 2}
+
+
+def test_an_empty_state_keeps_its_row() -> None:
+    """Nol — javob; yo'q kalit — savol.
+
+    `counts` ni faqat uchragan holatlardan qurish bugun bir xil
+    natija beradi (to'rtala holat ham reyestrda bor). Bo'shliq
+    yopilgan kuni esa `vacuous` kaliti hisobotdan **yo'qolardi** va
+    grafik uni «hali o'lchanmagan» dan ajrata olmasdi.
+    """
+    report = mon.MonitoringReport(
+        requirements=(_requirement("only", binds=("app.obs.metrics:render",)),)
+    )
+    assert report.counts == {"held": 1, "conflicted": 0, "vacuous": 0, "blocked": 0}
+
+
+def test_the_registry_names_the_documents_it_was_read_from() -> None:
+    """`SPEC` va `ALERT_CAP_SPEC` — manzil, bezak emas.
+
+    Ikkala konstanta ham bu faylda ochiladigan bo'limlarga
+    ishora qiladi; ular hech qachon solishtirilmagan edi, ya'ni
+    `01 §22` ni `01 §21` ga almashtirish hech qayerda ko'rinmasdi
+    va keyingi o'quvchini boshqa bo'limga olib borardi.
+    """
+    prd = re.fullmatch(r"01 §(\d+) «(.+)»", mon.SPEC)
+    assert prd is not None, mon.SPEC
+    assert PRD_DOC.name.startswith("01_")
+    assert SECTION == f"## {prd.group(1)}. {prd.group(2)}"
+
+    design = re.fullmatch(r"05 §(\d+)", mon.ALERT_CAP_SPEC)
+    assert design is not None, mon.ALERT_CAP_SPEC
+    assert DESIGN_DOC.name.startswith("05_")
+    assert DESIGN_SECTION.startswith(f"## {design.group(1)}. ")

@@ -9,13 +9,16 @@ chiqmaydi — grafik shunchaki tekislanadi.
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
+import logging
 from pathlib import Path
 
 import pytest
 
 from app.analytics import catalogue, track
 from app.bot.reply import Verdict
+from app.obs import readings
 
 APP = Path(__file__).parent.parent / "app"
 
@@ -129,3 +132,61 @@ def test_verdict_reaches_the_stream_as_its_value() -> None:
 def test_geo_source_values() -> None:
     """`01` §21: `gps` / `address`. Ikkinchisi ADR-06 gacha erishib bo'lmaydi."""
     assert (track.GEO_SOURCE_GPS, track.GEO_SOURCE_ADDRESS) == ("gps", "address")
+
+
+# --- 150-run, mutatsiya: katalogning o'zi haqidagi to'rtta jim da'vo ----------
+
+
+def test_unknown_bucket_is_the_same_word_as_in_metrics() -> None:
+    """`unknown` — ikkala oqimda bitta so'z, aks holda kesim ikkiga bo'linadi.
+
+    24-sessiyaning qoidasi «tanib bo'lmagani ko'rinsin» ikki joyda
+    bajarilgan: `05` §10 metrikalarida (`app/obs/readings.py`) va shu
+    yerda. Ular bir-birini bilmaydi, lekin dashboardda **yonma-yon**
+    turadi: analitika voronkasi va mahsulot metrikasi `region` bo'yicha
+    solishtiriladi. So'zlardan bittasi o'zgarsa hech qanday xato
+    chiqmaydi — noma'lum mintaqa ikkita har xil nomli chelakka bo'linadi
+    va ulushlar jimgina siljiydi.
+    """
+    assert catalogue.REGION_UNKNOWN == readings.REGION_UNKNOWN
+
+
+def test_event_spec_is_immutable() -> None:
+    """Katalog qatori — o'zgarmas fakt, ish vaqtidagi holat emas.
+
+    `CATALOGUE` global lug'at: qatorni joyida o'zgartirish butun jarayon
+    uchun hodisaning shartnomasini almashtirardi va buni chaqiruv joyidan
+    ko'rib bo'lmasdi.
+    """
+    spec = catalogue.CATALOGUE["bot_start"]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        spec.name = "other"  # type: ignore[misc]
+
+
+def test_logrecord_reserved_covers_this_runtime() -> None:
+    """Ro'yxat qo'lda yozilgan — u ish vaqtidagi `LogRecord` dan qolishmasin.
+
+    Ro'yxatning vazifasi `logging` ning `KeyError` ini **oldindan** ushlash,
+    ya'ni u haqiqiy `LogRecord` ning maydonlarini to'liq qoplashi kerak.
+    Python ning versiyasi bilan maydonlar qo'shiladi (`taskName` — 3.12),
+    shuning uchun tekshiruv ro'yxatni qayta yozmaydi, balki **jonli**
+    yozuvdan oladi. `message` va `asctime` `LogRecord.__dict__` da yo'q —
+    ularni `Formatter` qo'shadi, lekin to'qnashuv oqibati bir xil.
+    """
+    live = logging.LogRecord("n", logging.INFO, "p", 1, "m", None, None)
+    assert set(live.__dict__) <= catalogue.LOGRECORD_RESERVED
+    assert {"message", "asctime", "taskName"} <= catalogue.LOGRECORD_RESERVED
+
+
+def test_observable_event_carries_no_reason() -> None:
+    """`reason` — faqat kuzatilmaydigan hodisaning narxi.
+
+    `test_unobservable_events_carry_a_reason` teskarisini talab qiladi, bu
+    esa juftlikning ikkinchi yarmi: kuzatiladigan hodisada sabab paydo
+    bo'lsa, u «nima uchun o'lchamayapmiz» degan ro'yxatni ifloslantiradi va
+    `observable` bayrog'ining sukut qiymati jimgina o'zgarganini yashiradi.
+    """
+    for spec in catalogue.SPECS:
+        assert (spec.reason == "") is spec.observable, spec.name
+    assert catalogue.EventSpec("x").observable is True
+    assert catalogue.EventSpec("x").reason == ""

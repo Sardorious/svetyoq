@@ -492,3 +492,417 @@ def test_structural_criteria_and_checks_stay_in_sync() -> None:
         c.code for c in acceptance.CRITERIA if c.evidence is acceptance.Evidence.STRUCTURAL
     }
     assert structural == set(acceptance.STRUCTURAL_CHECKS)
+
+
+# --- 8. O'lchanmagan qatlamlar (159-run) ---------------------------------
+#
+# 70-run bu modulni «20 mutatsiya, 0 survivor» deb yopgan, lekin o'sha
+# harness `returncode != 0` ni KILLED deb o'qirdi (`pytest` ning `rc=4`
+# i yolg'on hisoblanardi; tuzatilgani 126-run). Qayta o'lchov: **64
+# mutatsiya → 24 KILLED, 40 SURVIVOR**. Quyidagi bo'lim o'ttiz
+# sakkiztasini qulflaydi; ikkitasi ekvivalent va `PROGRESS.md` da
+# nomlangan.
+#
+# Survivorlarning uchta oilasi bor va uchalasi ham bitta sababdan:
+# **bugungi ma'lumot ikkita shartni ajratmaydi**.
+#
+# 1. `shows_index` va `shows_maturity` beshala vitrinada bir xil, ya'ni
+#    `index_share`, `maturity_share` va `showcases_without_index`
+#    o'zaro almashtirilsa hech narsa o'zgarmasdi;
+# 2. UZ va RU kataloglari ikkalasi ham to'liq, ya'ni `all(...)` ni
+#    `any(...)` ga almashtirish ko'rinmasdi;
+# 3. `_check_registry` ning **oltita** tarmog'i hech qachon otilmagan —
+#    reyestr to'g'ri bo'lgani uchun. Qorovul otilmasa, u yo'q.
+
+
+def _showcases(*flags: tuple[bool, bool]) -> tuple[acceptance.Showcase, ...]:
+    """Sun'iy vitrina reyestri: har qator uchun `(indeks, chuqurlik)`.
+
+    Haqiqiy reyestrda ikkala bayroq ham hamma qatorda teng, ya'ni u
+    `index_share` ni `maturity_share` dan **ajratmaydi**. Bu fikstyura
+    aynan shuning uchun bor.
+    """
+    return tuple(
+        acceptance.Showcase(
+            code=f"s{number}",
+            spec="01 §23",
+            where="app.release.acceptance:SPEC",
+            shows_index=shows_index,
+            shows_maturity=shows_maturity,
+            why_missing="" if shows_index else "sinov fikstyurasi",
+        )
+        for number, (shows_index, shows_maturity) in enumerate(flags)
+    )
+
+
+#: Indeks to'liq (2/2), chuqurlik emas (1/2).
+FULL_INDEX = ((True, True), (True, False))
+#: Chuqurlik to'liq (2/2), indeks emas (1/2).
+FULL_MATURITY = ((True, True), (False, True))
+
+
+def _criterion(**overrides: object) -> acceptance.Criterion:
+    base: dict[str, object] = {
+        "code": "synthetic",
+        "scope": acceptance.Scope.CODEBASE,
+        "evidence": acceptance.Evidence.RUNTIME,
+        "phrase": "sun'iy qator",
+    }
+    return acceptance.Criterion(**(base | overrides))  # type: ignore[arg-type]
+
+
+def _result(
+    code: str, status: gates.CriterionStatus, scope: acceptance.Scope
+) -> acceptance.CriterionResult:
+    return acceptance.CriterionResult(criterion=_criterion(code=code, scope=scope), status=status)
+
+
+# 8.1. Lug'at: `StrEnum` qiymatlari va reyestrning manzili
+
+
+def test_scope_and_evidence_values_are_locked() -> None:
+    """Ikkala o'qning ham qiymatlari hech qayerda o'lchanmagan edi.
+
+    `StrEnum` ning qiymati — modulning **lug'ati**: u `admin/registries`
+    orqali vitrinaga chiqadi va hisobotni o'qigan odam aynan shu
+    satrni ko'radi. A'zoni qayta nomlash `.name` ni o'zgartiradi va uni
+    boshqa test ushlaydi; **qiymatni** o'zgartirish esa bugungacha
+    jimgina o'tardi.
+    """
+    assert [(m.name, m.value) for m in acceptance.Scope] == [
+        ("REGION", "region"),
+        ("CODEBASE", "codebase"),
+    ]
+    assert [(m.name, m.value) for m in acceptance.Evidence] == [
+        ("STRUCTURAL", "structural"),
+        ("RUNTIME", "runtime"),
+        ("MANUAL", "manual"),
+    ]
+
+
+def test_spec_names_the_section_these_tests_parse() -> None:
+    """`SPEC` va testlar bitta bo'limga qarashi kerak.
+
+    Ikkovi ajralib ketsa reyestr «§23 ni o'lchayapman» deb turib
+    boshqa bo'limni nomlab qo'yardi — va aynan `registries.py`
+    vitrinasida shu satr ko'rinadi.
+    """
+    number = ACCEPTANCE_SECTION.removeprefix("## ").split(".", 1)[0]
+    assert acceptance.SPEC == f"01 §{number}"
+
+
+# 8.2. Vitrinaning manzili — havola emas, tekshiriladigan joy
+
+#: Vitrina `spec` ining hujjati.
+SPEC_DOCS = {
+    "01": "01_PRD_Samarkand.md",
+    "03": "03_Development_Roadmap.md",
+    "05": "05_Technical_Design.md",
+}
+
+#: Har vitrina indeks **qayerda** turishini (yoki qayerda yo'qligini)
+#: nomlaydi. Manzil — reyestrning yagona tekshiriladigan qismi: uni
+#: qo'shni simvolga siljitish `_resolve` uchun sezilmaydi (`StatsOut`
+#: ham, `CoverageOut` ham mavjud), ya'ni faqat tenglik ushlaydi.
+EXPECTED_WHERE = {
+    "stats_api": "app.api.v1.stats:CoverageOut",
+    "heatmap_api": "app.api.v1.heatmap:HeatCollection",
+    "stats_export": "app.stats.export:HEADER",
+    "map_api": "app.api.v1.map:MapCollection",
+    "web_default": "web/index.html:#heat-coverage",
+}
+
+
+def test_every_showcase_spec_points_at_a_real_document_section() -> None:
+    """`spec` — hujjatdagi sarlavha, dekoratsiya emas."""
+    for showcase in acceptance.SHOWCASES:
+        doc, _, section = showcase.spec.partition(" §")
+        assert section, f"{showcase.code}: `{showcase.spec}` da bo'lim yo'q"
+        text = (SVETA_ROOT.parent / SPEC_DOCS[doc]).read_text(encoding="utf-8")
+        found = re.search(rf"^#+ {re.escape(section)}[ .—]", text, re.MULTILINE)
+        assert found, f"{showcase.code}: `{showcase.spec}` bo'limi topilmadi"
+
+
+def test_every_showcase_names_the_exact_symbol() -> None:
+    assert {s.code: s.where for s in acceptance.SHOWCASES} == EXPECTED_WHERE
+
+
+def test_every_showcase_address_resolves() -> None:
+    """Manzil yechilishi ham kerak — jadval eskirmasin.
+
+    Yuqoridagi tenglik jadvalning **o'zi** bilan siljib ketishi mumkin;
+    bu test manzilni haqiqiy simvolga (yoki fayldagi selektorga)
+    yechadi.
+    """
+    for showcase in acceptance.SHOWCASES:
+        head, _, tail = showcase.where.partition(":")
+        if head.startswith("app."):
+            assert _resolve(showcase.where) is not None, showcase.code
+        else:
+            text = (SVETA_ROOT / head).read_text(encoding="utf-8")
+            assert f'id="{tail.lstrip("#")}"' in text, showcase.code
+
+
+def test_a_showcase_defaults_to_no_reason() -> None:
+    """Standart `why_missing` **bo'sh**, «bo'shga o'xshagan» emas.
+
+    Bitta probel qorovulni (`_check_registry`) va «sababini aytadimi»
+    testini bir vaqtda so'ndirardi: ikkalasi ham rostlikni tekshiradi.
+    """
+    blank = acceptance.Showcase(
+        code="x",
+        spec="01 §23",
+        where="app.release.acceptance:SPEC",
+        shows_index=True,
+        shows_maturity=True,
+    )
+    assert blank.why_missing == ""
+
+
+# 8.3. Ulushlar o'z bayrog'ini o'qiydi
+
+
+def test_index_share_reads_the_index_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_INDEX))
+    assert acceptance.index_share() == 1.0
+    assert acceptance.maturity_share() == 0.5
+
+
+def test_maturity_share_reads_the_maturity_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_MATURITY))
+    assert acceptance.maturity_share() == 1.0
+    assert acceptance.index_share() == 0.5
+
+
+def test_showcases_without_index_reads_the_index_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases((True, False), (False, True)))
+    assert [s.code for s in acceptance.showcases_without_index()] == ["s1"]
+
+
+# 8.4. i18n tekshiruvlari **har** katalogni talab qiladi
+
+
+@pytest.mark.parametrize("broken", i18n.SUPPORTED_LANGUAGES)
+def test_uz_criterion_fails_when_a_single_catalog_is_incomplete(
+    monkeypatch: pytest.MonkeyPatch, broken: str
+) -> None:
+    """Bitta katalogning bo'shlig'i yetarli.
+
+    Bugun ikkala katalog ham to'liq, ya'ni `all(...)` va `any(...)`
+    bir xil javob beradi — shart tillar bo'yicha **ajratilmagan**.
+    Parametr har tilni navbat bilan buzadi: shu bilan `any` ham,
+    ro'yxatning qisqarishi ham ko'rinadi.
+    """
+    monkeypatch.setattr(
+        acceptance.i18n,
+        "missing_keys",
+        lambda lang: {"app.disclaimer"} if lang == broken else set(),
+    )
+    assert acceptance.uz_catalog_complete() is False
+
+
+@pytest.mark.parametrize("broken", i18n.SUPPORTED_LANGUAGES)
+def test_verdict_criterion_fails_when_a_single_catalog_lacks_the_text(
+    monkeypatch: pytest.MonkeyPatch, broken: str
+) -> None:
+    """5-qator uchun ham o'sha ajratma.
+
+    Verdikt bor, kalit bor, lekin bitta tilda matn yo'q — foydalanuvchi
+    o'sha tilda kalitning o'zini ko'radi.
+    """
+    key = lookup.MESSAGE_KEYS[lookup.AreaVerdict.NOT_ENOUGH_DATA]
+    monkeypatch.setattr(
+        acceptance.i18n,
+        "missing_keys",
+        lambda lang: {key} if lang == broken else set(),
+    )
+    assert acceptance.insufficient_data_verdict_present() is False
+
+
+# 8.5. Chegara **aynan** maqsadda, va har mezon o'z ulushini o'qiydi
+
+
+def test_disclaimer_is_active_exactly_at_the_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`>=` — `>` emas: 100% ning o'zi yetarli.
+
+    Bugungi ulush (0.6) ikkala taqqoslash uchun ham `False`, ya'ni
+    chegara **o'lchanmagan**. Fikstyura ulushni aynan maqsadga
+    qo'yadi. Ikkinchi yarmi ulushni ajratadi: chuqurlik to'liq
+    bo'lmasa mezon yopilmaydi, garchi indeks to'liq bo'lsa ham.
+    """
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_MATURITY))
+    assert acceptance.maturity_disclaimer_active() is True
+
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_INDEX))
+    assert acceptance.maturity_disclaimer_active() is False
+
+
+def test_disclaimer_needs_the_catalog_key_as_well(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ulush to'liq bo'lsa ham, matnsiz pometa «faol» emas."""
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_MATURITY))
+    monkeypatch.setattr(acceptance.i18n, "all_keys", set)
+    assert acceptance.maturity_disclaimer_active() is False
+
+
+def test_index_criterion_is_met_exactly_at_the_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    """4-qatorning tekshiruvi uchun ham o'sha ikki qulf."""
+    check = acceptance.STRUCTURAL_CHECKS["coverage_index_on_showcases"]
+
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_INDEX))
+    assert check() is True
+
+    monkeypatch.setattr(acceptance, "SHOWCASES", _showcases(*FULL_MATURITY))
+    assert check() is False
+
+
+# 8.6. `binds` — kortejning **har** elementi
+
+
+#: `test_every_bind_resolves_to_a_real_symbol` mavjudlikni tekshiradi,
+#: ya'ni kortejdan bitta element **jimgina** tushib qolardi. Bu jadval
+#: dalilning to'liqligini qulflaydi.
+EXPECTED_BINDS = {
+    "boundaries_loaded": (
+        "app.geo.queries:region_has_mahallas",
+        "app.geo.quality:check_validity",
+        "app.geo.quality:check_closed_rings",
+        "app.geo.models:District.valid_from",
+    ),
+    "control_sample": (),
+    "uz_interface": ("app.core.i18n:missing_keys",),
+    "coverage_index_on_showcases": (
+        "app.release.acceptance:SHOWCASES",
+        "app.stats.coverage:CoverageIndex",
+    ),
+    "insufficient_data_verdict": (
+        "app.clustering.lookup:AreaVerdict.NOT_ENOUGH_DATA",
+        "app.clustering.lookup:MESSAGE_KEYS",
+    ),
+    "metrics_region_label": ("app.obs.monitoring:REQUIREMENT_BY_CODE",),
+    "young_region_disclaimer": (
+        "app.stats.maturity:WARNING_YOUNG",
+        "app.release.acceptance:SHOWCASES",
+    ),
+}
+
+
+def test_every_criterion_binds_exactly_what_the_registry_promises() -> None:
+    assert {c.code: c.binds for c in acceptance.CRITERIA} == EXPECTED_BINDS
+
+
+# 8.7. Qorovulning otilmagan tarmoqlari
+#
+# `_check_registry()` import paytida yuradi va reyestr to'g'ri, ya'ni
+# **birorta ham** `raise` hech qachon bajarilmagan. Qorovulni
+# kuchaytirish butun to'plamni collection error ga olib kelardi,
+# shuning uchun u faqat zaiflashtiriladi — va zaiflashtirilganini
+# faqat sun'iy buzilgan reyestr ko'radi.
+
+
+def test_registry_guard_catches_a_duplicated_criterion_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    doubled = (*acceptance.CRITERIA, replace(acceptance.CRITERIA[-1], phrase="nusxa"))
+    monkeypatch.setattr(acceptance, "CRITERIA", doubled)
+    with pytest.raises(ValueError, match="mezon kodi takrorlangan"):
+        acceptance._check_registry()
+
+
+def test_registry_guard_catches_a_check_without_a_criterion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Yo'nalish muhim: **tekshiruv** ortiqcha bo'lgan holat.
+
+    Teskari yo'nalishni (mezon ortiqcha) `!=` ni `>` ga almashtirgan
+    mutant ham ushlaydi; faqat shu yo'nalish uni ajratadi.
+    """
+    monkeypatch.setattr(
+        acceptance,
+        "STRUCTURAL_CHECKS",
+        dict(acceptance.STRUCTURAL_CHECKS) | {"ghost": lambda: True},
+    )
+    with pytest.raises(ValueError, match="STRUCTURAL mezonlar va tekshiruvlar mos emas"):
+        acceptance._check_registry()
+
+
+def test_registry_guard_catches_a_manual_criterion_that_binds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bound = replace(
+        acceptance.CRITERION_BY_CODE["control_sample"],
+        binds=("app.core.i18n:missing_keys",),
+    )
+    monkeypatch.setattr(
+        acceptance,
+        "CRITERIA",
+        tuple(bound if c.code == "control_sample" else c for c in acceptance.CRITERIA),
+    )
+    with pytest.raises(ValueError, match="MANUAL mezon"):
+        acceptance._check_registry()
+
+
+def test_registry_guard_catches_a_duplicated_showcase_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    doubled = (*acceptance.SHOWCASES, replace(acceptance.SHOWCASES[0], spec="05 §7.1"))
+    monkeypatch.setattr(acceptance, "SHOWCASES", doubled)
+    with pytest.raises(ValueError, match="vitrina kodi takrorlangan"):
+        acceptance._check_registry()
+
+
+def test_registry_guard_catches_a_showcase_that_hides_the_index_in_silence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sababsiz indekssiz vitrina.
+
+    Fikstyura `spec` ni **to'ldirilgan**, `shows_maturity` ni esa
+    `True` qoldiradi: shu bilan qorovul aynan `shows_index` va
+    `why_missing` juftligini o'qishi tekshiriladi.
+    """
+    silent = acceptance.Showcase(
+        code="silent",
+        spec="01 §23",
+        where="app.release.acceptance:SPEC",
+        shows_index=False,
+        shows_maturity=True,
+    )
+    monkeypatch.setattr(acceptance, "SHOWCASES", (*acceptance.SHOWCASES, silent))
+    with pytest.raises(ValueError, match="vitrina sababsiz indekssiz"):
+        acceptance._check_registry()
+
+
+# 8.8. Hisobotning shakli — bugungi ma'lumotdan ajratilgan
+#
+# `AcceptanceReport` — sof dataklass, ya'ni uni haqiqiy reyestrsiz ham
+# qurish mumkin. Bugungi hisobda `met_count == restated_count` va
+# `unmet` ichida `UNMEASURED` yo'q — ikkovi ham **tasodifan** shunday.
+
+
+def test_unmet_holds_only_the_unmet_rows() -> None:
+    report = acceptance.AcceptanceReport(
+        criteria=(
+            _result("a", gates.CriterionStatus.UNMET, acceptance.Scope.CODEBASE),
+            _result("b", gates.CriterionStatus.UNMEASURED, acceptance.Scope.REGION),
+            _result("c", gates.CriterionStatus.MET, acceptance.Scope.CODEBASE),
+        )
+    )
+    assert [i.criterion.code for i in report.unmet] == ["a"]
+    assert [i.criterion.code for i in report.unmeasured] == ["b"]
+    assert [i.criterion.code for i in report.region_questions] == ["b"]
+
+
+def test_restated_count_counts_only_the_met_codebase_rows() -> None:
+    """Bugun `met_count == restated_count`, chunki bajarilgan uchala
+    qator ham `CODEBASE`. Mintaqa qatori yopilgan kuni ikkovi ajraladi —
+    va aynan o'sha kuni `restated_count` ma'noga ega bo'ladi.
+    """
+    report = acceptance.AcceptanceReport(
+        criteria=(
+            _result("region_met", gates.CriterionStatus.MET, acceptance.Scope.REGION),
+            _result("codebase_met", gates.CriterionStatus.MET, acceptance.Scope.CODEBASE),
+            _result("codebase_unmet", gates.CriterionStatus.UNMET, acceptance.Scope.CODEBASE),
+        )
+    )
+    assert report.met_count == 2
+    assert report.restated_count == 1
+    assert report.is_accepted is False
