@@ -12,6 +12,396 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **168-run (2026-08-19) — POSTGIS SANDBOXDA KO'TARILDI; 126-RUNDAN
+> BERI YURGIZILMAGAN 298 TA `requires_db` TESTI O'TKAZILDI VA
+> `app/admin/digest_service.py` O'LCHANDI.**
+>
+> **(1) 167 ning (1) bandi yopildi.** `micromamba` + `conda-forge` bilan
+> `postgresql 18.6` / `postgis 3.6.4`; muhit `/tmp` ga emas,
+> `/sessions/<sid>/work/` ga qurildi. `initdb --auth=trust`,
+> `listen_addresses = '127.0.0.1'`, **54329-port**, sxema
+> `alembic upgrade head` bilan — `0001`…`0011` ning hammasi toza o'tdi.
+> 🔴 **TCP majburiy:** `conftest._db_reachable()` portga ulanadi,
+> Unix-soketli `DATABASE_URL` bilan 298 test **jimgina `skip`** bo'lardi va
+> natija yashil ko'rinardi. Natija: **`298 passed`**, butun to'plam
+> **4140 passed, 1 skipped**, `ruff` toza. Kengaytmalar
+> `envs/py311/share/extension/` da (`share/postgresql/extension/` da emas).
+>
+> **(2) 167 ning (3) bandi — `app/admin/digest_service.py` (126 qator):
+> 21 mutatsiya → 10 KILLED, 11 SURVIVOR (52 %).** O'n bittalasi butun
+> to'plamda (4140 test) birma-bir tasdiqlandi — yolg'on survivor yo'q.
+> 🔴 **Sabab bitta va tarkibiy:** `test_daily_digest_db.py` ning
+> fikstyurasi **bitta mintaqa, bitta kun** quradi va faqat **hodisa**
+> sonlarini tekshiradi. Shundan uch sinf: (a) xabar sonlarining beshala
+> chelagi fikstyurada bir xil qiymatga (`1`/`0`) tushadi — M04
+> (`outage` ↔ `restored`), M05 (`total = outage`), M06
+> (`reporters = total`); (b) `audit_log`, `notifications` va `outbox` ga
+> bironta test qator qo'ymagan, ya'ni oynasi ham, chaqiruvining o'zi ham
+> o'lchanmagan — M07 (moderatsiya oynasi `[end, end)`), M10
+> (bildirishnoma oynasi `[start, start)`), M08 (`outbox_pending = 0`);
+> (c) mintaqa bitta bo'lgani uchun `mark_delivered` (M17) va `load` (M19)
+> dagi `region_id` sharti ortiqcha, `now=` argumenti esa uzatiladi-yu
+> **natijasi o'qilmaydi** (M14, M18).
+>
+> **(3) Qulf — `tests/test_digest_service_contract.py`, 11 test, olti
+> bo'lim.** Beshala chelak ataylab **turli** songa ega (`5/3/2/1/4`, va
+> assimetriyaning o'zi ham tekshiriladi — fikstyura kelajakda tekislansa
+> darhol yiqiladi); moderatsiya va bildirishnoma oynalari chegaraviy lahza
+> bilan; `outbox_pending` noldan farqli; `now=` bazadan qayta o'qiladi
+> (sanalar o'tmishda, ya'ni `datetime.now()` ga tushish bir yildan katta
+> farq beradi); ikkinchi (`qo'shni`) mintaqa har tekshiruvda
+> **teginilmagan** qolishi shart. Qayta o'lchov: **o'ntasi KILLED**.
+> **M21 ekvivalent** (`scalar_one_or_none` → `scalars().first()`:
+> birlamchi kalit `(region_id, digest_date)` ikkinchi qatorni taqiqlaydi)
+> — lekin aynan u M20 ni `MultipleResultsFound` bilan o'ldirgan, ya'ni
+> M20 ning o'limi **tasodifiy** edi; shuning uchun `load` ning ikkala
+> sharti endi ochiq ajratiladi.
+>
+> **Yakun:** mahsulot kodi, migratsiya, konfiguratsiya, hujjatlar
+> tegilmadi. **4151 passed, 1 skipped**, `requires_db` **309** (+11),
+> `ruff` toza.
+>
+> **Keyingi qadam:** (1) navbatning «faqat `requires_db` dan chaqiriladi»
+> to'sig'i **yo'qoldi** — `app/bot/handlers.py` (404),
+> `app/geo/models.py` (251), `app/api/openapi.py` (227),
+> `app/jobs/refresh_coverage.py` (201), `app/stats/export.py` (193),
+> `app/clustering/lookup.py` (183), `app/bot/keyboards.py` (183),
+> `app/db/session.py` (161); oxirgi ikkitasining mazmuni **SQL da**, ya'ni
+> endi haqiqiy PostGIS ustida o'lchanishi kerak; (2) 👤
+> `100_sec_yozuvni_yopish_ad837191.md` hamon turibdi; (3) 👤 eski
+> ochiq savollar o'zgarmadi.
+
+---
+
+> 🟢 **167-run (2026-08-19) — SANDBOX QAYTDI; 165/166 QOLDIRGAN
+> O'LCHANMAGAN DA'VOLAR YOPILDI VA `reports/moderation.py` O'LCHANDI.**
+>
+> Birinchi chaqiruvlar `Workspace still starting` berdi
+> (`VM_DISK_SPACE_INSUFFICIENT` **emas**), keyin muhit ko'tarildi:
+> `/` da 4.5 GB, **`/sessions` da 9.3 GB bo'sh** — 141-rundan beri
+> birinchi marta. 166 ning `.vhdx` gipotezasi bilan mos.
+>
+> **Muhit retsepti yangilandi** (`/tmp` emas, `/sessions`):
+> `micromamba` + `conda-forge` bilan `python=3.11`,
+> `MAMBA_ROOT_PREFIX`/`CONDA_PKGS_DIRS`/`XDG_CACHE_HOME`/`TMPDIR`/`HOME`
+> — hammasi `/sessions/<sid>/` ostida; `pip install` uch partiyada.
+> 🔴 **Mount ustida to'plam yurgizilmaydi:** `H:` da butun bazasiz to'plam
+> 180 s ga sig'madi, `/sessions/.../work/repo` ga nusxa (`cp -r`, 73 s,
+> 59 MB) esa **44 s** beradi.
+>
+> **(1) Qoldirilgan da'volar yopildi:** `3837 passed, 1 skipped,
+> 298 deselected`, `ruff` toza. Ya'ni 164 ning `+49` i va 166 ning `21` i
+> — yashil. ⚠️ Arifmetika to'liq yopilmadi (163 «3699» yozgan, 63 farq
+> tekshirilmadi); bundan keyin jurnalga **yig'ilgan** (collected) son
+> yozilsin: `test_moderation_users_contract.py` = 26, 166 esa 21 degan.
+>
+> **(2) Yangi nishon — `app/admin/service.py`.** 166 ning `grep` usuli bir
+> qavat yuqoriga ko'chirildi va aynan shu tuynuk topildi: modulni butun
+> repoda faqat `tests/test_admin_moderation_db.py` (`requires_db`) import
+> qiladi, qolgan murojaatlar — reyestrlardagi **satrlar**. Yozilgani:
+> `tests/test_admin_service_contract.py`, **41 test**, yetti bo'lim.
+> Qulflangani: ruxsat o'zgarishdan **oldin**; aynan qaysi `Permission`
+> (haqiqiy `Actor` ajratmaydi — `moderator` `OUTAGE_REJECT`/`OUTAGE_MERGE`
+> ni birdek beradi, shuning uchun duck-type aktor); chaqiruvlar tartibi
+> `require → o'zgarish → record`; `reject` da `merged_into` uzatilmasligi;
+> `USER_BLOCK` ↔ `USER_UNBLOCK`; `merge` da `object_id` — **manba**
+> hodisa; `dict(change.after)` **nusxasi** (aks holda `reason` API
+> javobiga oqardi); bo'sh `reason` kalit qo'shmasligi; imzo (faqat
+> `session` pozitsion) va ochiq korutinalar ro'yxatining yopiqligi.
+>
+> **(3) `app/reports/moderation.py` — MUTATSIYA: 29 → 23 KILLED,
+> 6 SURVIVOR (21 %).** Oltalasi butun bazasiz to'plamda tasdiqlandi.
+> 🔴 **Hammasi bitta sinfda:** 166 ning 1–7-bo'limlari `SELECT`/`UPDATE`
+> ning **matnini** tekshiradi, omon qolganlar esa matnni o'zgartirmaydi —
+> ular bog'langan **parametrni** yoki shartning **ichini** almashtiradi.
+> M13 (kichik so'rovdan `Report.user_id == User.id` olib tashlash — butun
+> jadvaldagi xabarlar soni), M20 (`is_blocked=not blocked` — bloklash
+> ochib yuborardi), M21 (`UPDATE` dan `WHERE` — **hamma** foydalanuvchi),
+> M26 (`trust_score=TRUST_MAX` — audit `55` deydi, bazada `100`).
+> M13 ning sababi qimmatli: 166 da aynan shunga qarshi yozilgan test bor
+> (`assert "from reports" in sql`), lekin u **ajratmaydi**.
+> **Ikkitasi ekvivalent:** M14 (`select_from(Report)`→`(User)`:
+> `.correlate(User)` tufayli kompilyatsiya natijasi **belgi-ba-belgi bir
+> xil** — 166 uni «xavfli» deb yozgan edi) va M28 (`user_id`→`row.id`:
+> `read_user` `where User.id == user_id` bilan tanlaydi).
+> **Qulf:** `test_moderation_users_contract.py` ning yangi **8-bo'limi**
+> (+5 test, 26 → 31); usul — `compile(...).params` (matn emas) va
+> normallashtirilgan SQL dagi shart matni. Qayta o'lchov: to'rttasi
+> **KILLED**.
+>
+> **Yakun:** mahsulot kodi, migratsiya, konfiguratsiya, hujjatlar
+> tegilmadi. `3842 passed, 1 skipped, 298 deselected`, `ruff` toza.
+> `requires_db` ning **298** testi hamon yurgizilmagan.
+>
+> **Keyingi qadam:** (1) 🟢 **`/sessions` da 8.5 GB bo'sh — PostGIS ni
+> ko'tarish endi mumkin** (`svetyoq-postgis-in-sandbox`,
+> `svetyoq-requires-db-needs-tcp`: `listen_addresses=127.0.0.1` va TCP li
+> `DATABASE_URL` shart, aks holda hammasi jimgina `skip`); 298 test
+> 126-rundan beri yurgizilmagan — keyingi run shuni olsin; (2) mutatsiya
+> navbati o'zgarmadi: `app/bot/handlers.py` (404), `app/geo/models.py`
+> (251), `app/api/openapi.py` (227), `app/jobs/refresh_coverage.py` (201),
+> `app/stats/export.py` (193), `app/clustering/lookup.py` (183),
+> `app/bot/keyboards.py` (183), `app/db/session.py` (161); (3) yangi
+> nishon sinfi: `app/admin/digest_service.py` ni ham **faqat**
+> `test_daily_digest_db.py` (`requires_db`) import qiladi; (4) 👤
+> `100_sec_yozuvni_yopish_ad837191.md` hamon turibdi; (5) 👤 eski ochiq
+> savollar o'zgarmadi.
+
+---
+
+> ⚠️ **166-run (2026-08-19) — SANDBOX IKKINCHI RUN KETMA-KET YO'Q;
+> O'LCHOV O'RNIGA `grep` BILAN TANLANGAN NISHONGA BAZASIZ QULF.**
+>
+> `mcp__workspace__bash` yana `VM_DISK_SPACE_INSUFFICIENT` qaytardi (ikki
+> marta urinildi). Ya'ni `pytest`, `ruff` va mutatsiya harnessi mumkin
+> emas edi va **165 qoldirgan tartibning (1) bandi — butun bazasiz
+> to'plamni yurgizib 164 ning +49 testini tasdiqlash — olinmadi va hamon
+> ochiq.** Butun run `Read`/`Grep`/`Write`/`Edit` bilan o'tdi.
+>
+> O'lchov o'rniga o'lchovga **tayyorgarlik** qilindi:
+> `svetyoq-grep-before-mutation` bo'yicha 163/164 qoldirgan navbatning
+> to'qqizala nishoni test qatlamida sanaldi.
+>
+> 🔴 **TOPILMA — «O'LCHANMAGAN» NING OSTIDA «QAMROVSIZ» YOTADI.**
+> `app/reports/moderation.py` (134 qator) ni butun repoda **bitta** test
+> fayli import qiladi — `tests/test_admin_moderation_db.py`, va u
+> `@pytest.mark.requires_db`. Verdikt esa 126-rundan beri **bazasiz**
+> to'plamda o'lchanadi. Ya'ni bu modulda bugun **har qanday** mutatsiya
+> omon qolardi: `SELECT` ustunlari almashsa ham (`language` va
+> `region_id` — matn/`uuid`, xato yo'q), `0..100` chegarasi surilsa ham,
+> `before`/`after` teskari yozilsa ham, `int(...)`/`bool(...)` tushib
+> qolsa ham (`Decimal("7") == 7` rost), `tg_id` `SELECT` ga qo'shilsa ham
+> (`UserRow` da maydon yo'q, ya'ni dataclass qulfi ishlamaydi, lekin
+> identifikator so'rovga va jurnalga tushardi — `05` §7.3). Bunday
+> nishonni mutatsiya bilan urish **ma'nosiz**: natija oldindan ma'lum.
+> Navbatning qolgan sakkiztasida bunday tuynuk yo'q — har birida kamida
+> bitta bazasiz chaqiruvchi bor.
+>
+> 🟢 **Shundan chiqqan qoida** (`EpicProgress.md` §4 ga yozildi): nishon
+> tanlanganda `grep -rl '<modul>' tests/` dan keyin **topilgan fayllarda
+> `requires_db` ni ham** `grep` qiling. Hammasi `requires_db` bo'lsa —
+> avval bazasiz qulf yoziladi, o'lchov keyin. Bu 130 ning qoidasiga
+> («reyestr/kontrakt testi bor modul o'lchangan hisoblanmaydi») uchinchi
+> qatlam: «testi bor» ≠ «bazasiz qamrovi bor».
+>
+> **Yozilgani:** `sveta/tests/test_moderation_users_contract.py`, 21 test,
+> yetti bo'lim. Baza yo'q: qo'g'irchoq sessiya `execute` chaqiruvlarini
+> yig'adi, so'rov `postgresql.dialect()` ga kompilyatsiya qilinadi
+> (`test_geo_sql_expressions.py` dagi `compiled()` naqshi — repoda
+> allaqachon ishlaydigan usul, sandboxsiz runda bu muhim edi).
+> Qulflangani: `SELECT` da `tg_id` yo'q, ustun tartibi ↔ `row[N]`,
+> `count` ning manbasi `reports` (`User` ga aylansa har doim `1`),
+> `int`/`bool` o'girishlari, `read_user` ning `None` i, `NotFoundError`
+> `UPDATE` dan **oldin** (so'rovlar soni sanaladi) va kontekstida
+> `str(user_id)`, `set_blocked` ning idempotentligi (dokstringdagi qaror
+> endi o'lchanadi), `0` va `100` ning ikkalasi ham yaroqli, qorovulning
+> `_require_user` dan oldinligi (`_ForbiddenSession`), `before`/`after`
+> o'rni va `UserRow`/`UserChange` maydon ro'yxati.
+>
+> Ajratuvchi fikstyura (`svetyoq-fixture-must-separate`): `trust_score`
+> `Decimal("42")`, `report_count` `Decimal("7")`, `is_blocked` `1` va
+> alohida testda `0` — sonlar har xil, tiplari xom, ya'ni
+> `type(...) is int` va `is True/False` chindan qulf beradi.
+>
+> **Yakun:** mahsulot kodi, migratsiya, konfiguratsiya, hujjatlar
+> tegilmadi. O'zgargani: bitta yangi test fayli, `PROGRESS.md`
+> («Joriy holat», jurnal qatori), `EpicProgress.md` (§2 ning E8 qatori,
+> §4 ga yangi blok), `cowork_session/`.
+>
+> 🔧 **Running ikkinchi yarmi — `cleanup-sessions.ps1` TUZATILDI.** 👤
+> «qayta ishga tushir, sandbox ishlashi kerak» dedi; sandbox yana uch
+> marta chaqirildi va uchalasi ham bir xil `VM_DISK_SPACE_INSUFFICIENT`
+> berdi. Xato VM ni **yaratishda**, ichida emas — ya'ni qayta ishga
+> tushirish unga yetib bormaydi va sandbox ichidan hech narsa qilib
+> bo'lmaydi. Shundan skript o'qib chiqildi va unda **ikkita mustaqil
+> defekt** topildi, ya'ni u 122-rundan beri hech qachon hech narsa
+> o'chira olmagan:
+>
+> * **(a)** `Get-ChildItem -Directory` **ildizda** chaqirilardi, sessiya
+>   papkalari esa uch qavat pastda:
+>   `<ildiz>\<space-guid>\<project-guid>\local_<sessiya-guid>`. Ildizda
+>   bor-yo'g'i bitta-ikkita `<space-guid>` bor, ya'ni
+>   `Select-Object -Skip 5` dan keyin nomzodlar ro'yxati **doim bo'sh**
+>   qolardi — yo'l to'g'ri bo'lganda ham.
+> * **(b)** 140-run dagi `[=] topilmadi` — yo'lning o'zi to'g'ri
+>   (`$env:APPDATA\Claude\local-agent-mode-sessions`), lekin
+>   `$env:APPDATA` skript kim nomidan yurgizilganiga bog'liq: elevated
+>   PowerShell da u boshqa profilga ishora qiladi.
+>
+> Tuzatilgani: `local_*` uch qavat chuqurlikda qidiriladi; ildiz bir
+> nechta profil nomzodidan topiladi va topilmasa tekshirilgan yo'llar
+> ro'yxati chiqadi; yangi **`-Report`** rejimi hech narsa o'chirmasdan
+> eng katta o'nta sessiyani, `.vhdx` fayllarini va hamma disklardagi
+> bo'sh joyni ko'rsatadi.
+>
+> 🔴 **Uchinchi yarmi — AGENTNING O'Z XATOSI: `.ps1` KODLASHI.** Birinchi
+> tuzatilgan skript 👤 da darhol yiqildi:
+>
+> ```
+> Otsutstvuyet zakryvayushchiy znak "}" ... MissingEndCurlyBrace
+> ... almoqda вЂ” yuzlab sessiyada bir necha daqiqa ...
+> ```
+>
+> Sabab kod mantig'ida emas, **kodlashda**: `Write`/`Edit` fayllarni
+> UTF-8 **BOM siz** yozadi, Windows PowerShell 5.1 esa BOM siz `.ps1` ni
+> ANSI (bu mashinada CP1251) deb o'qiydi. Uzun tire `—` = `E2 80 94`;
+> CP1251 da bu uch belgi bo'lib ko'rinadi va oxirgisi `0x94` —
+> **`”` (aqlli qo'shtirnoq)**, PowerShell esa uni haqiqiy qo'shtirnoq
+> deb qabul qiladi. Ya'ni izohda zararsiz, lekin **satr ichida** uzun
+> tire satrni vaqtidan oldin yopadi va butun fayl parse bo'lmaydi.
+>
+> Skript butunlay ASCII qilib qayta yozildi. Shu zahoti `push.ps1` ham
+> tekshirildi va unda **aynan shu mina** topildi: 134-qator —
+> `Write-Host "[=] origin/main hali yo'q — birinchi push"`, uzun tire
+> **satr ichida**. Bugun ishlaydi, ya'ni o'sha faylda BOM bor; lekin uni
+> BOM siz qayta saqlagan har qanday vosita (jumladan agentning o'z
+> `Write` i) push ni **butunlay** yiqitardi — va bu odamning yagona
+> commit yo'li. `push.ps1` va `setup-git.ps1` ham ASCII ga o'tkazildi.
+> Uchalasi `grep [^\x00-\x7F]` bilan tasdiqlandi: **0 moslik**.
+>
+> 🟢 Qoida `CLAUDE.md` §2 ga yozildi: agent yozadigan `.ps1` faqat ASCII
+> bo'ladi — uzun tire, tirnoqcha, emoji yo'q, oddiy `-`.
+>
+> ✅ **SABAB TOPILDI VA O'LCHANDI — IKKI BOSQICHDA.**
+>
+> **(1) Nega skript papkani ko'rmasdi — Store/MSIX virtualizatsiyasi.**
+> Diagnostika: `USERNAME=5`, `COMPUTERNAME=GN_580`,
+> `APPDATA=C:\Users\5\AppData\Roaming` — hammasi to'g'ri, lekin zanjir
+> **`Claude` bo'g'inida** uziladi. Haqiqiy papka:
+> `C:\Users\5\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\local-agent-mode-sessions`.
+> Claude Desktop — MSIX ilovasi: **ilova** `AppData\Roaming\Claude` ni
+> ko'radi (agentning tizim yo'llari ham shundan), oddiy PowerShell esa
+> ko'rmaydi. Bu 122-rundan beri «papka topilmadi» xabarining butun
+> sababi. Yo'l skriptga `Claude*` shabloni bilan doimiy qo'shildi.
+>
+> **(2) 🔴🔴 SESSIYALAR MUAMMO EMAS EDI.** Tuzatilgan skript **378 ta
+> sessiyani o'chirdi va atigi ~950 MB berdi.** 122-rundan beri
+> yuritilgan «sessiya papkalari C ni to'ldiryapti» gipotezasi — **xato**.
+> Haqiqiy iste'molchi `.vhdx` ro'yxatida ochiq ko'rindi:
+>
+> ```
+> 9.8 GB  ...\vm_bundles\claudevm.bundle\sessiondata.vhdx
+> 9.8 GB  ...\vm_bundles\claudevm.bundle\rootfs.vhdx
+> C:  8.2 GB bo'sh / 222.9 GB
+> ```
+>
+> `sessiondata.vhdx` — sandboxning **`/sessions` mounti**: 141-run dagi
+> `df` ning `/dev/sdc 9.8G 9.3G 0 100%` qatori aynan shu fayl. Ikkalasi
+> C da 19.6 GB, C da esa 8.2 GB bo'sh — VM ko'tarilmaydi. 141 ning
+> «C da 8.5 GB bo'sh, demak disk aybdor emas» xulosasi noto'g'ri edi:
+> 8 GB bo'sh bo'lishi 20 GB lik VM ni ko'tarishga yetarli degani emas.
+>
+> 🟢 **`reset-sandbox-vm.ps1` yozildi** (👤 yurgizadi): `vm_bundles` ni
+> o'chirmaydi, `H:` ga **ko'chiradi** (`ORIGINAL_PATH.txt`, `-Restore`
+> bilan qaytariladi), Claude ishlab turgan bo'lsa hech narsa qilmaydi.
+> ⚠️ Yurgizilganda joriy Cowork sessiyasi ham tugaydi. ⚠️ «Claude
+> bundle ni qayta yaratadi» — kutilgan xulq, **tasdiqlanmagan**;
+> shuning uchun ko'chirish, o'chirish emas.
+>
+> ⚠️ **(eskirgan mulohaza) Xost diski sababmi — hamon TASDIQLANMAGAN.** 141-run «C da
+> 8.5 GB bo'sh» deb yozgan va o'sha paytdagi xato boshqa sinf edi.
+> `-Report` aynan shu savolga raqam beradi. 👤 avval
+> `.\cleanup-sessions.ps1 -Report` (elevated **emas**, o'z
+> profilingizdan), keyin `-DryRun`, keyin argumentsiz.
+>
+> **Keyingi qadam:** (1) 🔴 **sandbox tiklanganda birinchi ish** — bazasiz
+> to'plamni yurgizib **ikki** narsani tasdiqlash: 166 ning 21 testi va
+> 164 ning +49 testi; ikkalasi ham hozircha **o'lchanmagan da'vo**, yangi
+> nishon olishdan **oldin** yopilsin; (2) shundan keyingina
+> `app/reports/moderation.py` ustida haqiqiy mutatsiya o'lchovi — endi
+> qulf bor, natija ma'noli bo'ladi; (3) navbat o'zgarmadi:
+> `app/bot/handlers.py` (404), `app/geo/models.py` (251),
+> `app/api/openapi.py` (227), `app/jobs/refresh_coverage.py` (201),
+> `app/stats/export.py` (193), `app/clustering/lookup.py` (183),
+> `app/bot/keyboards.py` (183), `app/db/session.py` (161); (4) 👤
+> `cleanup-sessions.ps1` va Cowork ni qayta ishga tushirish; (5) 👤
+> `100_sec_yozuvni_yopish_ad837191.md` ni o'chirish (hamon turibdi);
+> (6) 👤 eski ochiq savollar o'zgarmadi.
+
+---
+
+
+> ⚠️ **165-run (2026-08-19) — SANDBOX UMUMAN KO'TARILMADI; 164-RUNNING
+> YOZUVSIZ TUGAGANI TOPILDI VA YOPILDI.**
+>
+> Birinchi `mcp__workspace__bash`: `Workspace unavailable … failed to
+> start (VM_DISK_SPACE_INSUFFICIENT)`. Bu 122–140 seriyasidagi
+> `useradd failed: No space left on device` dan **boshqa** xato —
+> o'shanda muhit ko'tarilardi va `TMPDIR=/dev/shm/tNNN` hiylasi ma'noga
+> ega edi; bu safar VM ning o'zi yo'q, `df` ham bajarilmaydi. Ya'ni
+> `pytest`, `ruff` va mutatsiya o'lchovi **mumkin emas** edi va 163
+> qoldirgan tartibning (1) bandi olinmadi.
+>
+> 🔴 **Boshda ziddiyat chiqdi.** `INDEX.md` ning bu qatori va
+> `PROGRESS.md` ning run jurnali **163** ni ko'rsatardi, lekin
+> `PROGRESS.md` ning «Joriy holat» katagi **164** ni to'liq bayon qilgan
+> va `tests/test_security_posture_contract.py` da 164 yozgan
+> **8–12-bo'limlar** (+49 test) turibdi. Ya'ni 164 ishni bajargan,
+> «Joriy holat» ni yozgan va shundan keyin to'xtagan: jurnal qatori,
+> SEC epic qatori, `EpicProgress.md` va `INDEX.md` yangilanmagan.
+> Sezilmasa `app/admin/security.py` **ikkinchi marta** o'lchanardi.
+>
+> 🔴 **Sabab — YANGI BLOKLOVCHI SINF: haftalik foydalanish limiti.**
+> `mcp__session_info__read_transcript` bilan aniqlandi: `local_7c72e9c0`
+> (=164) o'nga yaqin `bash`, `TaskCreate`/`TaskUpdate` va oxirgi `Edit`
+> dan keyin **`You've hit your weekly limit · resets Aug 18, 3am`**
+> oldi. Undan keyingi **to'rtta** rejalashtirilgan sessiya
+> (`ea5c672a`, `6df5c1b7`, `a6ddd0fb`, `a89346d3`) bir xil xabar bilan
+> hech narsa qilmadi — bo'sh, ya'ni CLAUDE.md §4.1.3 bo'yicha arxivga
+> qo'shilmaydi va run raqami olmaydi. Sabab `allow_cowork_file_delete`
+> (30-sessiya) ham, disk (122–140) ham emas — **uchinchi** sinf.
+>
+> 🟢 **Shundan chiqqan qoida:** yozuv (`PROGRESS.md` ning jurnal qatori
+> + `INDEX.md`) ishning **oxirida** emas, **o'lchov tugashi bilanoq**
+> yozilsin. 164 ning butun o'lchovi saqlanib qoldi (testni yozib
+> ulgurgan), lekin uni **topib olish** uchun 165 ning yarim runi ketdi.
+>
+> **164 ning natijasi statik tekshirildi** (`pytest` yo'q, ya'ni
+> «yashil» deb aytib bo'lmaydi — buzilsa to'plam qizil bo'ladigan
+> literal jadvallar qo'lda solishtirildi): §10 ning `REGISTRY` jadvali
+> (17 qator × 9 ustun) ↔ `GUARANTEES` ustunma-ustun va tartib bo'yicha
+> mos; §9 ning o'nta kutilgan xabari ↔ `registry_errors()` ning literal
+> matnlari mos va har `_row(...)` chindan **bitta** qoidani buzadi
+> (`claim=-1` da `doc_item` bor, `MISSTATED` da `narrower` qoidasi ikki
+> marta otilmaydi, `LONG_NOTE` aynan 60 — `< 60` bo'sag'asining
+> chetida); §11 ning `PDN_HINTS` ↔ `PDN_COLUMN_HINTS` aynan va o'n
+> beshta ishora uchala tur bo'ylab **kesishmaydi**; §8 ning
+> `Posture`/`Mechanism` jadvallari va `SPEC` mos; `tests/*tmp*` bo'sh —
+> 164 mutant yoki vaqtinchalik fayl qoldirmagan. **Yagona ziddiyat:**
+> docstring `## 164-run: 8–13-bo'limlar` deb yozgan, fayl esa
+> 12-bo'limda tugaydi (`PROGRESS.md` ham «8–12» deydi) — `Edit` bilan
+> tuzatildi, ehtimol bu 164 ning uzilgan `Edit` idan qolgan iz.
+>
+> 🟡 **Yon topilma:** `PROGRESS.md` ning SEC qatori 71-rundan beri
+> «o'n olti kafolat» deb kelgan. Sanoq: nasrdan 7 + jadvaldan 8 + BRD
+> NFR laridan 2 = **17**, va 164 ning `REGISTRY` jadvali ham 17 qator.
+> Epic qatori tuzatildi; test docstringidagi nasr tegilmadi (o'lchanadigan
+> da'vo emas, sandboxsiz tekshirib bo'lmaydigan o'zgarish qo'shardi).
+>
+> **Yakun:** mahsulot kodi, migratsiya, konfiguratsiya, hujjatlar
+> tegilmadi. O'zgargani: test faylining bitta docstring satri,
+> `PROGRESS.md` (jurnalga 164 va 165 qatorlari, «Joriy holat», SEC epic
+> qatori), `EpicProgress.md` (SEC qatori, §4 dan `admin/security.py`
+> chiqarildi, §4 ga blok qo'shildi), `cowork_session/`.
+>
+> **Keyingi qadam:** (1) 🔴 **sandbox tiklanganda birinchi ish** — butun
+> bazasiz to'plamni yurgizish va 164 ning +49 testi yashil ekanini
+> tasdiqlash; «3770 passed» hozircha **o'lchanmagan da'vo**, yangi
+> nishon olishdan **oldin** yopilsin; (2) 163/164 qoldirgan tartib:
+> `app/bot/handlers.py` (404), `app/geo/models.py` (251),
+> `app/api/openapi.py` (227), `app/jobs/refresh_coverage.py` (201),
+> `app/stats/export.py` (193), `app/clustering/lookup.py` (183),
+> `app/bot/keyboards.py` (183), `app/db/session.py` (161),
+> `app/reports/moderation.py` (134); (3) 👤 `cleanup-sessions.ps1` va
+> Cowork ni qayta ishga tushirish; (4) 👤 noto'g'ri nom bilan yaratilgan
+> `100_sec_yozuvni_yopish_ad837191.md` ni o'chirish (bo'shatilgan,
+> mazmuni `165_…` da); (5) 👤 eski ochiq savollar o'zgarmadi —
+> `ruff format` versiya farqi, `app.db`/`app.analytics` prefikslari,
+> `service._create_intents`, `cowork_session/` nusxa juftliklari.
+
+---
+
+
 > ✅ **163-run (2026-08-14) — `01` §17 MA'LUMOT MODELI:
 > 72-RUNNING «22 MUTATSIYA, 0 SURVIVOR» I RAD ETILDI — ASLIDA
 > 34 SURVIVOR (37 %). SINF `app/release/` DAN TASHQARIGA CHIQDI.**
@@ -5924,6 +6314,10 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 | 153 | [risk_reyestri_qorovullari](153_risk_reyestri_qorovullari_feeaecbb.md) | `local_feeaecbb` | Mutatsiya: `app/release/risks.py` (956 qator, `app/release/` oilasining eng katta o'lchanmagan reyestri) — **43 mutatsiya → 29 KILLED, 14 SURVIVOR** (33 %). 152 ning naqshi takrorlandi va endi **sinf**: hujjatdan parse qilinadigan ma'lumot zich qulflangan (KILLED larning deyarli hammasi birinchi o'tishda), `_check_registry()` ning sakkizta qorovulidan esa **to'rttasi hech qachon otilmagan** — takrorlangan kod, bo'sh mitigatsiya, `Влияние` ustunining ikkala yo'nalishi, izohsiz sarflangan bashorat. Eng qimmati: takrorlangan kod qorovulini `ENTRIES` dan `RISKS` ga toraytirish (`RS-02` ↔ `AS-S3` bitta hodisa ikkala jadvalda — `ENTRY_BY_CODE` lug'ati ikkinchi qatorni jimgina yutardi), `INSTRUMENTED` bandning bog'lanish talabi (`AS-S6` ning yagona «asbob bor» da'vosi), `RiskReport.covered` ni birorta test o'qimasdi. Chegara survivorlari: `CLAUSE_SEPARATORS` ga hujjatdagi istalgan belgining qo'shilishi (`strip()` ni bo'shatadi), `COVER_RANK` da `INSTRUMENTED` ↔ `DISPLACED`, `ENTRIES` da ikkala jadvalning o'rni. Ekvivalent: `unauditable_entries` dagi `==` → `>=` (qism to'plam munosabati). Infratuzilma: qorovulni **kuchaytirish** `rc=4` beradi (uch mutatsiya qayta yozildi); `pytest.raises` ga `match=` shart | ✅ 13/13 qulflandi, 1 ekvivalent; 3520 passed, 299 skipped (+13), `requires_db` 298 (yurgizilmadi), migratsiyasiz, ruff toza |
 | 155 | [funksional_talablar_qorovullari](155_funksional_talablar_qorovullari_3167700e.md) | `local_3167700e` | `01` §8 funksional talablar deltasi — `app/release/functional_requirements.py` (860 qator). **Nishon tanlashda 154 ning ro'yxati yana rad etildi:** jurnal `app/release/` da umuman o'lchanmagan modul yo'qligini ko'rsatdi — haqiqiy qarz boshqa, 66–87 runlarning sakkizta o'lchovi **tuzatilmagan harness** bilan olingan (`verdict` faqat 126-runda tuzatilgan, `rc=4` yolg'on `KILLED` berardi), ya'ni ularning «0 survivor» i tekshirilmagan da'vo. **55 mutatsiya → 25 KILLED, 30 SURVIVOR (55 % — seriyadagi eng yuqori)**; o'ttizalasi ham butun bazasiz to'plamda tasdiqlandi (yolg'on survivor yo'q) va o'ttizalasi ham qulflandi (+18 test, mavjud faylning yangi **11-bo'limi**), ekvivalent yo'q. Uch oila: (a) `__post_init__` ning o'n bir tarmog'idan **o'ntasi** hech qachon otilmagan — takroriy kod, `binds` ning kortej va nuqta talablari, `unnamed` ning tekshirilishi, yorliqning `SPEC_MODULES` ga qat'iy tegishliligi, ikkala siklning to'liqligi, «ochiq qaror + `BUILT` → farq shart» ning uchala yarmi; (b) **hisobotning shakli** (154 sinfi, ikkinchi marta): o'q lug'atlari uchragan sinflardan qurilsa bir xil javob, `by_module` va `modules_named` — ikkita **o'lik xossa**, uchta sarlavha mantiqi qo'shnisining o'qini o'qisa sezilmasdi, `accurate` ning to'rtala kon'yunktidan **har biri** olib tashlanishi mumkin edi; (c) `MODULE_PACKAGES` ning yagona o'quvchisi `any(...)` — prefiks yo'qolishi sezilmasdi, jadval so'zma-so'z qulflandi (`app.db` va `app.analytics` — birorta dalil o'qimaydigan prefikslar, ochiq savolga yozildi). Uslub: `pytest.raises(match=...)` ikkala qorovulni ajratdi; siyosat to'plamlari `monkeypatch` bilan qulflandi. Infra: sandboxda **ikkita yadro** — uchta parallel ishchi partiyani `180 s` da uzdi (repo tegilmadi) | ✅ `01` §8 qayta o'lchandi; 3563 test (+18), `requires_db` 298 (yurgizilmadi), migratsiyasiz, ruff `check` toza |
 | 154 | [kolam_reyestri_qorovullari](154_kolam_reyestri_qorovullari_60b5a524.md) | `local_60b5a524` | `01` §7 ko'lam reyestri — `app/release/scope.py` (869 qator), oilaning eng katta o'lchanmagan reyestri. **42 mutatsiya, uchtasi `rc=4` (qorovulni kuchaytirardi) → 39 baholi: 22 KILLED, 17 SURVIVOR (44 %)**; o'n yettalasi butun bazasiz to'plamda tasdiqlandi (yolg'on survivor yo'q), o'n oltitasi qulflandi, bittasi ekvivalent. Ikki oila: (a) `_check_registry` ning o'n bir tarmog'idan oltitasi hech qachon otilmagan — gorizont yechilmagan asosda, `MISDATED` ning erta tomoni, `ABSENT`+`HOLLOW`, dalil talabining `BUILT` dan boshqa to'rt sinfi, `UNLISTED` nusxasi; (b) **yangi oila — hisobotning shakli**: o'q lug'atlari uchragan sinflardan qurilsa, `boundaries_hold` da `and`→`or`, `accurate` ning uchta shartidan bittasini olib tashlash va `standings_touched` ni butun reyestrdan hisoblash — bugun hammasi bir xil javob beradi. Ikki o'lik konstanta (`PRESENCE_BUILT`, `PRESENCE_OUTSIDE`) birinchi o'quvchisini topdi. Nishon tanlashda jurnal 153 ning ro'yxatini tuzatdi (`business_{acceptance,reporting}` 106–107 da o'lchangan) | ✅ `01` §7; 3545 test (+25), `requires_db` 298 (yurgizilmadi), migratsiyasiz, ruff yashil |
+| 167 | [admin_service_va_moderatsiya_mutatsiyasi](167_admin_service_va_moderatsiya_mutatsiyasi_45e3f69a.md) | `local_45e3f69a` | **Sandbox qaytdi** (`/sessions` da 9.3 GB bo'sh) va 165/166 qoldirgan o'lchanmagan da'volar yopildi: butun bazasiz to'plam **3837 passed, 1 skipped, 298 deselected**, `ruff` toza — ya'ni 164 ning +49 i va 166 ning 21 i yashil. Muhit retsepti yangilandi: `micromamba` + `python=3.11` **`/sessions` da** (`/tmp` emas), va 🔴 mount ustida to'plam 180 s ga sig'maydi — repo `/sessions/.../work/repo` ga ko'chirilsa 44 s. **Yangi nishon `app/admin/service.py`** (166 ning `grep` usuli bir qavat yuqorida: modulni butun repoda faqat `test_admin_moderation_db.py` (`requires_db`) import qiladi) — `tests/test_admin_service_contract.py`, **41 test**: ruxsat o'zgarishdan oldin, aynan qaysi `Permission` (haqiqiy `Actor` ajratmaydi), `require → o'zgarish → record` tartibi, `USER_BLOCK` ↔ `USER_UNBLOCK`, `merge` da `object_id` — manba hodisa, `dict(change.after)` nusxasi. **Mutatsiya: `app/reports/moderation.py` — 29 → 23 KILLED, 6 SURVIVOR (21 %)**, oltalasi butun to'plamda tasdiqlangan. Hammasi bitta sinfda: 166 SQL ning **matnini** tekshirgan, omon qolganlar esa **parametrni** yoki shartning **ichini** o'zgartiradi (M13 korrelyatsiya, M20 `not blocked`, M21 `WHERE` siz `UPDATE`, M26 `TRUST_MAX`). Ikkitasi **ekvivalent**: M14 ning kompilyatsiya natijasi belgi-ba-belgi bir xil (166 uni «xavfli» degan edi), M28 — `row.id == user_id` har doim. Qulf: 8-bo'lim, +5 test (26 → 31), to'rttasi qayta o'lchovda KILLED. **3842 passed**, mahsulot kodi tegilmadi. |
+| 166 | [moderatsiya_bazasiz_qamrovi](166_moderatsiya_bazasiz_qamrovi_f5c1de36.md) | `local_f5c1de36` | **Sandbox ikkinchi run ketma-ket ko'tarilmadi** (`VM_DISK_SPACE_INSUFFICIENT`), ya'ni `pytest`/`ruff`/mutatsiya mumkin emas edi va 165 qoldirgan (1) band olinmadi. O'lchov o'rniga navbatning to'qqizala nishoni test qatlamida `grep` bilan sanaldi. 🔴 Topilma: `app/reports/moderation.py` ni butun repoda **bitta** fayl import qiladi — `test_admin_moderation_db.py`, va u `requires_db`; verdikt esa bazasiz to'plamda o'lchanadi, ya'ni modulda **har qanday** mutatsiya omon qolardi. Bu 130 ning qoidasiga uchinchi qatlam qo'shadi: «testi bor» ≠ «bazasiz qamrovi bor». Yozilgani — `tests/test_moderation_users_contract.py`, 21 test, qo'g'irchoq sessiya + `postgresql.dialect()` ga kompilyatsiya: `SELECT` da `tg_id` yo'q (`05` §7.3), ustun tartibi ↔ `row[N]`, `count` ning manbasi `reports`, `int`/`bool` o'girishlari (`Decimal` va `0`/`1` bilan ajratildi), `NotFoundError` `UPDATE` dan oldin, `set_blocked` idempotentligi, `0..100` ning ikkala cheti, qorovulning bazadan oldinligi, `before`/`after` va `UserRow`/`UserChange` shakli. 🔴 Fayl **yurgizilmagan** |
+| 165 | [sec_yozuvni_yopish](165_sec_yozuvni_yopish_4dcb6bfb.md) | `local_4dcb6bfb` | **Kod yozilmadi — 164-running yozuvi yopildi.** Sandbox `VM_DISK_SPACE_INSUFFICIENT` bilan **umuman ko'tarilmadi** (122–140 seriyasidagi `useradd failed` dan boshqa xato: o'shanda muhit bor edi va `TMPDIR` hiylasi ishlardi, bu safar VM ning o'zi yo'q), ya'ni `pytest`/`ruff`/mutatsiya mumkin emas edi. Boshda ziddiyat topildi: `INDEX.md` va run jurnali **163** ni ko'rsatadi, lekin `PROGRESS.md` ning «Joriy holat» katagi **164** ni bayon qilgan va `tests/test_security_posture_contract.py` da 164 yozgan 8–12-bo'limlar (+49 test) **bor** — ya'ni 164 ish qilib, yozuvsiz tugagan; sezilmasa `app/admin/security.py` ikkinchi marta o'lchanardi. 🔴 **Sabab transkriptlardan aniqlandi (yangi bloklovchi sinf):** `local_7c72e9c0` (=164) o'nga yaqin `bash` dan keyin oxirgi `Edit` da **`You've hit your weekly limit`** oldi; undan keyingi **to'rtta** rejalashtirilgan sessiya (`ea5c672a`, `6df5c1b7`, `a6ddd0fb`, `a89346d3`) bir xil xabar bilan **hech narsa qilmadi** — bo'sh, ya'ni arxivga qo'shilmaydi va run raqami olmaydi. Sabab `allow_cowork_file_delete` ham, disk ham emas. 🟢 **Qoida:** yozuv (jurnal qatori + `INDEX.md`) ishning oxirida emas, **o'lchov tugashi bilanoq** yozilsin. 164 ning natijasi statik tekshirildi: `REGISTRY` (17 qator × 9 ustun) ↔ `GUARANTEES` ustunma-ustun mos, §9 ning o'nta kutilgan xabari ↔ `registry_errors()` ning literal matnlari mos (har `_row(...)` chindan bitta qoidani buzadi; `LONG_NOTE` aynan 60 — bo'sag'aning chetida), `PDN_HINTS` ↔ `PDN_COLUMN_HINTS` aynan va o'n beshta ishora kesishmaydi, `StrEnum` jadvallari va `SPEC` mos, `tests/*tmp*` bo'sh. Yagona tuzatish: docstring `8–13` → `8–12` (ehtimol 164 ning uzilgan `Edit` idan qolgan iz). Yon topilma: 71-rundan beri yozilgan «o'n olti kafolat» aslida **o'n yetti** (7 nasr + 8 jadval + 2 NFR) | ⚠️ Sandboxsiz; **164 ning «3770 passed» i TASDIQLANMADI** — tiklangach birinchi qadam shu. Mahsulot kodi tegilmadi |
+| 164 | — (yozuvsiz tugagan, `local_7c72e9c0`) | `local_7c72e9c0` | `01` §20 xavfsizlik holati (`app/admin/security.py`, 576 qator) — 163 qoldirgan tartibning (1) bandi. 71-running «20 mutatsiya, 0 survivor» i rad etildi: **70 mutatsiya → 6 KILLED, 64 SURVIVOR (91 % — seriyadagi eng yuqori ulush va eng katta mutlaq son)**, ikkitasi ekvivalent. Ikki bosqich: tor tanlov (8 fayl, 412 test, ~4 s) → butun bazasiz to'plam (3721 test, ikkita parallel nusxa); bittasi ham fikrini o'zgartirmadi. Uch sinf: 🔴 **o'nala `StrEnum` qiymati** (`Posture` 6 + `Mechanism` 4) — testlar `Posture.ENFORCED` ni `Posture.ENFORCED` bilan solishtirardi (124-run ning **refleksivlik** sinfi, endi xavfsizlik reyestrida); qiymat `registry_errors()` ning «izoh yetarli emas» xabari (`f"{g.mechanism}"`) va `counts` kalitlari orqali sirtga chiqadi, `Posture` ning **tartibi** ham o'lchanmagan edi; 🔴 `registry_errors()` ning **o'nta qoidasidan oltitasi** umuman o'lchanmagan — mavjud test faqat «ro'yxat bo'sh emas» ni so'rardi, ya'ni oltita qoidani butunlay o'chirsa ham yashil qolardi; endi har qoida **yolg'iz** buziladi va xabar **butunlay** solishtiriladi (`match=` yetarli emas — `re.search`, 161/162 sabog'i uchinchi marta); 🔴 **reyestrning o'zi** — `where`/`lock` uchun faqat **mavjudlik** tekshirilardi (`rbac` ning qulfi boshqa mavjud faylga ko'chsa jim), `spec`/`posture`/`mechanism` esa umuman tekshirilmasdi (`VACUOUS`→`EXTERNAL` jim o'tardi, holbuki sabablari butunlay boshqa) → literal `REGISTRY` jadvali. Ekvivalent: `lower()`→`casefold()` (ustun nomlari ASCII) va `GUARANTEE_BY_CODE` ni teskari tartibda qurish (kodlar noyob) | ✅ 62/64 qulflandi; +49 test (mavjud faylning 8–12-bo'limlari), yangi fayl yaratilmadi, mahsulot kodi tegilmadi. ⚠️ **Run jurnali, epic qatori va `INDEX.md` yozilmadi** — haftalik limit; 165 yopdi |
 | 163 | [malumot_modeli_mutatsiyasi](163_malumot_modeli_mutatsiyasi.md) | `local_ad837191` | `01` §17 ma'lumot modeli (`app/db/data_model.py`, 704 qator) — 162 qoldirgan tartibning (1) bandi: o'lchanmagan modul **`app/release/` dan tashqarida**. Ro'yxat run jurnalidan mexanik yig'ildi (`EpicProgress.md` §4 navbati 130-runda qotgan). 72-running «22 mutatsiya, 0 survivor» i rad etildi: **93 mutatsiya → 59 KILLED, 34 SURVIVOR** (37 %), `rc≠0/1` yo'q. Ikki bosqich: tor tanlov (1 fayl, 46 test, ~8 s) → butun bazasiz to'plam (3699 test, ikkita parallel nusxa); bittasi ham fikrini o'zgartirmadi. 🔴 to'qqizala `StrEnum` qiymati (mavjud test holatlarni **sanaydi**, nomini so'ramaydi); 🔴 reyestrning ikkinchi ustuni `Reliance` — `Fidelity` haqiqatga bog'langan, `Reliance` ni hech narsa bog'lamaydi, ya'ni 72-run ning **asosiy qarori** o'lchanmagan edi (literal `REGISTRY` jadvali); 🔴 `by_reliance` har doim bo'sh (`f.fidelity is reliance` — ikki alohida `StrEnum`); `SPEC` `01 §17`→`01 §18` (`## 18. Integrations` — mavjud sarlavha, seriyada 8-marta); parserning oltita qirrasi (§17 chegarasining **ikkala** yarmi, ochko'z mermaid, kardinallik `{3,}`, `UK`, bo'sh `key`, blokdan tashqaridagi qator); «Изменения» ning `- ` bo'shlig'i va yopuvchi bo'sh qatori; `TYPE_EQUIVALENTS` ning o'lchanmagan besh kaliti; izohlanmagan `NARROWED`; manzilning yarmi va yo'q ustun; kalitli atributlar (`sum(counts.values()) == len(findings)` — **ichki** muvozanat); `faithful` ning birinchi konyunkti; FK dagi `break`. Ikkitasi ekvivalent (`idx < 0`→`idx <= 0`, `.lower()`→`.casefold()`) | ✅ +22 test (mavjud faylning 8–11-bo'limlari); 3721 passed (+22), migratsiyasiz, ruff yashil; mahsulot kodi tegilmadi |
 | 162 | [olchov_qamrovi](162_olchov_qamrovi_7c521ce3.md) | `local_7c521ce3` | `03` §11 o'lchov qamrovi (`app/release/measures.py`, 457 qator) qayta o'lchandi — **eski-harness modullarining oxirgisi**. 67-run «25 mutatsiya, 3 survivor tuzatildi» degan (126-rundan oldingi `verdict`, `rc=4` yolg'on `KILLED` berardi); aslida **69 mutatsiya → 39 KILLED, 30 SURVIVOR (43 %)**, bittasi ekvivalent. Ikki bosqich: tor tanlov (8 fayl, 351 test) → butun bazasiz to'plam (3678 test, ikkita parallel nusxa), bittasi ham fikrini o'zgartirmadi. Topilmalar: **to'qqizala qorovul xabari** (mavjud testlar `pytest.raises` ni `match` siz yozgan — yiqilish fakti tekshirilardi, sababi emas); **`_check_registry()` chaqiruvining o'zi** (161 bilan bir xil, `ast` bilan qulflandi); sakkizta `StrEnum` qiymatidan oltitasi; `SPEC` `03 §11`→`03 §6` (istisno ro'yxati `mandate == m.SPEC` tavtologiyasi); reyestrning to'qqizta havolasi (mavjudlik tekshirilardi, to'g'riligi yo'q → literal `REGISTRY`); `first_gap` ning bosqich sharti (`evaluate()` allaqachon saralaydi); `Binding.frozen`; `unsubscribe_share` tripwire i | ✅ 29 qulflandi; 3699 test (+21), `requires_db` 298 (yurgizilmadi), migratsiyasiz, ruff yashil; **155-run ochgan sinf YOPILDI** |
 | 161 | [dependencies_mutatsiya](161_dependencies_mutatsiya_bf5117fd.md) | `local_bf5117fd` | `01` §28 bog'liqliklar reyestri (`app/release/dependencies.py`, 541 qator) qayta o'lchandi — 76-running «17 mutatsiya, 1 survivor» i rad etildi (o'sha o'lchov `verdict` `returncode != 0` davrida, `rc=4` yolg'on `KILLED`). **60 mutatsiya → 29 KILLED, 30 SURVIVOR (50 %)**; bittasi mutatsiya qilib bo'lmaydi — `Row.is_witnessable` ni teskarisiga aylantirish qorovulni **kuchaytiradi** va `rc=4` beradi, xossaning yagona qulfi shuning uchun qorovul orqali. Besh oila: (a) qorovulning o'n bir tarmog'idan **sakkiztasi** hech qachon otilmagan — 75-run §9 ni to'g'ri yozgan, lekin faqat oltita holat uchun; qator sonining `!=` si (`>` **qisqargan** jadvalni o'tkazadi — yo'nalish muhim), `ROW_BY_CODE` ning to'liqligi (takroriy kod tartibni ham buzadi, ya'ni ajratish faqat **xabar** bo'yicha), bo'sh `note`, dalilsiz `MET`/`PARTIAL`/`MOOT`, sirt haqidagi `VOID`, `UNDECLARED` ning dalili va izohi, va eng qimmati — **`_check_registry()` chaqiruvining o'zi** (o'chirilsa §9 ning o'nala testi yashil qolardi, chunki ular qorovulni o'zlari chaqiradi; qulf `ast` bilan); (b) uchala `StrEnum` ning o'n ikkita **qiymati** — 154…160 dan farqli o'laroq bu modulda API javobiga chiqmaydi, shuning uchun qulfning sababi torroq yozildi (diagnostika matni + `StrEnum` tanlovi), yon topilma: `match="void"` regeksi `"void_x"` ni ham qabul qilardi; (c) `SPEC` ning manzili — `01 §29` ham **mavjud** sarlavha, yechilish ajratmaydi (156…160 sabog'i oltinchi marta); (d) yettita `binds` elementi — `test_every_bind_resolves_to_a_real_symbol` mavjudlik tekshiruvi, test emas; (e) `HELD`/`Row.holds`. **Farqi:** hisobotning shakli bu modulda sog'lom (76-run `accurate` dagi survivorni o'zi tuzatgan). Infra: `/tmp/w1` begona foydalanuvchida — nusxa faqat `mktemp -d`; `xdist` yo'q, parallellik ikkita alohida nusxa bilan (47 s → 45–53 s, deyarli bepul) | ✅ `01` §28; 3678 test (+13), `requires_db` 299 (o'zgarmadi), migratsiyasiz, ruff yashil |
@@ -5932,6 +6326,7 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 | 158 | [reliz_rejasi_qamrovi](158_reliz_rejasi_qamrovi_e842de58.md) | `local_e842de58` | `01` §25 reliz rejasi (`app/release/plan.py`, 597 qator) — 77-running «37 mutatsiya, 1 survivor» i **rad etildi**: aslida **50 mutatsiya → 28 KILLED, 22 SURVIVOR (44 %)**. Qorovullar faqat zaiflashtirildi — `_check_registry()` import paytida yuradi, ya'ni kuchaytirish collection error berardi va `SPEC_ROWS`/`COLLIDING`/`GATE_NEEDS_EVIDENCE` ning o'zi shu qorovul bilan qulflangan. Ikki bosqich: tor tanlov (4 fayl, 231 test) 22 nomzod → butun bazasiz to'plamda (3616 test) yigirma ikkalasi tasdiqlandi, yolg'on survivor yo'q. Uch oila: (a) `_check_registry` ning o'n sakkizta shartidan **yettitasi** hech qachon otilmagan (qatorlar soni, kodlarning takrorlanishi, izohning majburiyligi, mazmun dalilining **yetishmasligi** — 9-bo'lim faqat ortiqchaligini otardi, `UNPLANNED` ning ikkala sharti va uning siklining to'liqligi); (b) **hisobotning shakli** — `by_alias`/`by_ship`/`by_gate` chelaklari «uchragan sinflardan» qurilsa bugun bir xil javob beradi; qolgan xossalar (`accurate` ning uchala kon'yunkti, `is_shippable`, `is_answerable`, `phase_zero_bound`, `colliding`) shu oilada birinchi marta **o'lchangan** chiqdi; (c) `collides` ning siyosat to'plami (literal bilan ekvivalent → `monkeypatch`), uchala `StrEnum` ning qiymatlari va oltita qator hamda ikkala `UNPLANNED` bandining dalil kortejidan tushib qoladigan element. ⚠️ Infra: to'liq to'plam **parallel yurgizilmaydi** — uzilgan chaqiruvda `finally` bajarilmaydi va ikkala nusxada mutant qoladi; ketma-ket, uchtadan | ✅ `01` §25; 3628 test (+12), `requires_db` 299 (yurgizilmadi), migratsiyasiz, ruff yashil |
 | 157 | [muvaffaqiyat_metrikalari_qamrovi](157_muvaffaqiyat_metrikalari_qamrovi_3fe5ca72.md) | `local_3fe5ca72` | `01` §4 muvaffaqiyat metrikalari (`app/release/success.py`, 727 qator) — 84-run «18 mutatsiya, 0 survivor» degan, aslida **61 mutatsiya → 27 KILLED, 34 SURVIVOR (56 %)**. Uch oila: (a) `_check_registry` ning 10 shartidan **6 tasi** hech qachon otilmagan, jumladan **yolg'on qulflangani** — 5-qatlamning `("K-9", {"reading": SERVED})` parametri `undefined` qorovulini emas, «`SERVED`, lekin dalil yo'q» qorovulini otardi; yana KPI kodlari/nomlari va `UNNAMED` kodlarining takrorlanishi, `UNNAMED` ning dalilsizligi, ikkala siklning to'liqligi; (b) hisobotning shakli (154/155/156 sinfi) — ikkita **o'lik xossa** (`by_target`, `disclaimed`) va bitta **o'lik konstanta** (`READING_BLOCKED`), o'q lug'ati «uchragan sinflardan», `accurate` ning **birinchi** kon'yunkti, `targets_are_answerable` ning manbai, `is_broken_promise` ning ikkinchi kon'yunkti, `answerable_but_disclaimed` ning birinchi yarmi, `READING_ANSWERS` ning kengayishi; (c) parserning uchta otilmaydigan qorovuli (sintetik hujjat bilan qulflandi), sarlavha `$` langari, `_ROW_RE` ning `.+` i, uchta matn konstantasining **qisqarishi**, `K-4`/`U-3` dalil kortejidan tushib qolgan element. Infra: sandbox noldan (`py3.10` da `StrEnum` yo'q → `micromamba py311`), `timeout_ms=175000` majburiy | ✅ `01` §4 qayta o'lchandi; 3616 passed, 299 skipped (+26), migratsiyasiz, ruff yashil |
 | 156 | [yol_xaritasi_qamrovi](156_yol_xaritasi_qamrovi_a5819e11.md) | `local_a5819e11` | `01` §24 yo'l xaritasi (`app/release/roadmap.py`, 780 qator) — 82-run «18 mutatsiya, 1 survivor» degan, aslida **50 mutatsiya → 20 KILLED, 30 SURVIVOR (60 %)**. Uch oila: (a) `_check_registry` ning 24 shartidan **17 tasi** hech qachon otilmagan — mezon/faza sonining qulfi, takrorlangan kod qorovulining ikkala yarmi, uchala ro'yxatning tartibi, izohning majburiyligi, dalilning **ortiqchaligi**, mezonlar uchun dalilning yetishmasligi, `AHEAD` ning ikkala qorovuli, mezon va `AHEAD` sikllarining to'liqligi; (b) hisobotning shakli (154/155 sinfi) — `by_landing` ning vazifalar sikli, `by_bearing` chelaklari, `gate_holds` ning `and` i va **har ikkala yarmi**, `accurate` ning `gate_holds` kon'yunkti, ikkala `closes_gate`; (c) `LANDING_NEEDS_EVIDENCE` dan `RECORDED`, `AH-1` ning `nearest_phase` i, `P0-2`/`EX-5` ning `near` i. `_guard` ga `ahead=` qo'shildi; `match=` shart. Infra: to'liq to'plam mount ustida 180 s ga sig'maydi → ikki bosqichli o'lchov ishchi nusxada | ✅ `01` §24 qayta o'lchandi; 3590 passed, 299 skipped (+27), migratsiyasiz, ruff yashil |
+| 168 | [postgis_va_digest_service](168_postgis_va_digest_service_975474c8.md) | `local_975474c8` | **PostGIS sandboxda ko'tarildi** (`micromamba` + `conda-forge`, `postgresql 18.6` / `postgis 3.6.4`, `/sessions/<sid>/work/`, TCP 54329, sxema `alembic upgrade head`) va **126-rundan beri yurgizilmagan 298 ta `requires_db` testi o'tkazildi** — `298 passed`, butun to'plam `4140 passed`. Keyin `app/admin/digest_service.py` (126 qator, hech qachon o'lchanmagan): **21 mutatsiya → 10 KILLED, 11 SURVIVOR (52 %)**, o'n bittalasi butun to'plamda tasdiqlandi. Sabab bitta — fikstyura bitta mintaqa, bitta kun quradi va faqat hodisa sonlarini tekshiradi: xabar chelaklari tekislangan (M04, M05, M06), `audit_log`/`notifications`/`outbox` ga bironta qator qo'yilmagan (M07, M10, M08), `region_id` sharti ortiqcha (M17, M19), `now=` uzatiladi-yu natijasi o'qilmaydi (M14, M18). Qulf: `tests/test_digest_service_contract.py`, 11 test, olti bo'lim (chelaklar `5/3/2/1/4` va assimetriyaning o'zi tekshiriladi; oynalar chegaraviy lahza bilan; qo'shni mintaqa teginilmagan qoladi). M21 ekvivalent — lekin aynan u M20 ni o'ldirgan, ya'ni M20 ning o'limi tasodifiy edi | ✅ 167 ning (1) va (3) bandlari; 4151 test (+11), `requires_db` **309** (+11), migratsiyasiz, mahsulot kodi tegilmadi, `ruff` yashil |
 | 27 | [geo_mahallas](27_geo_mahallas_5b817a67.md) | `local_5b817a67` | `01` §16 ning `GET /geo/mahallas` endpointi — to'rtta sessiya qoldirgan nomzod. Asosiy qaror: jadval E17 gacha bo'sh, ya'ni **bo'sh javob normal, lekin jim bo'lmasligi kerak** (FR-S-802 degradatsiyasi ko'rinishi shart). Bo'shlikning ikki sababi ajratildi — spravochnik yo'q ↔ `?at=` bilan so'ralgan sanada yo'q; `available` alohida so'rovdan (`region_has_mahallas`, davr filtrisiz) va faqat kesim bo'sh bo'lganda. Javob shakli `districts` niki emas: `code`/`source_ref`/`license` ustunlari yo'q → `sources` + doimiy `geo.disclaimer.mahalla_source` (bo'sh `licenses` yolg'on bo'lardi), mahalla `(district_id, name_uz)` bo'yicha sanaladi, tartib `(tuman kodi, nomi, davr boshi)`. Toza `app/geo/mahallas.py` (`MahallaFact` → `summarize` → `MahallaRegistry`, versiya — sana), `geo.queries.mahalla_boundaries`/`region_has_mahallas`/`region_has_district_code`, ikki endpoint uchun umumiy `_period_filter`; birlashmada tumanning davri **tekshirilmaydi** (bekor qilingan tumanning mahallalari yo'qolmasin), noma'lum `?district=` → `404`, `Vary: Accept-Language`. `0009` — `ix_mahallas_district_id`: NFR-S-02 ning **`region_id` ustunisiz** ko'rinishi, `0008` ni qulflagan testga ilinmagan edi | ✅ `01` §16; 771 test (+14), `requires_db` 186 (+19), `0009` migratsiya, ruff yashil |
 | 26 | [region_indekslari](26_region_indekslari_2a0beb89.md) | `local_2a0beb89` | `01` §10, §11, §13–§16, §19, §20 birinchi marta kod bilan solishtirildi. NFR-S-02 buzilgan: talabning **so'rov** yarmi bajarilgan, **indeks** yarmi yo'q edi — `reports` va `outages` da `region_id` bilan boshlanadigan birorta indeks yo'q; `ix_reports_created_at` ga barcha oyna so'rovlari tushardi va mintaqani ajratmasdi, `ix_outages_status_region_id_open` esa qisman va tarixiy so'rovlarga yaramaydi. `0008` — `(region_id, created_at DESC)`, `(region_id, started_at DESC)` va qisman `(region_id, confirmed_at)`; `ix_reports_created_at` **qoldirildi** (`purge_exact_geom` ataylab mintaqasiz), `users.region_id` ga indeks **qo'shilmadi** (so'rov o'lchovi emas). Ikkita kontrakt testi: `region_id` li har bir jadval indekslanganmi (istisnolar sabab matni bilan) va model↔migratsiya indekslari bir xil to'plammi (17 ta). Topilgan, lekin qilinmagani: `GET /geo/mahallas` (§16, keyingi run), `outage.read_exact_geo` (§20 — `05` §7.3 ga zid, ochiq savol) | ✅ `01` NFR-S-02; 757 test (+11), `requires_db` 167 (o'zgarmadi), `0008` migratsiya, ruff yashil |
 | 25 | [chegara_versiyasi](25_chegara_versiyasi_f221c459.md) | `local_f221c459` | `01` §8 (FR) va §9 (User Story) birinchi marta kod bilan solishtirildi. FR-S-803 (P0) buzilgan: statistika **joriy** chegaralardan qurilardi va bekor qilingan tuman nomsiz qoldiq chelakka aylanardi; javobda spravochnik versiyasi yo'q edi (US-S5 esa uni eksportda talab qiladi). `geo.queries.districts_for_period` + `DistrictVersionRow` (davr kesishuvi, nuqta emas), toza `app/stats/boundaries.py` (`BoundaryFact` → `summarize` → `BoundarySet`; versiya — sana; bo'sh reyestrda `None`; `changed_in_period` ochilish **yoki** yopilishdan), `StatsOut.boundaries` + `DistrictOut.valid_from/valid_to`, yopilgan versiyada qamrov `unknown`, `stats.warning.boundaries_changed` UZ/RU, CSV da ikki daraja, `/heatmap` ga ataylab qo'shilmadi (H3 chegaralarga bog'liq emas). ⚠️ i18n kataloglari `git show HEAD:` tufayli E8 holatiga qaytdi va koddan qayta tiklandi | ✅ `01` FR-S-803 va US-S5; 746 test (+12), `requires_db` 167 (+3), migratsiyasiz, ruff yashil; ⚠️ `HEAD` E8 da — push shoshilinch |

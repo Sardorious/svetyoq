@@ -1,4 +1,5 @@
-﻿# setup-git.ps1 — bir martalik sozlash
+﻿# setup-git.ps1 - bir martalik sozlash
+# DIQQAT: faqat ASCII (166-run) - sababi push.ps1 ning boshida yozilgan.
 # Ishga tushirish: PowerShell da shu papkada  ->  .\setup-git.ps1
 
 # git stderr ga yozganda PowerShell uni "xato" deb hisoblamasin
@@ -35,7 +36,7 @@ if (-not (Test-Path ".git")) {
 & git branch -M main *> $null
 Write-Host "[=] branch: main"
 
-# 4. remote — 'git remote' ro'yxati orqali (stderr chiqmaydi)
+# 4. remote - 'git remote' ro'yxati orqali (stderr chiqmaydi)
 $remotes = @(& git remote)
 if ($remotes -contains "origin") {
     $existing = (& git remote get-url origin) | Select-Object -First 1

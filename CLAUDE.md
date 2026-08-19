@@ -74,6 +74,13 @@ Ular `sveta-net-build` scheduled task ko'rsatmasida va
   etaveradi, lekin ish shu sababdan to'xtatilmaydi.
 - `geom_exact` hech qanday API javobida chiqmaydi.
 - **Agent git commit va push QILMAYDI** — odam `push.ps1` orqali o'zi qiladi.
+- **`.ps1` fayllar FAQAT ASCII bo'lsin** (166-run). `Write`/`Edit` fayllarni
+  UTF-8 **BOM siz** yozadi, Windows PowerShell 5.1 esa BOM siz `.ps1` ni
+  ANSI (bu mashinada CP1251) deb o'qiydi. Uzun tire `—` (E2 80 94) o'shanda
+  uch belgiga aylanadi va oxirgisi (`0x94`) — «aqlli qo'shtirnoq», PowerShell
+  uni **haqiqiy qo'shtirnoq** deb qabul qiladi: satr vaqtidan oldin yopiladi
+  va butun fayl `MissingEndCurlyBrace` bilan yiqiladi. Izohda ham, satr
+  ichida ham uzun tire, tirnoqcha yoki emoji ishlatmang — oddiy `-` yozing.
 
 ## 3. Papka tuzilishi
 

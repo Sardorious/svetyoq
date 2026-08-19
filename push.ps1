@@ -1,4 +1,9 @@
-﻿# push.ps1 — o'zgarishlarni GitHub ga yuborish
+﻿# push.ps1 - o'zgarishlarni GitHub ga yuborish
+#
+# DIQQAT: bu fayl FAQAT ASCII belgilardan iborat bo'lsin (166-run).
+# Windows PowerShell 5.1 .ps1 ni BOM siz bo'lsa ANSI (CP1251) deb o'qiydi;
+# UTF-8 dagi uzun tire o'shanda "aqlli qo'shtirnoq" ga aylanadi va satrni
+# vaqtidan oldin yopib, butun faylni MissingEndCurlyBrace bilan yiqitadi.
 # Ishlatish:
 #   .\push.ps1                      -> commit xabari PROGRESS.md dan olinadi
 #   .\push.ps1 "o'z xabarim"        -> qo'lda xabar
@@ -31,7 +36,7 @@ if (-not (Test-Path ".git")) {
     Write-Host "XATO: git sozlanmagan. Avval .\setup-git.ps1 ni ishga tushiring." -ForegroundColor Red; exit 1
 }
 
-# 0b. eskirgan index.lock — yiqilgan git jarayonidan qoladi va hamma narsani bloklaydi
+# 0b. eskirgan index.lock - yiqilgan git jarayonidan qoladi va hamma narsani bloklaydi
 $lock = ".git\index.lock"
 if (Test-Path $lock) {
     $lockAge = (Get-Date) - (Get-Item $lock).LastWriteTime
@@ -57,7 +62,7 @@ Write-Host "O'zgargan fayllar:" -ForegroundColor White
 & git status --short
 Write-Host ""
 
-# 2. commit xabari — PROGRESS.md run jurnalidan
+# 2. commit xabari - PROGRESS.md run jurnalidan
 if (-not $Message) {
     $progress = Join-Path $Root "sveta\PROGRESS.md"
     if (Test-Path $progress) {
@@ -131,7 +136,7 @@ if (Test-GitOk) {
         }
     }
 } else {
-    Write-Host "[=] origin/main hali yo'q — birinchi push" -ForegroundColor DarkGray
+    Write-Host "[=] origin/main hali yo'q - birinchi push" -ForegroundColor DarkGray
 }
 
 # 5. push

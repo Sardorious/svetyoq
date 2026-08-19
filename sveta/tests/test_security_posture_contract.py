@@ -37,7 +37,7 @@ Fayl **besh** narsani bog'laydi:
 (70-run bilan bir xil qaror). Uzunligi esa tekshiriladi — bo'sh izoh
 qatorni o'qib bo'lmaydigan qiladi.
 
-## 164-run: 8–13-bo'limlar
+## 164-run: 8–12-bo'limlar
 
 71-run «20 mutatsiya, 0 survivor» degan edi, lekin o'sha o'lchov
 `verdict` `returncode != 0` bo'lgan davrda olingan (`pytest` ning
