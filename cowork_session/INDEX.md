@@ -12,6 +12,152 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **195-run (2026-08-20) — §12 NING IKKALA YARMI HAM ENDI
+> CHAQIRUVCHIGA EGA: `tools/tz_check.py`.**
+>
+> 194 qoldirgan yagona bloklanmagan ish. 193- va 194-runlar §12 ning
+> ikkala modulini qurgan edi, lekin `grep` `app/` da ikkalasiga ham
+> birorta chaqiruv topmasdi — faqat docstring havolalari.
+> Chaqiruvchisiz o'lchov asbobi — o'lchov emas, imkoniyat. Endi bitta
+> buyruq, bitta hisobot (matn yoki `--json`), bitta chiqish kodi.
+>
+> **Qurilgani:** `tools/tz_check.py` (toza yadro `cutoffs` →
+> `ReachPair` → `Report` + `render`/`as_json`, hamda `collect`,
+> `run`, `main`), `app/clustering/tzreach.summary()` —
+> `tzcoverage.summary()` ning juftligi, `tests/test_tz_check.py`
+> (40 test) va `tools/README.md` ning yangi bo'limi.
+>
+> 🔴 **Kesim sanasi javobni tanlaydi.** `tzreach.load()` butun tarix
+> uchun bitta `account_created_before` oladi, mahsulot esa uni har
+> hodisada qaytadan hisoblaydi. Kech kesim (`until - yosh`)
+> tarixning boshidagi hodisada mahsulot **rad etgan** akkauntlarni
+> qabul qiladi → guvohlar ko'proq → poroglar erishuvchanroq
+> ko'rinadi; erta kesim (`since - yosh`) aksincha. Bittasini tanlab
+> qo'yish §12 ni aynan o'zi so'ragan tomonga og'dirardi — «пороги не
+> завышены» degan javob jimgina qulaylashardi. Shuning uchun o'lchov
+> **ikki marta** yuritiladi: javoblar bir xil bo'lsa son dalil, farq
+> qilsa — artefakt (`reach.cutoff_decides`, daraja nomi bilan).
+> Narxi — so'rovlar ikki barobar; §12 oflayn va umuman bir marta
+> yuritiladi.
+>
+> 🔴 **«O'lchanmadi» — «o'tdi» emas.** Bugungi bazada `tzreach`
+> `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi va `levels` bo'sh; bo'sh
+> lug'atni «hech bir daraja yuqori emas» deb o'qish loyihaning eng
+> qimmat yolg'on javobi bo'lardi. To'rtta chiqish kodi — `0` toza,
+> `1` hisobot qurilmadi, `2` topilma bor, `3` yarmi o'lchanmadi — va
+> `3 > 2`: «topilma bor» degan kod qolgan hamma narsa o'lchandi degan
+> ma'noni beradi.
+>
+> 🔴 **Mutatsiya ikkita o'lchanmagan qorovulni ochdi.** (1) `findings`
+> dagi `if self.reach.measured` shartini olib tashlagan mutant
+> birorta testni yiqitmadi: `UNKNOWN` da `levels` allaqachon bo'sh,
+> ya'ni himoyani qorovul emas, bo'sh lug'at qilardi — verdikti
+> `UNKNOWN`, sonlari joyida bo'lgan qo'lda yig'ilgan `Reachability`
+> bilan ajratildi. (2) `summary()["levels_that_look_high"]` ni
+> `levels` bilan almashtirgan mutant ham omon qolardi: fikstyurada
+> «bir daraja yuqori, boshqasi yo'q» holati yo'q edi. Ikkala test
+> qo'shilgandan keyin 14 mutant — 14 KILLED.
+>
+> ⚠️ **Partiyadan oldin bazaviy holatni chop eting.** M9-M12 birinchi
+> urinishda bazaviy holat qizil bo'lganda yurgizildi va to'rttala
+> «KILLED» ham soxta chiqdi.
+>
+> **Nima qoldi.** §12 kod tomondan tugadi; javobi endi ma'lumotga
+> bog'liq — `layer='official'` li hodisa bo'lmaguncha `tz_check`
+> `UNKNOWN` qaytaradi va bu E10 gacha o'zgarmaydi. 👤 savol
+> o'zgarmadi: qaysi zonaning verdikti hodisani tasdiqlaydi (ulash
+> 3-bandi). Keyingi bloklanmagan ish —
+> `geo.queries._geometry_facts` ning taxminiy qamrovi (bazada `h3`
+> yo'q, `ST_Area / katakcha maydoni` bilan sanaladi), ya'ni
+> `over_capacity` hozir «taxmin noto'g'ri» degani va uning o'z
+> o'lchovi yo'q.
+
+> ✅ **194-run (2026-08-20) — §12 NING «ДОПОЛНИТЕЛЬНО» YARMI
+> QURILDI: §3 NING POROGLARI REYESTRLARDAN O'LCHANADI.**
+>
+> 193 qoldirgan uchta qadamdan ikkinchisi. Birinchisi (👤 qaysi
+> zonaning verdikti hodisani tasdiqlaydi) hamon javobsiz, ya'ni
+> bloklangan. §12 ning oxirgi jumlasi alohida savol beradi —
+> «сколько районов и кварталов в Самарканде и в скольких из них есть
+> пользователи — от этого зависит §3» — va u **tarixga tayanmaydi**:
+> `tzreach` bugun `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi, bu
+> yarim esa bugungi reyestrlardan hozir o'lchanadi. §12 dan qolgan
+> yagona bloklanmagan ish shu edi.
+>
+> **Qurilgani:** `app/clustering/tzcoverage.py` (toza yadro
+> `RegionFacts` → `measure` → `Coverage`, hamda `to_facts`, `load`,
+> `summary`). `load()` uchta so'rovni birlashtiradi va hech birini
+> qayta yozmaydi: `tzsource.load()`, `geo.queries.current_districts`,
+> `geo.queries.district_geometry_facts`. `need` ham qayta
+> hisoblanmaydi — `tzscale.share_need()` chaqiriladi.
+>
+> 🔴 **Shaharning porogi tumanlarning NATIJASIDAN yig'iladi.**
+> `tzscale.city()` maxrajga foydalanuvchisi bor har bir tumanni
+> qo'shadi, sanoqqa esa faqat tasdiqlanganini — ya'ni ikkita
+> kvartalli tuman shaharning porogini **ko'taradi** va uni hech
+> qachon **to'ldirmaydi** (`district_block_min` uni to'sadi). Uchta
+> uch kvartalli tuman yolg'iz qolganda shaharni tasdiqlaydi (3 dan
+> 3), yoniga to'rtta bir kvartalli tuman qo'shilsa — endi
+> tasdiqlamaydi (7 dan 4 kerak, 3 bor). Bir xil uchta yaxshi tuman,
+> qo'shnilarining soniga qarab ikkita teskari verdikt — xatosiz va
+> jurnalsiz. Tepa chegara shuning uchun `districts_reachable`,
+> `districts_with_users` emas; farqi — `dead_weight`.
+>
+> 🔴 **Ikkita maxraj bor va ular almashtirilmaydi.** §3 niki —
+> foydalanuvchisi bor zonalar (`reports`), qamrovniki — mavjud
+> zonalar (`geo`). Qamrovni `blocks_with_users` dan hisoblash har
+> doim `1.0` berardi (maxraj sanoqning o'zidan); §3 ni
+> `districts_total` dan hisoblash bo'sh tumanlarni maxrajga qo'shib
+> «считаем от 12» ni bekor qilardi. Geo reyestri §3 ning maxrajini
+> **kichraytirmaydi** ham: yopilgan chegara versiyasi (`valid_to`)
+> qamrovdan chiqadi, o'sha tumandagi kvartallar esa §3 da qoladi va
+> `unknown_districts` da nomlanadi (bazadagi test aynan shuni
+> o'lchaydi).
+>
+> 🔴 **Ulush erishuvchanlikni hech qachon to'smaydi.**
+> `share_need(n, share) <= n` har qanday `share <= 1` uchun va
+> `tzconfig._check` `Unit.SHARE` ni `(0, 1]` bilan qulflaydi — savol
+> tuzilmaviy ravishda `n >= minimum` ga qisqaradi. `0.40` va uchta
+> bilan `n <= 5` da ulush umuman ishlamaydi, `n == 6..7` da ikkalasi
+> teng, `n >= 8` da ulush oshadi. §3 esa «Абсолютное число в
+> настройках не задавать» deb yozgan — holbuki kichik shaharda
+> qarorni aynan mutlaq son qabul qiladi. Bu — §12 ning «от этого
+> зависит §3» jumlasining amaliy ma'nosi.
+>
+> ⬜ **Taxminiy qamrov kesilmaydi.** `geo.queries._geometry_facts`
+> bazada `h3` yo'qligi uchun `ST_Area / katakcha maydoni` bilan
+> sanaydi, ya'ni `over_capacity` — «qamrov birdan katta» emas,
+> **taxmin noto'g'ri** degani.
+>
+> **Yakun:** `tests/test_tz_coverage.py` (72, bazasiz) va
+> `tests/test_tz_coverage_db.py` (4, `requires_db`). **Butun to'plam
+> haqiqiy bazada — 5237 passed, 2 skipped** (edi 5158/2),
+> `requires_db` 408 (+4), `ruff` toza, migratsiya/sozlama/i18n/API
+> **yo'q**. 13 mutant: **13 KILLED**; biri
+> (`blocks_by_district` ni tuman boshiga bittadan sanashga
+> aylantirish) birinchi o'tishda omon qoldi — fikstyurada bitta
+> tumanda bir nechta kvartalli holat yo'q edi, ya'ni §3 ning
+> maxrajiga yagona ko'prikdan birorta test o'tmasdi; ajratuvchi
+> fikstyura qo'shilgach o'ldi.
+>
+> **Keyingi qadam:** (1) 👤 savol o'zgarmadi — qaysi zonaning
+> verdikti hodisani tasdiqlaydi; (2) §12 ning **ikkala yarmi ham**
+> endi kod, qolgan ish — `tools/` da ikkalasini bitta hisobotga
+> chiqaradigan skript (`tzreach.measure` + `tzcoverage.summary`), u
+> §12 ni odam yuritadigan qilardi.
+>
+> **Sandbox:** `/tmp/pg180` + `/tmp/mamba/envs/py311` tirik. Ikkita
+> yangi mina: (a) `/tmp` ga **unix-soket** yozib bo'lmaydi
+> (`could not open lock file "/tmp/.s.PGSQL.NNNNN.lock"`) —
+> `unix_socket_directories` ni `pgdata` papkasiga bur; (b) Postgres
+> chaqiruvlar orasida **o'ladi**, ya'ni `start` + `alembic` +
+> `pytest` bitta bash chaqiruvida bo'lishi shart. `initdb`
+> `/sessions/<sid>/tmp/pgdata194` (port `55194`), nusxa
+> `/sessions/<sid>/tmp/r194`, to'liq to'plam baza bilan ~95 s.
+> Disk: `/` da 200 MB, `/sessions` da 270 MB.
+
+---
+
 > ✅ **193-run (2026-08-20) — §12 NING TEKSHIRUVI ENDI
 > O'TKAZILADIGAN BO'LDI: POROGLARNING ERISHUVCHANLIGINI
 > O'LCHAYDIGAN ASBOB.**
@@ -7479,6 +7625,8 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 195 | [TZ12_chaqiruvchi](195_TZ12_chaqiruvchi_b7df5db9.md) | `local_b7df5db9` | §12 ning ikkala yarmi ham chaqiruvchiga ega bo'ldi — `tools/tz_check.py`. 193/194 ning modullariga `app/` da birorta chaqiruv yo'q edi. Asosiy qaror: **kesim sanasi javobni tanlaydi**, shuning uchun o'lchov ikki marta yuritiladi (erta/kech) va farq `reach.cutoff_decides` bilan nomlanadi — rad etilgani: bittasini tanlab izohda yozib qo'yish (yozilgan og'ish baribir og'ish) va `tzreach.load()` ni har hodisa uchun o'z kesimini hisoblaydigan qilib qayta yozish (mahsulot bilan «bir xil so'rov» kafolatiga tegadi — alohida ish). Ikkinchi qaror: **«o'lchanmadi» «o'tdi» emas** — to'rtta chiqish kodi va `3 > 2` ustunligi. Skript hech narsa yozmaydi; `--min-episodes` ning sukut qiymati yo'q; zonasiz sana UTC. `tzreach.summary()` qo'shildi — shakl modulda yashaydi. Mutatsiya ikkita o'lchanmagan qorovulni ochdi (bo'sh `levels` himoya qilardi; `levels_that_look_high` `levels` dan ajratilmagan edi) | ✅ §12 kod tomondan tugadi; 5279 test (+42), `requires_db` 408 (o'zgarmadi), migratsiyasiz, ruff yashil; 14 mutant — 14 KILLED |
+| 194 | [tz_qamrov](194_tz_qamrov_eloquent.md) | `local_eloquent-affectionate-rubin` | §12 ning «Дополнительно» yarmi — §3 ning poroglari bugungi reyestrlardan erishuvchanmi. Uchta qaror: 🔴 shaharning porogi tumanlarning **natijasidan** yig'iladi, ya'ni foydalanuvchisi bor lekin `district_block_min` dan kichik tuman maxrajni ko'taradi va sanoqqa hech qachon kira olmaydi — bir xil uchta yaxshi tuman qo'shnilarining soniga qarab shaharni tasdiqlaydi (3/3) yoki tasdiqlamaydi (3 dan 4 kerak); tepa chegara `districts_reachable`, farqi `dead_weight`. 🔴 Ikkita maxraj almashtirilmaydi: §3 niki `reports` dan, qamrovniki `geo` dan — qamrovni o'ziga bo'lish har doim 100 % berardi, §3 ni geo dan hisoblash «считаем от 12» ni bekor qilardi; yopilgan chegara versiyasi qamrovdan chiqadi, kvartallari §3 da qoladi (`unknown_districts`). 🔴 Ulush erishuvchanlikni to'smaydi (`share_need(n) <= n`, qorovul `(0, 1]`) — `0.40` va uchta bilan `n <= 5` da §3 ning ulushi umuman ishlamaydi va qarorni mutlaq eng kam son qabul qiladi. `need` `tzscale.share_need()` dan, sanaladigan narsa kvartallar (odamlar emas), taxminiy qamrov kesilmaydi (`over_capacity` — taxmin noto'g'ri degani). Yangi toza modul `app/clustering/tzcoverage.py` | ✅ §12 «Дополнительно»; 5237 test (+79), `requires_db` 408 (+4), migratsiyasiz, ruff yashil; 13 mutant → 13 KILLED |
 | 192 | [tz_kam_odamli_zona](192_tz_kam_odamli_zona_6cc59179.md) | `local_6cc59179` | §2.3 ning maxraji manbaga ega bo'ldi (`2.3-source`) — 👤 ulash tartibining **uchinchi** bandi. Teshikning shakli uchinchi marta bir xil: 191-run `tzwitness.load()` ning `active_users` ini sukut qiymatisiz qoldirgan, ammo javobni topadigan yo'l repoda yo'q edi. Narxi jim edi — bo'sh xarita bilan `threshold()` §2.1 ning bazaviy porogini qoldiradi, ya'ni §2.3 **umuman ishlamaydi** va «частный сектор не подтвердят ничего никогда» so'zma-so'z bajarilib turardi. Uchta `GROUP BY` bitta `UNION ALL` da: Python dagi yig'ish bitta odamni kvartal darajasida ikki marta sanab, maxrajni shishirib §2.3 ni o'chirardi. Oyna ataylab yo'q (§7 da bunday son yo'q; oyna maxrajni kichraytirib qoidani ishga tushirar va porogni yozilmagan son bilan tushirardi) va filtr faqat `is_blocked` — maxrajning filtri sanoqnikidan kuchli bo'lsa `active_users < have` bo'lardi. Yangi: `reports.queries.zone_users`, `app/clustering/tzactive.py`. ⬜ Topilma: §2.3 «Нужно человек» ni tushiradi, «Дополнительно» ni emas — `block_min_cells` (3) > `sparse_floor_users` (2), ya'ni kam odamli **kvartal** baribir `SPREAD` da to'xtaydi; kodga tegilmadi. 🟡 `text("resolution")` xom SQL qorovulini qizartirdi → `column(...)` | ✅ 5115 passed, 2 skipped (haqiqiy baza; edi 5080/2); 32 yangi test, `requires_db` 398 (+10); migratsiyasiz, ruff yashil; 13 mutant — 11 KILLED, 2 survivor (`set` tartibi va ekvivalent mutant). ⬜ 3-band uchun **qarz qolmadi**, faqat 👤 savol: qaysi zonaning verdikti hodisani tasdiqlaydi |
 | 191 | [tz_uy_katagi](191_tz_uy_katagi_83098985.md) | `local_83098985` | §1.1(3) ning uy katagi manbaga ega bo'ldi — 👤 ulash tartibining **ikkinchi** bandi (sanash qatlami). `tzcount.count_witnesses()` §1.1 ning uchala shartini biladi, lekin uchinchisi uchun kerakli ma'lumot argumentda (`Evidence.home_r11`) va uni beradigan yo'l repoda yo'q edi: bazadan kelgan qatorlar bilan chaqirilgan birinchi sanoq `home_r11=None` bilan ishlar va §1.1(3) jimgina o'chib ketardi — bitta kvartiradagi uchta akkaunt uchta guvoh bo'lardi. Uy katagi **faol obunadan** olinadi (yagona doimiy va foydalanuvchi o'zi ko'rsatgan nuqta; xabar tarixi `geom_exact` bilan birga o'chadi, bekor qilingan obuna esa ovoz o'chirish quroli bo'lardi); `address_key` ataylab bo'sh (erkin `label` bir xil bo'lsa begona guvoh sanoqdan chiqardi). Yangi: `reports.queries.tz_evidence`, `notifications.subscriptions.declared_points`, `app/clustering/tzwitness.py`. `ST_Y`/`ST_X` ning beshinchi nusxasi qo'shilmadi — `_lat_lon` qayta ishlatildi | ✅ 5080 passed, 2 skipped (haqiqiy baza); 38 yangi test; migratsiyasiz, ruff yashil; 8 mutant — 8 KILLED. ⬜ 3-band 👤 savolga tayanadi: TZ zonani tasdiqlaydi, `outages` esa klaster |
 | 190 | [tz_masshtab_manbasi](190_tz_masshtab_manbasi_9f43bdd4.md) | `local_9f43bdd4` | §3 ning maxraji manbaga ega bo'ldi (`3-source`) — 👤 ulash tartibining birinchi bandi. 187-run `blocks_with_users` dan sukut qiymatini olib tashlagan edi, ya'ni chaqiruvchi majbur, lekin javobni topadigan yo'l yo'q edi. Ikkita yangi qism: `reports.queries.blocks_with_users` (+`blocks_with_users_stmt`, `BlockUsersRow`) va ulash qatlami `app/clustering/tzsource.py` (`resolve`/`load`); `tzscale` toza qoldi, ulash qatlami `SPEC` olmaydi. 🔴 **Oyna ataylab yo'q** — §3 «есть пользователи» deydi (mavjudlik, bugungi faollik emas); `since` qo'shish maxrajni «bugun xabar qilgan kvartallar» ga qisqartirib 187 ning nuqsonini boshqa qavatda qaytarardi. 🔴 **Bloklangan akkaunt maxrajni ko'tarmaydi** — maxrajni oshirish hujum: bo'sh kvartallardagi akkauntlar porogni ikki baravar ko'taradi; `trust_score` esa filtr emas (og'irlik haqida). 🔴 **Chegaradagi r9 katagi** ikkala tumanga qo'shilmaydi (§3 ning birinchi jumlasi va shahar darajasining ikki marta sanashi) — foydalanuvchisi ko'p tomon yutadi, tenglikda ID si kichigi (Т-3); `straddling`/`unassigned` yo'qolmaydi. ⬜ `3-source` yashil bo'ldi, lekin reyestrga `3-wired` (`built=False`) qo'shildi: §3 ni fuqaro oqimi hamon chaqirmaydi | ✅ 👤 tartibning 1-bandi; **5042 passed, 2 skipped** — butun to'plam haqiqiy bazada (PostgreSQL 18.6 + PostGIS 3, `0001…0016`); +25 test (18 bazasiz + 7 `requires_db`), migratsiyasiz, ruff yashil; 12 mutant — 11 KILLED, 1 ekvivalent; 189 qoldirgan 16 ta `requires_db` testi ham yashil |

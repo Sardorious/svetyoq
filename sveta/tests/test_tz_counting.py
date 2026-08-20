@@ -445,6 +445,13 @@ MODULES = (
     # o'tmish faktlaridan iborat va soatga qarash bir xil tarixdan
     # ikki xil ulush berardi.
     Path("app/clustering/tzreach.py"),
+    # §12 «Дополнительно» ning o'lchov asbobi (194-run). Т-1: §3 ning
+    # eng kam soni (`3`) va ulushi (`40 %`) aynan shu asbob
+    # o'lchayotgan narsa — ularni kodda takrorlash o'lchanayotgan
+    # qoidani o'lchov paytida almashtirardi. Т-4: mavjudlik vaqtga
+    # bog'liq emas (`blocks_with_users` oyna olmaydi), ya'ni soatga
+    # qarash bir xil reyestrdan ikki xil maxraj berardi.
+    Path("app/clustering/tzcoverage.py"),
 )
 
 

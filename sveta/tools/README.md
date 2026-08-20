@@ -8,6 +8,8 @@ Bir martalik va operatsion skriptlar (`05` §1). Ilova kodi bu yerdan import qil
 | `recluster.py` | E6 | Retrospektiv qayta hisoblash, oflayn DBSCAN (`05` §4.1) |
 | `region_admin.py` | E19 | Mintaqa reyestri: `add`/`update`/`activate`/`config` |
 | `simulate.py` | — | Sun'iy uzilish generatori va ssenariy qatlami (`05` §9.1–§9.3) |
+| `seed_tz_config.py` | TZ | TZ §7 sozlamalarini `region_config` ga qo'yadi va jurnalga yozadi |
+| `tz_check.py` | TZ | TZ §12 tekshiruvi: poroglar erishuvchanmi (`tzreach` + `tzcoverage`) |
 
 ---
 
@@ -145,3 +147,40 @@ Eslatmalar:
   musbat, ya'ni belgi ishonchli va sun'iy ma'lumot doim ajratib olinadi.
 - Chiqish kodi: `0` — muvaffaqiyat, `1` — ssenariy kutilgan natijani bermadi,
   `2` — yozish bloklandi, `64` — parametr xatosi.
+
+---
+
+## `tz_check.py`
+
+TZ §12 ni hujjat **yagona majburiy** tekshiruv deb ataydi va butun §2 dan
+oldinga qo'yadi. Uning ikkita yarmi bor va ular har xil manbadan javob
+oladi: §2.1 ning odam poroglari **tarixda** (`app/clustering/tzreach.py`),
+§3 ning zona poroglari esa **bugungi reyestrlarda**
+(`app/clustering/tzcoverage.py`). Ikkala modul 193- va 194-runlarda
+qurilgan, lekin chaqiruvchisi yo'q edi — bu skript o'sha chaqiruvchi.
+
+```bash
+python -m tools.tz_check --region samarkand --since 2026-01-01 --min-episodes 10
+python -m tools.tz_check --region samarkand --since 2026-01-01 --min-episodes 10 --json
+```
+
+Eslatmalar:
+
+- **Skript hech narsa yozmaydi.** §12 ishlab chiqishdan oldingi tekshiruv;
+  javobi §7 ning sonlarini o'zgartirishi mumkin, lekin o'zgartirishni odam
+  `seed_tz_config` orqali qiladi va u `config_journal` da ko'rinadi.
+- **`--min-episodes` ning sukut qiymati yo'q** (`tzreach.measure()` bilan
+  bir xil sabab): bitta hodisadan olingan «100 %» son emas, tasodif.
+- **O'lchov ikki marta yuritiladi.** `tzreach.load()` butun tarix uchun
+  bitta `account_created_before` oladi, mahsulot esa uni har hodisada
+  qaytadan hisoblaydi — ya'ni kesim sanasini tanlash javobni tanlash
+  bo'lardi. Skript oynaning ikkala chekkasidan kesim yasaydi; javoblar
+  bir xil bo'lsa son dalil, farq qilsa — artefakt
+  (`reach.cutoff_decides`). Narxi — so'rovlar ikki barobar; §12 oflayn
+  va umuman bir marta yuritiladi.
+- **«O'lchanmadi» «o'tdi» emas.** Bugungi bazada `tzreach`
+  `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi (sanoqdan mustaqil dalili bor
+  hodisa yo'q) — bu holat alohida chiqish kodiga ega.
+- Chiqish kodi: `0` — ikkala yarmi ham o'lchandi va topilma yo'q,
+  `1` — hisobot qurilmadi (mintaqa yo'q, sozlanmagan, argument xatosi),
+  `2` — o'lchandi va topilma bor, `3` — kamida bitta yarmi o'lchanmadi.

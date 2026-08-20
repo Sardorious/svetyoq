@@ -465,3 +465,40 @@ async def load(
             )
         )
     return tuple(episodes)
+
+
+def summary(reach: Reachability) -> Mapping[str, object]:
+    """Hisobot uchun tekis kesim (`tools/tz_check.py` va tekshiruv).
+
+    `tzcoverage.summary()` ning juftligi: §12 ning ikkala yarmi bitta
+    hisobotga **bir xil shaklda** tushsin. Shakl chaqiruvchida emas,
+    modulda yashaydi — chaqiruvchi tanlagan kesim modulning
+    navbatdagi maydonini jimgina tashlab ketardi va hisobot kod
+    o'lchagan narsadan boshqa narsa haqida bo'lardi.
+
+    `levels` bo'sh bo'lishi mumkin va bu **xato emas**: `UNKNOWN` da
+    sonlar o'ylab topilmaydi. Shuning uchun `verdict` ni o'qimasdan
+    `levels` ga qarash mumkin emas — bo'sh lug'at «hech bir daraja
+    yuqori emas» degani emas, «o'lchanmagan» degani.
+    """
+    return {
+        "verdict": reach.verdict.value,
+        "reason": reach.reason.value,
+        "episodes_seen": reach.episodes_seen,
+        "episodes_independent": reach.episodes_independent,
+        "levels_that_look_high": tuple(level.value for level in reach.levels_that_look_high),
+        "levels": {
+            level.value: {
+                "episodes": reach.levels[level].episodes,
+                "reached_in_first_window": reach.levels[level].reached_in_first_window,
+                "reached_ever": reach.levels[level].reached_ever,
+                "missed": reach.levels[level].missed,
+                "window_only": reach.levels[level].window_only,
+                "share": reach.levels[level].share,
+                "looks_high": reach.levels[level].looks_high,
+                "people_histogram": dict(reach.levels[level].people_histogram),
+            }
+            for level in LEVEL_ORDER
+            if level in reach.levels
+        },
+    }

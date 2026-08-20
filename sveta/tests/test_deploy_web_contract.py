@@ -335,7 +335,12 @@ def _deploy_lines() -> list[str]:
 
 
 def _compose_calls() -> list[str]:
-    return [line.strip() for line in _deploy_lines() if "docker compose" in line]
+    """Haqiqiy chaqiruvlar — `echo` ichidagi maslahat matnlari emas."""
+    return [
+        line.strip()
+        for line in _deploy_lines()
+        if "docker compose" in line and not line.strip().startswith("echo")
+    ]
 
 
 def test_deploy_sh_is_valid_bash() -> None:
@@ -413,3 +418,41 @@ def test_the_migration_runs_only_when_the_database_is_behind() -> None:
     for call in _compose_calls():
         if " up -d" in call:
             assert "migrate" not in call, f"migrate yana `up` ga qo'shilgan: {call}"
+
+
+def test_the_migration_container_is_not_cut_off_from_the_project_network() -> None:
+    """🔴 `run --no-deps` bir martalik konteynerni tarmoqqa ULAMAYDI.
+
+    Serverda o'lchandi (193-run): `docker compose run --rm --no-deps -T
+    migrate` alembic ni ko'taradi, lekin u `db` nomini umuman resolve
+    qila olmaydi —
+
+        socket.gaierror: [Errno -2] Name or service not known
+
+    Nosozlikning shakli aldamchi: bu `Connection refused` **emas**,
+    ya'ni baza o'chgandek ko'rinmaydi va odam `DATABASE_URL` ni
+    qidira boshlaydi, holbuki u to'g'ri.
+
+    `up --no-deps` da bunday muammo yo'q — u konteynerni tarmoqqa
+    to'liq ulaydi va faqat bog'liq xizmatlarni ishga tushirishni
+    o'tkazib yuboradi. Shuning uchun ikki chaqiruv ATAYLAB har xil va
+    bu farq shu yerda qulflanadi: «bir xillashtirish» ikki tomonga
+    ham buzadi.
+    """
+    runs = [call for call in _compose_calls() if " run " in f" {call} "]
+    assert runs, "migratsiya `docker compose run` bilan chaqirilmaydi"
+    for call in runs:
+        assert "--no-deps" not in call, (
+            f"`run` da `--no-deps` qaytib kelgan — konteyner tarmoqsiz qoladi: {call}"
+        )
+
+
+def test_a_migration_that_lies_about_success_stops_the_deploy() -> None:
+    """`alembic` nol bilan tugab, baza orqada qolishi mumkin.
+
+    Bu jimgina o'tib ketsa, KEYINGI deploy bazani head da deb o'qir va
+    migratsiyani o'tkazib yuborardi — ya'ni bitta jim nosozlik ikkinchi
+    jim nosozlikni tug'dirardi.
+    """
+    body = _read(DEPLOY_SH)
+    assert 'NEW_HEAD" != "$REPO_HEAD' in body, "yurgizishdan keyin natija tekshirilmaydi"

@@ -187,9 +187,36 @@ fi
 
 if [[ "$NEED_MIGRATE" -eq 1 ]]; then
     echo "-- alembic upgrade head --"
-    docker compose run --rm --no-deps -T migrate
+    # ⚠️ Bu yerda `--no-deps` YO'Q va bo'lmasligi kerak (193-run, serverda
+    # o'lchandi). `docker compose run --no-deps` bilan yaratilgan bir
+    # martalik konteyner loyiha tarmog'iga **ulanmaydi**, ya'ni `db`
+    # nomi umuman resolve bo'lmaydi:
+    #
+    #     socket.gaierror: [Errno -2] Name or service not known
+    #
+    # Nosozlikning shakli aldamchi — u `Connection refused` EMAS, ya'ni
+    # baza o'chgandek ko'rinmaydi, DNS xatosi bo'lib chiqadi va odam
+    # `DATABASE_URL` ni qidira boshlaydi. `--no-deps` siz esa compose
+    # `depends_on` ni tekshiradi (`db` allaqachon `healthy` — hech
+    # narsa qilinmaydi, konteyner QAYTA YARATILMAYDI) va bir martalik
+    # konteynerni tarmoqqa to'g'ri ulaydi.
+    if ! docker compose run --rm -T migrate; then
+        echo
+        echo "❌ Migratsiya yiqildi. Tekshiring:"
+        echo "   docker compose config migrate | grep DATABASE_URL"
+        echo "   docker compose run --rm -T --entrypoint sh migrate -c 'getent hosts db'"
+        echo "   docker compose ps db"
+        exit 1
+    fi
     NEW_HEAD="$(db_heads | paste -sd, - || true)"
     echo "   baza endi: ${NEW_HEAD:-<EMPTY>}"
+    if [[ -n "$REPO_HEAD" && "$NEW_HEAD" != "$REPO_HEAD" ]]; then
+        # `alembic` nol bilan tugab, baza baribir orqada qolishi mumkin
+        # (masalan `env.py` boshqa bazaga ulangan bo'lsa). Bu jimgina
+        # o'tib ketsa, keyingi deploy «o'zgarish yo'q» deb o'qirdi.
+        echo "❌ alembic tugadi, lekin baza hamon ${NEW_HEAD:-<EMPTY>} (kutilgan ${REPO_HEAD})"
+        exit 1
+    fi
 else
     echo "   o'zgarish yo'q — migratsiya O'TKAZIB YUBORILDI."
 fi
@@ -197,9 +224,17 @@ fi
 # --- 7. Ilova konteynerlari: har doim yangidan ---
 # `--force-recreate` — eski konteyner to'xtatiladi, o'chiriladi va
 # o'rniga yangisi yaratiladi (rasm ID si o'zgarmagan bo'lsa ham).
-# `--no-deps` MAJBURIY: usiz compose `depends_on` bo'yicha `migrate` ni
-# qayta yurgizar va yuqoridagi qaror bekor bo'lardi; `db` ni ham
-# tekshiruvga tortardi.
+#
+# `--no-deps` bu yerda MAJBURIY: usiz compose `depends_on` bo'yicha
+# `migrate` ni qayta yurgizar va yuqoridagi «o'zgarish bo'lmasa
+# tegilmasin» qarori jimgina bekor bo'lardi.
+#
+# ⚠️ ASIMMETRIYA ATAYLAB: `run` da `--no-deps` YO'Q, `up` da BOR.
+# Ikkalasini «bir xillashtirish» vasvasasi bor va u ikki tomonga ham
+# buzadi. `run --no-deps` bir martalik konteynerni tarmoqqa
+# ulamaydi (`gaierror`, yuqoridagi izoh), `up --no-deps` esa
+# konteynerni tarmoqqa **to'liq** ulaydi — u faqat bog'liq
+# xizmatlarni ishga tushirishni o'tkazib yuboradi.
 echo "-- ilova konteynerlari qayta yaratilmoqda --"
 docker compose --profile jobs up -d --force-recreate --no-deps api jobs web
 
