@@ -302,3 +302,114 @@ def test_the_http_only_services_do_not_pretend_to_be_healthy() -> None:
     `unhealthy` deb ko'rsatardi va haqiqiy nosozlik shovqinda yo'qolardi."""
     body = _read(COMPOSE)
     assert body.count("healthcheck:\n      disable: true") == 2
+
+
+# --------------------------------------------------------------------------
+# `deploy.sh` ning ikkita teskari kafolati (193-run, 👤 talab)
+# --------------------------------------------------------------------------
+#
+# Talab ikki tomonlama va tomonlari **qarama-qarshi**:
+#
+#   * ilova konteynerlari (`api`, `jobs`, `web`) HAR deployda o'chirilib
+#     yangidan yaratilsin — eski konteyner jimgina ishlab qolmasin;
+#   * `db` va migratsiya esa o'zgarish bo'lmasa TEGILMASIN.
+#
+# Bitta `docker compose up -d` chaqiruvi ikkalasini bajara olmaydi:
+# `--force-recreate` xizmatlarni ajratmaydi. Shuning uchun skript
+# chaqiruvlarni ikkiga bo'ladi va shu bo'linish quyida qulflanadi —
+# u kelajakda bitta qatorga «soddalashtirilsa» talab jimgina buziladi.
+
+
+def _deploy_lines() -> list[str]:
+    """`deploy.sh` ning izohsiz qatorlari.
+
+    Izohlar ataylab tashlanadi: ular aynan shu qarorlarni **tushuntiradi**
+    va matn bo'yicha qidiruv o'z izohiga ilinardi (Т-1/Т-4 qorovullarining
+    saboqi).
+    """
+    return [
+        line
+        for line in _read(DEPLOY_SH).splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def _compose_calls() -> list[str]:
+    return [line.strip() for line in _deploy_lines() if "docker compose" in line]
+
+
+def test_deploy_sh_is_valid_bash() -> None:
+    """Sintaksis qorovuli: skript serverda birinchi marta ishga tushadi.
+
+    193-run da `${VAR:-<yo'q>}` ichidagi APOSTROF butun faylni
+    `unexpected EOF` bilan yiqitgan edi — qo'shtirnoq ichidagi
+    `${...:-...}` ning sukut qismini bash alohida parse qiladi.
+    Xato faylning **oxirgi** qatorida ko'rsatiladi, ya'ni ko'zga
+    tashlanmaydi; `.ps1` dagi uzun tire minasining bash ko'rinishi.
+    """
+    import subprocess
+
+    result = subprocess.run(
+        ["bash", "-n", str(DEPLOY_SH)], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_app_containers_are_always_recreated() -> None:
+    """👤 talab: ishlab turgan konteyner o'chirilib, yangisi yaratilsin.
+
+    `--force-recreate` siz compose konteyner sozlamasi va rasm ID si
+    o'zgarmagan bo'lsa uni **qoldiradi**, ya'ni yangi kod bilan deploy
+    «muvaffaqiyatli» ko'rinib, eski protsess ishlab turaverardi.
+    """
+    recreate = [
+        call
+        for call in _compose_calls()
+        if "--force-recreate" in call and "api" in call and "web" in call
+    ]
+    assert recreate, "api/jobs/web `--force-recreate` bilan ko'tarilmaydi"
+    call = recreate[0]
+    assert "jobs" in call, "`jobs` tushib qolgan — xarita va bildirishnomalar o'ladi"
+    assert "--profile jobs" in call, "`jobs` profilsiz ko'tarilmaydi"
+    # `--no-deps` MAJBURIY: usiz compose `depends_on` bo'yicha `migrate`
+    # ni qayta yurgizar va «o'zgarish bo'lmasa tegilmasin» qarori
+    # jimgina bekor bo'lardi.
+    assert "--no-deps" in call, "`--no-deps` yo'q — migrate qayta yuriladi"
+
+
+def test_the_database_is_not_recreated_by_default() -> None:
+    """👤 talab: o'zgarish bo'lmasa `db` konteyneriga tegilmasin.
+
+    `db` — yagona holat saqlaydigan xizmat (`pgdata`). Sababsiz qayta
+    yaratish downtime va xavf, foyda esa nol. Majburiy qayta yaratish
+    faqat ochiq bayroq ostida qoladi.
+    """
+    calls = _compose_calls()
+    db_up = [call for call in calls if " up -d db" in call]
+    assert db_up, "`db` umuman ko'tarilmaydi"
+    for call in db_up:
+        assert "--force-recreate" not in call, "`db` sukut bo'yicha qayta yaratilyapti"
+    forced = [call for call in calls if "--force-recreate db" in call]
+    assert forced, "`--recreate-db` bayrog'ining yo'li yo'q"
+    assert "RECREATE_DB" in _read(DEPLOY_SH)
+
+
+def test_the_migration_runs_only_when_the_database_is_behind() -> None:
+    """👤 talab: migratsiyada o'zgarish bo'lmasa yurgizilmasin.
+
+    «O'zgarganmi» degan savolga javobni **baza** beradi, git emas:
+    `alembic_version` repodagi head bilan solishtiriladi. Git diff ga
+    tayanish `--no-git` va qo'lda ko'chirilgan kod holatlarida yolg'on
+    javob berardi, oldingi deploy yarmida uzilib qolganini esa umuman
+    ko'rmasdi.
+    """
+    body = _read(DEPLOY_SH)
+    assert "alembic_version" in body, "baza holati o'qilmaydi"
+    assert "NEED_MIGRATE" in body
+    migrate_calls = [call for call in _compose_calls() if "migrate" in call and "run" in call]
+    assert migrate_calls, "migratsiya alohida chaqirilmaydi"
+    # Shartsiz `up -d … migrate …` qaytib kelmasin: aynan shu qator
+    # migratsiyani har deployda yurgizardi.
+    for call in _compose_calls():
+        if " up -d" in call:
+            assert "migrate" not in call, f"migrate yana `up` ga qo'shilgan: {call}"
