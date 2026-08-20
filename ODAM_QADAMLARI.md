@@ -45,7 +45,9 @@ Faqat shu zanjir ishga tushirish sanasini belgilaydi. Qolgan hamma
 narsa undan **tashqarida** va parallel bajariladi.
 
 ```
-E10-a  mahalla aktivi bilan kelishuv        ← ENG QATTIQ CHEKLOV
+E10-b  ko'ngilli sinovchilar (odam o'zi topadi)   ← 👤 2026-08-20:
+  │                                                E10-a BEKOR QILINDI
+  │    shart: guruh geografik jihatdan yaqin bo'lsin (kamida bitta r8)
   └─→ E10  yopiq yig'ish bosqichi
         ├─→ E11  parametrlarni haqiqiy ma'lumotda sozlash
         │     └─→ E12  ommaviy ishga tushirish
@@ -166,7 +168,7 @@ javob bergan sari hujjat qatlami tozalanadi.
 
 | Kod | Ish | Nega |
 |---|---|---|
-| **E10-a** | Mahalla aktivi bilan kelishuv | **Kritik yo'lning boshi** — E11 va E12 shundan keyin |
+| ~~E10-a~~ | ~~Mahalla aktivi bilan kelishuv~~ | 👤 **BEKOR (2026-08-20)** — sinovchilarni odam o'zi topadi; kritik yo'lning boshi endi E10-b |
 | **E0-e** | Huquqiy xulosa (ПДн, H-8) | E12 dan oldin |
 | **E17** | Mahalla poligonlari | 👤 qaror: qisman qamrov bilan boshlash mumkin |
 | **E18** | Rasmiy manba (elektr tarmoqlari) bilan kelishuv | Rasmiy qatlam shundan keyin to'ladi |
@@ -217,5 +219,9 @@ tayanadi), **4** istalgan payt.
 2. `.env` ga `ADMIN_TOKENS` va `DIGEST_CHAT_IDS` (~4 daqiqa, uchta
    narsani ochadi).
 3. Botni Telegramda va xaritani brauzerda bir marta sinang.
-4. **E10-a** (mahalla aktivi bilan kelishuv) — ishga tushirish sanasi
-   faqat shunga bog'liq. Qolgan hamma narsa parallel yuradi.
+4. ~~**E10-a** (mahalla aktivi bilan kelishuv)~~ — **👤 bekor qilindi
+   (2026-08-20).** Ko'ngilli sinovchilarni odam o'zi topadi. Qoladigan
+   yagona shart — ular **geografik jihatdan yaqin** bo'lsin (kamida
+   bitta r8, ≈ 0,7 km²): TZ §2.1 uy uchun 3 kishini 20 daqiqada,
+   kvartal uchun 5 kishini 30 daqiqada talab qiladi va shahar bo'ylab
+   sochilgan guruh hech qachon bitta katakka tushmaydi.

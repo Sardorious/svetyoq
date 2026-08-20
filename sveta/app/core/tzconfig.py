@@ -28,6 +28,14 @@ sonlar Samarqandning **o'z** ma'lumotidan keyin o'lchanadi. Pometa —
 shu holatning mahsulot ichidagi yagona ko'rinadigan izi: u
 `GET /api/v1/admin/config` va vitrinada qiymat yonida turadi.
 
+O'lchovning **asbobi** 193-rundan beri bor:
+`app/clustering/tzreach.py` istalgan tarixdan §12 ning savoliga javob
+beradi («real uzilishlarning qaysi ulushida birinchi oynada porog
+yig'ilgan»). Qaror tarixning **manbasini** almashtirgan edi, savolini
+emas — asbobsiz esa qaror bajarilmas bo'lib qolgan edi: repoda
+javobni biror tarixdan hisoblaydigan yo'l umuman yo'q edi. Pometa
+`ПОСЧИТАНО` ga aynan o'sha o'lchovdan keyin o'zgaradi.
+
 Modul **toza**: bazaga ham, `settings` ga ham bog'liq emas.
 """
 

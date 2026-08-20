@@ -120,6 +120,83 @@ async def list_for_user(session: AsyncSession, user_id: uuid.UUID) -> list[Subsc
     ]
 
 
+@dataclass(frozen=True)
+class DeclaredPoint:
+    """Foydalanuvchi **o'zi ko'rsatgan** doimiy nuqta.
+
+    `SubscriptionView` dan farqi maqsadda: u foydalanuvchiga
+    ko'rsatiladigan ro'yxat (`label`, `radius_m`), bu esa TZ §1.1(3)
+    ning kirishi — akkauntning «uy katagi» qayerdan olinishi. Ikkalasini
+    bitta tuzilmaga yig'ish sanoqni interfeys maydonlariga bog'lab
+    qo'yardi.
+
+    Katak bu yerda hisoblanmaydi: H3 darajasi TZ ning qarori
+    (`tzcount.ADDRESS_RESOLUTION`), obuna jadvalining emas — shuning
+    uchun tuzilma neytral qoladi (`05` §1) va bu modul klasterlashni
+    import qilmaydi.
+    """
+
+    user_id: uuid.UUID
+    lat: float
+    lon: float
+    created_at: datetime
+
+
+def declared_points_stmt(user_ids: Sequence[uuid.UUID]):
+    """`declared_points` ning `SELECT` i — alohida, chunki o'lchanadi.
+
+    `is_active` filtri jimgina tushib qolsa, bekor qilingan obuna
+    akkauntning uy katagi bo'lib qolardi va TZ §1.1(3) begona guvohni
+    sanoqdan chiqarardi — ya'ni obunani o'chirish boshqa odamning
+    ovozini o'chirish quroliga aylanardi.
+    """
+    lat, lon = _lat_lon(Subscription.geom)
+    return (
+        select(Subscription.user_id, lat, lon, Subscription.created_at)
+        .where(
+            Subscription.user_id.in_(user_ids),
+            Subscription.is_active.is_(True),
+        )
+        .order_by(
+            Subscription.user_id.asc(),
+            Subscription.created_at.asc(),
+            Subscription.id.asc(),
+        )
+    )
+
+
+async def declared_points(
+    session: AsyncSession, user_ids: Sequence[uuid.UUID]
+) -> tuple[DeclaredPoint, ...]:
+    """Berilgan akkauntlarning faol obuna nuqtalari (TZ §1.1(3)).
+
+    TZ «домашняя клетка аккаунта» deydi, sxemada esa bunday ustun
+    **yo'q** — 190-run buni `blocks_with_users` izohida qayd etgan.
+    Shu ma'noga eng yaqin turgan yagona narsa obuna: u foydalanuvchining
+    o'zi ko'rsatgan, **doimiy** nuqtasi va xabardan farqli o'laroq odam
+    turgan joyni emas, odam yashaydigan joyni bildiradi.
+
+    **Nima uchun xabar tarixidan emas.** Akkauntning eng ko'p uchraydigan
+    r11 katagini hisoblash ham mumkin edi, lekin `geom_exact` 90 kundan
+    keyin `NULL` ga o'tadi (`05` §3.2) va r11 o'sha bilan birga
+    yo'qoladi — uy katagi sababsiz o'zgarib turardi va §1.1(3) vaqt
+    o'tishi bilan jimgina bo'shab qolardi.
+
+    Tartib `(user_id, created_at, id)` — Т-3: chaqiruvchi bir nechta
+    obunadan bittasini tanlaydi va tanlov bazadagi jismoniy tartibga
+    tayanmasligi kerak.
+    """
+    if not user_ids:
+        return ()
+    rows = (await session.execute(declared_points_stmt(user_ids))).all()
+    return tuple(
+        DeclaredPoint(
+            user_id=r[0], lat=float(r[1]), lon=float(r[2]), created_at=r[3]
+        )
+        for r in rows
+    )
+
+
 async def count_for_user(session: AsyncSession, user_id: uuid.UUID) -> int:
     stmt = (
         select(func.count())

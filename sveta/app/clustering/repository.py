@@ -400,6 +400,60 @@ async def outage_ids_started_in(
 
 
 @dataclass(frozen=True)
+class ReachCandidate:
+    """TZ §12 ning maxraji uchun hodisaning eng kichik kesimi.
+
+    `layer` — hodisaning haqiqiyligi **sanoqdan mustaqil** dalil bilan
+    ma'lummi degan savolning yagona javobi (`app/clustering/tzreach.py`
+    ning izohi). `confirmed_at` ataylab **yo'q**: tasdiqlash sanog'ining
+    natijasi, va uni maxrajga kiritish o'lchovni doiraviy qilardi.
+    """
+
+    outage_id: uuid.UUID
+    started_at: datetime
+    layer: str
+
+
+def reach_candidates_stmt(*, region_id: uuid.UUID, since: datetime, until: datetime):
+    """`reach_candidates` ning `SELECT` i — alohida, chunki o'lchanadi.
+
+    Filtrning shakli bazasiz to'plamda ham qulflanishi kerak: status
+    yoki `confirmed_at` bo'yicha jimgina qo'shilgan shart §12 ning
+    maxrajini tasdiqlangan hodisalarga qisqartirardi va o'lchov
+    har doim «erishuvchan» degan javob berardi.
+    """
+    return (
+        select(Outage.id, Outage.started_at, Outage.layer)
+        .where(
+            Outage.region_id == region_id,
+            Outage.started_at >= since,
+            Outage.started_at < until,
+        )
+        .order_by(Outage.started_at.asc(), Outage.id.asc())
+    )
+
+
+async def reach_candidates(
+    session: AsyncSession,
+    *,
+    region_id: uuid.UUID,
+    since: datetime,
+    until: datetime,
+) -> tuple[ReachCandidate, ...]:
+    """TZ §12 uchun oynadagi **barcha** hodisalar, statusidan qat'i nazar.
+
+    `outage_ids_started_in` bilan bir xil oyna, lekin boshqa javob:
+    §12 ga qatlam kerak va u yerda `layer` maxrajni belgilaydi.
+    Tartib `(started_at, id)` — Т-3.
+    """
+    stmt = reach_candidates_stmt(region_id=region_id, since=since, until=until)
+    return tuple(
+        ReachCandidate(outage_id=row[0], started_at=row[1], layer=row[2])
+        for row in (await session.execute(stmt)).all()
+    )
+
+
+@dataclass(frozen=True)
 class StatsRow:
     """Statistika uchun hodisaning eng kichik kesimi (E14).
 
@@ -642,8 +696,7 @@ async def confirmable_counts(
     (o'sha modulning docstringiga qarang).
     """
     reported = [
-        str(s)
-        for s in (OutageStatus.PENDING, OutageStatus.CONFIRMED, OutageStatus.RESOLVED)
+        str(s) for s in (OutageStatus.PENDING, OutageStatus.CONFIRMED, OutageStatus.RESOLVED)
     ]
     stmt = select(
         func.count(),

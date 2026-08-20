@@ -597,6 +597,10 @@ def _probe_tzconfig(_doc: str | None = None) -> Probe:
     keyin o'lchanadi. Reyestr shu holatni yashirmaydi — u operator
     ko'radigan joyda turadi.
 
+    O'lchovning asbobi 193-rundan beri bor
+    (`app/clustering/tzreach.py`), ya'ni verdiktni salbiydan
+    chiqaradigan yagona yetishmayotgan narsa — tarixning o'zi.
+
     `undeclared` bu yerda har doim `0`: §7 jadvalidan tashqarida
     sozlama bo'lsa, u umuman boshqa hujjatniki (`06` §9).
     """

@@ -5,12 +5,85 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-20 (189-run).
+**Oxirgi yangilanish:** 2026-08-20 (193-run).
 
 ---
 
 ## Xulosa
 
+* ✅ **§12 NING TEKSHIRUVI ENDI O'TKAZILADIGAN BO'LDI —
+  POROGLARNING ERISHUVCHANLIGINI O'LCHAYDIGAN ASBOB.** TZ §12 ni
+  **yagona majburiy** tekshiruv deb ataydi va butun §2 dan oldinga
+  qo'yadi; tekshiruv o'tkazilmagan va 👤 qarori (2026-08-19) Toshkent
+  tarixini rad etib sonlarni Samarqandning o'z ma'lumotidan keyin
+  o'lchashni buyurgan. Qaror **bajarilmas** edi: u tarixning
+  manbasini almashtirgan, savolini emas, lekin repoda javobni biror
+  tarixdan hisoblaydigan yo'l umuman yo'q edi. Yangi modul
+  `app/clustering/tzreach.py` (toza yadro + `load()`) va
+  `repository.reach_candidates`; sanoq qayta yozilmaydi —
+  `tzcount.evaluate_levels()` chaqiriladi, aks holda son mahsulot
+  qo'llaydigan qoidadan **boshqa** qoida haqida bo'lardi.
+* 🔴 **MAXRAJ TASDIQLANGAN HODISALARDAN OLINMAYDI.**
+  `confirmed_at IS NOT NULL` dan olingan maxraj **har doim 100 %**
+  berardi — tasdiqlangan hodisa ta'rifi bo'yicha porogdan o'tgan
+  hodisa, ya'ni savol o'z javobini o'zi tasdiqlar va §12 hech qachon
+  «завышены» demasdi. Maxrajga faqat sanoqdan **mustaqil** dalili
+  borlar kiradi (`layer='official'`); bunday hodisa yo'q bo'lsa javob
+  `UNKNOWN`/`NO_INDEPENDENT_TRUTH` — bugungi bazada aynan shu.
+* 🔴 **§2.3 O'LCHOV PAYTIDA O'CHIQ.** Qutqaruv qoidasi §2.1 ning
+  raqamlari erishilmas bo'lishi **mumkinligi uchun** yozilgan; uni
+  o'lchovda yoqish o'lchanayotgan nosozlikni o'lchov vaqtida yamardi
+  va deyarli har bir hodisa «yetdi» bo'lib chiqardi.
+* 🔴 **IKKITA SON, BITTA EMAS.** `reached_in_first_window` — §12 ning
+  savoli, `reached_ever` — kechroq bo'lsa ham; farqi (`window_only`)
+  o'zgarishi kerak bo'lgan narsa porog emas, **oyna** ekanini
+  ko'rsatadi. Uchinchisi — `people_histogram`: «0 %» ikki xil
+  dunyoni bildiradi (hamma joyda ikkitadan ↔ bittadan).
+* 🟡 **Т-1: XULOSA HAM SONSIZ.** «В большинстве случаев»
+  `0.5` bilan emas, ikkita o'lchangan sonni solishtirish bilan
+  (`missed > reached_in_first_window`); `min_episodes` sukut
+  qiymatisiz. `SPEC` konstantasi **ataylab** olinmadi: `SPEC` li
+  modul reyestrlar indeksida qator bo'lishi shart, bu modulda esa
+  solishtiriladigan qator yo'q — u tarixni o'lchaydi.
+
+* ✅ **ULASH TARTIBINING 3-BANDI UCHUN QARZ QOLMADI — §2.3 NING
+  MAXRAJI ENDI MANBAGA EGA (`2.3-source`).** `tzcount.threshold()`
+  §2.3 ning arifmetikasini biladi, lekin «zonada nechta faol
+  foydalanuvchi bor» degan savolga javob bera olmaydi va 191-run
+  `tzwitness.load()` ning `active_users` argumentini sukut qiymatisiz
+  qoldirgan edi — chaqiruvchi javob berishga majbur, ammo javobni
+  topadigan yo'l repoda yo'q edi. Narxi **jim**: bo'sh xarita bilan
+  `threshold()` `None` ni «noma'lum» deb o'qiydi va §2.1 ning bazaviy
+  porogini qoldiradi, ya'ni §2.3 umuman ishlamaydi va TZ ning «частный
+  сектор и малые махалли не подтвердят ничего никогда» jumlasi
+  so'zma-so'z bajarilib turadi. Ikkita yangi qism:
+  `reports.queries.zone_users` (+`zone_users_stmt`, `ZoneUsersRow`) va
+  ulash qatlami `app/clustering/tzactive.py`; `tzcount` **toza** qoldi.
+* 🔴 **UCHTA `GROUP BY` BITTA `UNION ALL` DA — PYTHON DAGI
+  YIG'ISH EMAS.** Xom qatorlarni o'qib darajalarni Python da yig'ish
+  eng qisqa yo'l edi va u jimgina noto'g'ri: bitta odam bitta
+  kvartalning ikkita uy katagidan xabar bergan bo'lsa, kvartal
+  darajasida ikki marta sanalardi. Maxraj shishar, §2.3 esa **o'chib**
+  qolardi — xato aynan qoidani bekor qiladigan tomonga ketardi.
+* 🔴 **OYNA ATAYLAB YO'Q; SABAB §3 NIKIDAN TESKARI, XULOSA BIR
+  XIL.** §7 da faollikning oynasi umuman yozilmagan (Т-1), va oyna
+  maxrajni faqat kichraytiradi: §3 da kichik maxraj ulushni
+  o'z-o'zidan bajariladigan qiladi, §2.3 da esa qoidani **ishga
+  tushirib** porogni `max(faollar, 2)` gacha tushiradi. Ikkala
+  bo'limda ham tor o'qish tasdiqlashni arzonlashtiradi.
+* 🔴 **MAXRAJNING FILTRI SANOQNIKIDAN KUCHLI BO'LMASLIGI
+  KERAK.** Sanoq uchta to'siqdan o'tadi (`is_blocked`, `trust_score`,
+  akkaunt yoshi), maxraj esa faqat birinchisidan: aks holda guvoh
+  sanalib maxrajga tushmay qolar va §2.3 porogni zonada ko'rilgan
+  odamlar sonidan **pastga** qo'yardi. `active_users >= have` —
+  tuzilmaviy kafolat, tasodif emas.
+* ⬜ **§2.3 «Нужно человек» NI TUSHIRADI, «Дополнительно» NI EMAS.**
+  `block_min_cells` (3) > `sparse_floor_users` (2), ya'ni kam odamli
+  **kvartal** §2.3 dan keyin ham `Shortfall.SPREAD` da to'xtaydi va
+  deyarli hech qachon tasdiqlanmaydi; uy darajasida bunday shart yo'q
+  va §2.3 aynan o'sha yerda ishlaydi. Kodga tegilmadi — §2.3 faqat
+  «порог» haqida gapiradi. 👤 savol ochildi, teshik testda
+  nomlangan.
 * 👤 **QAROR (2026-08-20): TZ NI MAHSULOT QUVURIGA ULASH ENDI
   BIRINCHI NAVBATDAGI ISH.** TZ qonun, lekin butun qatlam mavjud E5
   klasterlashining **yonida** turadi — fuqaro oqimi hamon
@@ -20,6 +93,85 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   o'lchanadigan poroglar TZ niki bo'lmaydi. Tartib va asoslash —
   `PROGRESS.md` ning «Odam qaroriga bog'liq bloklar» bo'limida.
   §10 ning qolgan ikki bandi (ТС-219, ТС-220) kutadi.
+* ✅ **ULASH TARTIBINING 2-BANDI BAJARILDI — §1.1(3) NING UY KATAGI
+  ENDI MANBAGA EGA.** `tzcount.count_witnesses()` §1.1 ning uchala
+  shartini biladi, lekin uchinchisi uchun kerakli ma'lumot
+  **argumentda** (`Evidence.home_r11`) va uni beradigan yo'l repoda
+  yo'q edi. Ya'ni bazadan kelgan qatorlar bilan chaqirilgan birinchi
+  sanoq `home_r11=None` bilan ishlar, `seen_homes` bo'sh qolar va
+  §1.1(3) **jimgina o'chib** ketardi: bitta kvartiradagi uchta akkaunt
+  uchta guvoh bo'lardi — TZ ning yagona anti-sibil sharti bekor.
+  Uchta yangi qism: `reports.queries.tz_evidence`
+  (+`tz_evidence_stmt`, `TzEvidenceRow`),
+  `notifications.subscriptions.declared_points`
+  (+`declared_points_stmt`, `DeclaredPoint`) va ulash qatlami
+  `app/clustering/tzwitness.py` (`resolve_homes`/`to_evidence` toza,
+  `load` bazadan). `tzcount` **toza** qoldi.
+* 🔴 **UY KATAGI OBUNADAN, XABAR TARIXIDAN EMAS.** Sxemada «домашняя
+  клетка» ustuni yo'q; obuna esa yagona **doimiy va foydalanuvchi o'zi
+  ko'rsatgan** nuqta. Xabarning nuqtasi odam **turgan** joyni
+  bildiradi va `geom_exact` 90 kundan keyin `NULL` ga o'tadi, ya'ni
+  tarixdan hisoblangan uy katagi vaqt bilan sababsiz o'zgarib,
+  §1.1(3) jimgina bo'shab qolardi. Faqat **faol** obuna sanaladi:
+  bekor qilingani uy katagi bo'lib qolsa, obunani o'chirish boshqa
+  odamning ovozini o'chirish quroliga aylanardi.
+* 🔴 **`address_key` ATAYLAB BERILMAYDI.** §1.1(2) ning ikkinchi yarmi
+  «указанный пользователем адрес», obunaning `label` i esa erkin
+  matn: ikki odam «Uy» deb yozsa, `count_witnesses()` ikkinchisini
+  **tashlaydi** va begona odam bir so'z bilan haqiqiy guvohni
+  sanoqdan chiqarardi. §1.1(2) shuning uchun r11 katagi bo'yicha
+  o'lchanadi — TZ ning o'zi taklif qilgan birinchi variant.
+* ⬜ **TESHIK NOMLANDI, YOPILMADI.** Bir nechta faol obunasi bor
+  akkaunt uchun **eng eskisi** olinadi (tenglikda katak
+  identifikatori kichigi — Т-3), ya'ni uchta obuna ochgan akkaunt o'z
+  uy katagini tanlashi mumkin. Fakt `HomeRegistry.ambiguous` da
+  qaytadi; 👤 savol ochildi.
+* ⬜ **ULASHNING 3-BANDI JAVOBSIZ SAVOLGA TAYANADI.** TZ **zonani**
+  tasdiqlaydi (r10/r9/r8), `outages` esa klaster — qaysi zonaning
+  verdikti hodisani tasdiqlaydi degan javob §2.1 da yo'q.
+  `service.evaluate()` shuning uchun hamon `06` ni chaqiradi.
+  Ikkinchi qarz — §2.3 ning maxraji: `tzwitness.load()` ning
+  `active_users` argumenti **sukut qiymatsiz**, uni beradigan
+  agregat so'rov hali yo'q.
+* ✅ **ULASH TARTIBINING 1-BANDI BAJARILDI — §3 NING MAXRAJI ENDI
+  MANBAGA EGA (`3-source`).** 187-run `from_zone_verdicts()` ning
+  `blocks_with_users` argumentidan sukut qiymatini olib tashlagan
+  edi: chaqiruvchi javob berishga **majbur**, lekin javobni
+  **topadigan yo'l** repoda umuman yo'q edi. Ikkita yangi qism:
+  `reports.queries.blocks_with_users` (+`blocks_with_users_stmt`,
+  `BlockUsersRow`) va ulash qatlami `app/clustering/tzsource.py`
+  (`resolve` toza, `load` bazadan). `tzscale` **toza** qoldi.
+* 🔴 **MAXRAJDA OYNA ATAYLAB YO'Q.** Qo'shni agregat so'rovlarning
+  hammasi `since` oladi, ya'ni uni bu yerga ham qo'shish eng tabiiy
+  harakat edi. §3 esa «есть пользователи» deydi — mavjudlik,
+  bugungi faollik emas; oyna bilan maxraj «bugun xabar qilgan
+  kvartallar» ga qisqarardi va 187 ning nuqsoni boshqa qavatda
+  qaytarardi. Mavjudlikning yagona izi — xabarning o'zi
+  (`home_r11` saqlanmaydi; `geom_exact` 90 kundan keyin `NULL`,
+  `h3_r9` esa qoladi).
+* 🔴 **MAXRAJNI OSHIRISH — HUJUM.** Bo'sh kvartallarda ochilgan
+  akkauntlar tumanning porogini ikki baravar ko'taradi (50
+  kvartalning 40 % i 12 tanikidan ko'p) va tasdiqlashni abadiy
+  uzoqlashtiradi. Bugungi yagona to'siq — `is_blocked`;
+  `trust_score` filtr **emas** (og'irlik haqida, mavjudlik haqida
+  emas). 👤 savol ochildi.
+* 🔴 **CHEGARADAGI r9 KATAGI IKKALA TUMANGA QO'SHILMAYDI.**
+  `district_of` — `Mapping[str, str]`, baza esa bunga kafolat
+  bermaydi (~349 m katak tuman chegarasini kesadi). Ikkala tomonga
+  qo'shish §3 ning birinchi jumlasini buzardi («сто сообщений с
+  одной улицы…») va shahar darajasiga ikki marta ta'sir qilardi.
+  Qoida: foydalanuvchisi ko'p tomon yutadi, tenglikda
+  identifikatori kichigi (Т-3 — tenglik nazariy emas).
+  `straddling` va `unassigned` yo'qolmaydi.
+* ⬜ **`3-source` YASHIL BO'LDI, LEKIN REYESTR YOLG'ON GAPIRMAYDI.**
+  Yangi qator `3-wired` (`built=False`): §3 ni fuqaro oqimi hamon
+  chaqirmaydi, `outages.scale` ni `06` §5.3 narvoni to'ldiradi —
+  `_probe_tzscale` ning verdikti shu sababdan salbiy qoladi.
+  To'plam **5042 passed, 2 skipped** — butun to'plam **haqiqiy
+  bazada** (PostgreSQL 18.6 + PostGIS 3, `0001…0016`), +25 test,
+  `ruff` toza, migratsiya/sozlama/i18n/API yo'q. 12 mutant —
+  11 KILLED, 1 ekvivalent. 189 qoldirgan 16 ta `requires_db`
+  testi ham yurgizildi va yashil.
 * 🔴 **Т-10 NING TESHIGI TRANZAKSIYANING QOLGAN QISMIGA OCHIQ
   QOLARDI (ТС-218).** `SET LOCAL sveta.recluster` tranzaksiya bilan
   o'ladi, ya'ni `delete_outages` **qaytgandan keyin** ham qorovul
@@ -2364,7 +2516,7 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E18 | Rasmiy manba parsing | ⬜ | — | 👤 **H-4** |
 | E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | ✅ 2026-08-12: **birinchi** mintaqa (samarkand) prodda import qilindi va faollashtirildi — 6 tuman. Qoldi: **ikkinchi** mintaqani haqiqiy import (`01` §7 uni Future Release da deydi — 👤 savol) |
 | E20 | PWA + Web Push | ⬜ | — | E12 |
-| TZ | Tasdiqlash va bildirishnomalar (`TZ_Podtverzhdenie_i_uvedomleniya.md`) | 🔄 | `app/core/tzconfig.py`, `app/clustering/{tzcount,tzstatus,tzdispute,tzrestore}.py`, `app/notifications/{tzrestored,tzoutage}.py`, `app/reports/{tzsensor,tzintake}.py`, `app/notifications/tzreceipts.py`, `app/admin/{tzoperator,tzpanel}.py`, `app/api/v1/tz.py`, `tools/seed_tz_config.py`, `0012`, `0013`, `0014`, `0015` | §11 navbatining **yettala bandi** ham qurildi (sozlamalar/jurnal/zonalar; sanash/poroglar/statuslar/karta; qarshi dalillar/«Спорно»/tasdiqni qaytarib olish; tiklanish, opros va «Данные устарели»; «Свет вернулся» bildirishnomasi; uzilish, rejali ishlar va §6.4 ning tuzatishi; datchiklar va rasmiy manbalarning qabuli). §5 jadvalining sakkizala statusi endi hisoblanadi — sakkizinchisini («Проверено оператором») §11/7 yopdi. Kirish kanali **qurildi**: `tz_sources` reyestri, `tz_signals` jurnali (Т-2 ning ikkinchi yarmi) va `POST /api/v1/tz/readings` — `tzsensor.INBOUND` da uchchalasi ham endi `wired=True`. Т-9 ning jurnali ham qurildi (180-run): `tz_receipts` (`0014`) va `app/notifications/tzreceipts.py` — §6.4 ning tuzatishi endi jurnaldan quriladi va ikkinchi marta yuborilmaydi, `Ledger` ham o'sha jadvaldan tiklanadi; o'sha yerda `Receipt.key` ning tursiz kaliti tuzatildi (u Т-7 ni uzilish xabari uchun ishlatmasdan qoldirardi). §8 ning paneli ham qurildi (181-run): `tz_operator_actions` (`0015`), `app/admin/tzoperator.py` (toza) va `app/admin/tzpanel.py` (ulash) — operator bahsli holatni tasdiqlaydi yoki rad etadi va uzilishni yopadi, har amal imzo bilan jurnalga tushadi (rad etilgani ham), §8 ning taqiqi esa `Basis` maydoni va bazadagi `confirm_needs_external` cheklovi bilan ikki marta qulflangan; rad etish narvonni «Вероятно» da to'xtatadi va §6.4 ning tuzatishini majbur qiladi. Qoldi: faktning va qarorning `reports`/statusga yetib borishi — `official_fields`, `verified_fields` va `Resolution` mahsulot kodida chaqirilmaydi (DP-4 shu chegarada o'lchanadi). Hisob, xabar va qaror bor, ularni mavjud E5 klasterlashiga ulaydigan qatlam alohida. 👤 poroglar `ПРИДУМАНО` bo'lib qoladi — TZ §12 ning oldindan tekshiruvi bekor qilindi, sonlar Samarqandning o'z ma'lumotidan keyin o'lchanadi |
+| TZ | Tasdiqlash va bildirishnomalar (`TZ_Podtverzhdenie_i_uvedomleniya.md`) | 🔄 | `app/core/tzconfig.py`, `app/clustering/{tzcount,tzstatus,tzdispute,tzrestore,tzactive,tzreach}.py`, `app/notifications/{tzrestored,tzoutage}.py`, `app/reports/{tzsensor,tzintake}.py`, `app/notifications/tzreceipts.py`, `app/admin/{tzoperator,tzpanel}.py`, `app/clustering/tzsource.py`, `app/api/v1/tz.py`, `tools/seed_tz_config.py`, `0012`, `0013`, `0014`, `0015`, `0016` | §11 navbatining **yettala bandi** ham qurildi (sozlamalar/jurnal/zonalar; sanash/poroglar/statuslar/karta; qarshi dalillar/«Спорно»/tasdiqni qaytarib olish; tiklanish, opros va «Данные устарели»; «Свет вернулся» bildirishnomasi; uzilish, rejali ishlar va §6.4 ning tuzatishi; datchiklar va rasmiy manbalarning qabuli). §5 jadvalining sakkizala statusi endi hisoblanadi — sakkizinchisini («Проверено оператором») §11/7 yopdi. Kirish kanali **qurildi**: `tz_sources` reyestri, `tz_signals` jurnali (Т-2 ning ikkinchi yarmi) va `POST /api/v1/tz/readings` — `tzsensor.INBOUND` da uchchalasi ham endi `wired=True`. Т-9 ning jurnali ham qurildi (180-run): `tz_receipts` (`0014`) va `app/notifications/tzreceipts.py` — §6.4 ning tuzatishi endi jurnaldan quriladi va ikkinchi marta yuborilmaydi, `Ledger` ham o'sha jadvaldan tiklanadi; o'sha yerda `Receipt.key` ning tursiz kaliti tuzatildi (u Т-7 ni uzilish xabari uchun ishlatmasdan qoldirardi). §8 ning paneli ham qurildi (181-run): `tz_operator_actions` (`0015`), `app/admin/tzoperator.py` (toza) va `app/admin/tzpanel.py` (ulash) — operator bahsli holatni tasdiqlaydi yoki rad etadi va uzilishni yopadi, har amal imzo bilan jurnalga tushadi (rad etilgani ham), §8 ning taqiqi esa `Basis` maydoni va bazadagi `confirm_needs_external` cheklovi bilan ikki marta qulflangan; rad etish narvonni «Вероятно» da to'xtatadi va §6.4 ning tuzatishini majbur qiladi. Qoldi: faktning va qarorning `reports`/statusga yetib borishi — `official_fields`, `verified_fields` va `Resolution` mahsulot kodida chaqirilmaydi (DP-4 shu chegarada o'lchanadi). Hisob, xabar va qaror bor, ularni mavjud E5 klasterlashiga ulaydigan qatlam alohida. 👤 poroglar `ПРИДУМАНО` bo'lib qoladi — TZ §12 ning oldindan tekshiruvi bekor qilindi, sonlar Samarqandning o'z ma'lumotidan keyin o'lchanadi; **o'lchovning asbobi 193-rundan beri bor** (`app/clustering/tzreach.py` + `repository.reach_candidates`), ya'ni yetishmayotgan yagona narsa — sanoqdan mustaqil dalili bor tarixning o'zi |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
 
@@ -2433,6 +2585,10 @@ serverdan keyin ham `postmaster.pid` qoladi va `status || start`
 | E19 | `test_region_registry`, `test_regions_api_db` |
 | TZ | `test_tz_operator` — **74 test** (181-run): §8 ning to'rtta vakolati, imzo shakl xatosi sifatida, taqiqning ikkala tomoni (tasdiqlash rad etiladi, rad etish o'tadi), Т-7 ning kaliti, Т-5 ning ko'prigi, `decide()` bilan integratsiya (rad etish «Вероятно» da to'xtaydi va §6.4 ni majbur qiladi), qarorning qamrovi, ruxsatlar va `ast` qorovullari; `test_tz_operator_db` — **18 test** (`requires_db`): Т-2 ning uchta qatlami, bazadagi `confirm_needs_external`, imzosiz qator, Т-7 mintaqa bilan, qarorning qayta ishga tushirishdan keyin tiklanishi |
 | TZ | `test_tzconfig` — **25 test** (172-run): §7 ning yo'q kaliti xato, birlik tekshiruvlari (40 ↔ 0.40), to'lqinlar ro'yxati, darajalarning ajralishi. `test_tz_counting` — **43 test** (173-run): §1.1 ning uch sharti (uy katagi ustma-ust tushganda **bittasi** qoladi), oynaning yopiq qirrasi, §2.1 ning darajalar jadvali, §2.3 ning pastki cheki, ТС-201/202/203/204/207 nomma-nom, Т-1/ТС-220 va Т-4 `ast` bilan, Т-3 yigirma tasodifiy tartib bilan. `test_tz_status` — **23 test** (173-run): §5 ning sakkizta statusi literal ro'yxat bilan, uchta yetkazish sinfining `TzStatus` ni bo'lishi, hisoblagichning argumentlari, §2.3 ning shifti, i18n o'rinbosarlarining ikkala tilda bir xilligi, Т-5 ning `app/` bo'ylab qorovuli. `test_tz_dispute` — **38 test** (174-run): §2.2 ning vetosi va uning yopishqoqligi, ТС-205 nomma-nom, ТС-206 ning status yarmi sakkizta oldingi status bo'yicha parametrlangan jadval bilan (§6.4 tuzatishi faqat bildirishnoma ketishi mumkin bo'lgan statusdan keyin majburiy), ТС-202 va ТС-203 ning simmetrik ko'rinishlari, xabar qilganning «svet bor» i qarshi dalil emasligi, §2.3 ning veto porogiga **tegmasligi**, Т-3 va i18n renderi `test_tz_restore` — **69 test** (175-run): §4.1 ning to'lqinlari va namunaning takrorlanishi (yigirma tasodifiy tartib — o'sha chorak; har to'lqin o'z choragi; hodisa identifikatori ham xeshda), ТС-209/210/211/212/213 nomma-nom, В-5 ning monotonligi va pastki cheki, В-6 ning `0/0` qirrasi, В-7 ning manbasiz rad etilishi, В-8 ning persentili va bo'sh tarixda **ishlamasligi**, §4.2 ning ikkita soni tashqariga yaxlitlanishi va statistikadagi ulushi, statuslar ustuvorligi (veto > tiklandi > jimlik > qisman), Т-1/Т-4 `ast` bilan va Т-5 ning yo'nalishi (`tzrestore` `tzstatus` ni import qilmaydi)  `test_tz_restored_notice` — **57 test** (176-run): ТС-214 (geolokatsiya obuna emas), ТС-215 (tunda ushlanadi, ertalab yagona svodka), ТС-216 (oltinchi xabar ushlanadi), ТС-217 (xabar qilganga tiklanish xabari **boradi**), tinch soat oynasining sutkadan oshishi va mahalliy zonada o'qilishi, soatlik limitning tiklanishga tegmasligi (`sent_hour` bor va o'qilmaydi), kvartallar bo'yicha fan-out, Т-7 ning kaliti va Т-9 ning ro'yxati, i18n o'rinbosarlari ikkala tilda, Т-1/Т-4 `ast` bilan va `05` §1 chegarasi (`app.clustering` importi yo'q). `test_tz_outage_notice` — **56 test** (177-run): ТС-217 ning ikkinchi yarmi (xabar qilganga uzilish xabari **bormaydi**), ТС-215/216 uzilish uchun, ТС-206 nomma-nom (tuzatish o'sha odamlarga), tekshiruvlar tartibi (obunasizga sabab «obuna yo'q»), soatlik limit sutkalikdan **oldin** (`send_at` erta bo'shaydi), rejali ishlarning 12 soatlik oynasi ikki tomondan, boshlangan ishning e'lon qilinmasligi, tuzatishning jurnal**dan** qurilishi va joriy obunalarni o'qimasligi, noto'g'ri «svet qaytdi» ning tuzatilmasligi, Т-7 kalitining turi bilan (aks holda tuzatish «allaqachon yuborilgan» deb tashlanardi), `Kind` ↔ `NOTICES` mosligi, Т-1/Т-4/Т-5 `ast` bilan. `test_tz_sensor` — **58 test** (178-run): manbasiz `Reading` konstruktorda yiqiladi, ro'yxatdan o'tmagan va ishonchi olingan manba, §8 ning `actor` talabi (avtomatik kanalda esa yo'q), datchikning katagi reyestrdan va `CELL_MISMATCH`, kelajak/eski xabar chegaralari, Т-7 ning kaliti to'rt qismining har biri bo'yicha, paket **ichidagi** dublikat, heartbeat va kech kelgan eski xabar (`REPEAT`), «raqqosa» ning to'silishi va operatorga chiqishi, rejali ishlar e'lonining takror deb tashlanmasligi, paketning hodisa tartibida o'qilishi, В-7 ko'prigi haqiqiy `OfficialSource` yasashi va `close_block` ni yopishi (nazorat: manbasiz o'sha kvartal **ochiq** qoladi), §8 ko'prigi va sakkizinchi status — narvondan yuqoriligi, §2.3 tavqidan o'tmasligi, «Спорно» dan **past**ligi, kartada imzo bo'lib chiqishi, `DECIDED_TODAY == set(TzStatus)`, ikkita yangi sozlamaning majburiyligi, reyestrning `built` ↔ `wired` ajrimi, Т-1/Т-4 `ast` bilan va `05` §1 chegarasi (`app.clustering`/`app.notifications` importi yo'q, `TzStatus` nomi `ast` da yo'q — matn qidiruvi o'z izohiga ilinardi) `test_tz_intake` — **31 test** (179-run): jurnal qatori faktning har bir maydonini ko'chiradimi, har bir `Reject` sababi yoziladimi, `Reject.NONE` hech qachon rad etishning sababi bo'lmasligi (baza cheklovi shunga tayanadi), javob sanoqlari o'z ro'yxatlari bilan mos kelishi, ruxsatning ikkiga bo'linishi, Т-1/Т-4 va `05` §1 qorovullari `ast` bilan. `test_tz_intake_db` — **19 test** (179-run, `requires_db`): Т-2 ning uchala taqiqi, Т-7 ning mintaqa ichidagi yagonaligi va **boshqa mintaqada takrorlanishi** (aynan shu ikkitasi haqiqiy bazada nosozlikni ochdi), reyestr cheklovlari (katagi yo'q datchik, bo'sh satrli katak, katagi bor operator, noma'lum kanal), sikl xotirasining jurnaldan tiklanishi. `test_tz_receipts` — **16 test** (180-run): `Kind` ↔ `CHECK` ↔ `TZ_RECEIPT_KINDS` bitta to'plam, kalitning turi (`RESTORED` istisnosi bilan), tuzatishning jurnalga tushishi va nomni birinchi xabardan ko'chirishi, jurnalda hodisaga tashqi kalit yo'qligi, Т-1/Т-4 va `05` §1 qorovullari `ast` bilan. `test_tz_receipts_db` — **18 test** (180-run, `requires_db`): Т-2 ning uchala taqiqi va noma'lum tur, Т-7 ning mintaqa ichidagi yagonaligi va boshqa mintaqada takrorlanishi, turlarning bir-birini to'smasligi, §6.4 ning aynan o'sha odamlarga borishi va **ikki marta yuborilmasligi**, `Ledger` ning mahalliy sutkasi, soatlik oynasining faqat uzilishni sanashi va mintaqa chegarasi. Yo'l fayllari (§10 ning `walk` maydoni): `test_tz_walk` (ТС-201/205/206/**207**), `test_tz_walk_restore` (ТС-209…213), `test_tz_walk_notice` (ТС-214…217) `test_tz_walk_scale` (ТС-208) va `test_tz_walk_count` — **18 test** (188-run): ТС-202/ТС-203/ТС-204 bitta testda `COUNT` → `DISPUTE` → `RESTORE` → `STATUS` bo'ylab, §1.1 ning uchala sharti uchala modulda ham bir xil ishlashi (`Drop` sabablari bir xil), ТС-203 ning teskari qirrasi (bitta r11 katagidagi uchta **ko'rsatilgan manzil** tasdiqlaydi), oynaning darajaga bog'liqligi (uy 20 ↔ kvartal 30 ↔ tiklanish kvartal oynasi), `ZoneVerdict.users` ning `Witnesses.users` ga tengligi, `reporters` bilan va usiz **teskari** verdikt (`Подтверждено` ↔ `Спорно`), В-4 dan keyin `SAME_HOME` bilan bosilgan akkauntning ko'tarilishi va `reporters` ning sukut qiymatisizligi (`inspect.signature` tripwire). `test_tz_walk_scale` — **10 test** (187-run): ТС-208 dalildan tuman verdiktigacha, §3 ning maxraji chaqiruvchidan yo'qolganda o'sha dalildan **teskari** verdikt chiqishi, «50 kvartal» ning hisobga umuman kirmasligi, kam odamli kvartalning maxrajda qolib sanoqqa kirmasligi va `blocks_with_users` ning sukut qiymatisizligi (`inspect.signature` tripwire). |
+| TZ | `test_tz_reach` — **31 test** (193-run, bazasiz) va `test_tz_reach_db` — **6 test** (`requires_db`): §12 ning o'lchov asbobi. Bazasiz yarmi uchta qarorni qulflaydi — maxraj tasdiqlangan hodisalardan olinmaydi, §2.3 o'lchov paytida o'chiq (`ast` bilan: chaqiruvda `active_users` kalit so'zi yo'q), zonalar qo'shilmaydi (eng yaxshisi yutadi) — va so'rovning shaklini (`confirmed_at`/`status` matnda yo'q). Bazali yarmi: `pending` ham, `confirmed` ham tarixda qoladi, `crowd` ko'rinadi lekin sanalmaydi, va o'lchov sanoqdan boshqa to'plamni sanamaydi (endigina ochilgan akkaunt ikkalasida ham tushib qoladi). Т-1/Т-4 bu yerda takrorlanmaydi — modul `test_tz_counting.MODULES` reyestriga qo'shildi |
+| TZ | `test_tz_active` — **22 test** (192-run, bazasiz) va `test_tz_active_db` — **10 test** (`requires_db`): §2.3 ning **maxraji** (`2.3-source`). Bazasiz yarmi so'rovning shaklini qulflaydi (uchta `GROUP BY`, `count(distinct)`, `IS NOT NULL`, oynasizlik, faqat `is_blocked`) va `None` ↔ `0` farqini, bazali yarmi so'rovning o'zini: bitta odam bitta kvartalning ikkita uy katagidan xabar bersa kvartal darajasida **bitta** sanaladi, bir yillik xabar maxrajda qoladi, past ishonchli akkaunt dalil bermaydi lekin maxrajda **bor** (`active_users >= have`). Ikkita test ochiq nomlangan topilmani ushlab turadi: §2.3 «Дополнительно» ustunini tushirmaydi, va maxrajsiz kam odamli zona hech qachon yetmaydi |
+| TZ | `test_tz_witness` — **29 test** (191-run, bazasiz) va `test_tz_witness_db` — **9 test** (`requires_db`): §1.1(3) ning **uy katagi** va sanash qatlamining choki. Bazasiz yarmi ulash qatlamining qarorlarini o'lchaydi (eng eski obuna yutadi, tenglikda katak ID si kichigi; bir katakdagi ikkita obuna ikkilanish emas; obunasiz akkaunt hech kim bilan to'qnashmaydi; Т-3 — teskari tartib bir xil natija) va ikkala so'rovning **shaklini** qulflaydi (`tz_evidence_stmt`: uchala kirish to'sig'i, to'rt daraja, `since` **yo'qligi**, bog'langan parametrlar; `declared_points_stmt`: `is_active` va `ORDER BY`). Markaziy test — `test_three_accounts_from_one_flat_are_one_witness`: turli r11 katagidan yozgan uchta akkaunt bitta uyda yashasa bitta guvoh; yonida `test_accounts_without_subscriptions_still_count` (obuna sanoqqa kirish sharti **emas**) va `test_the_declared_address_key_is_left_empty`. Bazali yarmi bazasiz to'plamda qizarmaydigan da'volarni o'lchaydi: bekor qilingan obuna uy katagi bo'lmaydi, uchala kirish to'sig'i (bloklangan / past ishonch / yangi akkaunt) haqiqiy `WHERE` da ishlaydi, qo'shni hodisaning va boshqa `kind` ning dalillari qo'shilmaydi; fikstyura **ikkita hodisa** quradi (bittasi `outage_id` filtrini o'lchay olmasdi). 8 mutant — 8 KILLED |
+| TZ | `test_tz_source` — **18 test** (190-run, bazasiz) va `test_tz_source_db` — **7 test** (`requires_db`): §3 ning **maxraji** (`3-source`). Bazasiz yarmi ulash qatlamining qarorlarini o'lchaydi (chegaradagi katak — ko'p odamli tomon yutadi, tenglikda ID si kichigi; tumansiz katak `unassigned` da qoladi; Т-3 — yigirma tasodifiy tartib bir xil natija) va so'rovning **shaklini** qulflaydi (`blocks_with_users_stmt`: `JOIN users`, `is_blocked IS false`, `GROUP BY` ikkala ustun bo'yicha, `count(distinct)`, mintaqa — bog'langan parametr; `inspect.signature` bilan `since` **yo'qligi**). Markaziy test — `test_the_registry_denominator_reverses_the_district_verdict`: bir xil to'rtta tasdiqlangan kvartal reyestr bilan tumanni tasdiqlamaydi (`need = 5`), reyestrsiz tasdiqlaydi (`need = 3`); yonida `test_without_the_query_the_caller_cannot_even_map_a_block_to_a_district` — `district_of` ham shu so'rovdan keladi. Bazali yarmi bazasiz to'plamda hech qachon qizarmaydigan uchta da'voni o'lchaydi: bir yil oldingi xabar kvartalni maxrajda qoldiradi, bloklangan akkaunt maxrajni ham sanoqni ham ko'tarmaydi, qo'shni mintaqa tushmaydi; fikstyura **ikkita tuman va ikkita mintaqa** quradi va tuman ID lari `sorted()` bilan qaytariladi (tasodifiy `uuid4` tenglik qoidasini gohida o'tkazib yuborardi). 12 mutant — 11 KILLED, 1 ekvivalent (`join` → `outerjoin`: `user_id` `NOT NULL` + tashqi kalit, va `NULL IS false` → `false`) |
 | TZ | `test_outage_delete_reach` — **8 test** (189-run): Т-10 teshigining **kengligi** (band emas, yo'l). Eshikning chaqiruvchisi `ast` bilan sanaladi (`tools/recluster.py` — yagona; `delete_outages` ni import qilgan modul bayroqning nomiga tegmasdan o'tib ketardi), bayroqni qo'yish ham **chaqiruv** bo'yicha (`set_config`) — `ast.Constant` qidiruvidan f-satr bilan yasalgan nom bemalol o'tardi, bayroqning `DELETE` dan keyin **yopilishi** (`SET LOCAL` aks holda tranzaksiyaning qolgan qismida ochiq qolardi — 189-run tuzatgan mahsulot defekti), va qorovulning mezoni bilan status mashinasi orasidagi chok (`MODERATOR_TARGETS` da `CONFIRMED` yo'q). Ikkitasi `requires_db` va bu sandboxda yurmadi |
 | TEST/OBS/ANL/JOBS | `test_obs_metrics` — **16 test**: mutatsiya 11/11 + **1 o'lchanmagan** (128-run — uch qulf: `_escape_help` (bugungi izohlarda slesh ham, qator uzilishi ham yo'q — qorovul faqat kelajakdagi izoh uchun), `-Inf` (bitta namuna butun **scrape** ni rad ettirardi) va `render` ning oila **ichidagi** tartibi; bitta ekvivalent — `if not rows` → `if rows is None`, `setdefault(…, []).append(…)` bo'sh ro'yxat qoldirmaydi; **o'lchanmagani** — `FAMILY_BY_NAME` kaliti: mutant `app/obs/monitoring.py` ning import-vaqt qorovuliga urilib `conftest` ni yiqitadi va `pytest` `rc=4` beradi, ya'ni verdikt yo'q; shartnoma `test_registry_is_keyed_by_the_bare_name` da). `test_jobs_registry` — **28 test**: `05` §8 jadvali hujjatdan, `JOB`/`register()` juftlari, skript rejimi (56-run) va **130-rundan** planlovchining o'z tsikli; `app/jobs/runner.py` mutatsiyasi 9/9 (olti survivor — `sleep(interval)`, `await`, `except Exception`, `log.error` darajasi, `if not JOBS` va `gather` ning to'liq ro'yxati; hammasi to'rtta yangi xatti-harakat testi bilan qulflandi). `test_obs_age_contract` — **8 test** (133-run, ⚠️ yurgizilmagan): `collector._age_s` ↔ `outbox._age_s` ajrimi (`inf` ↔ `0.0`), naive va `+05:00` tarmoqlari, kelajakdagi vaqtning nolga qisilishi; ogohlantirish qiymati **funksiyadan** olinadi, konstantadan emas. Qolganlari: `test_simulate`, `test_simulate_db`, `test_golden_scenarios_contract`, `test_obs_alerts`, `test_obs_latency`, `test_metrics_api`, `test_metrics_api_db`, `test_metrics_spec_contract`, `test_logging_monitoring_contract`, `test_analytics`, `test_analytics_contract`, `test_dashboards_contract`, `test_logging_setup` |
 | REL | `test_release_gates`, `test_release_gates_contract`, `test_release_gates_db`, `test_release_measures`, `test_release_measures_contract`, `test_region_acceptance_contract`, `test_risk_register_contract`, `test_dependencies_contract`, `test_release_plan_contract`, `test_roadmap_contract` |
@@ -2617,7 +2773,44 @@ ma'lumot bo'lmasligi kerak. Ziddiyat chiqsa — `PROGRESS.md` haq.
 
 ## 6. Sandboxda PostGIS ko'tarish (retsept)
 
-> 🟢 **168-run (2026-08-19) — BU RETSEPT UCHDAN OXIRIGACHA ISHLADI.**
+> 🟢 **190-run (2026-08-20) — QISQA YO'L: MUHIT ALLAQACHON `/tmp` DA
+> TURIBDI, QAYTA QURISH SHART EMAS.** `/` va `/sessions` ikkalasi ham
+> 95 % to'la (~500 MB bo'sh) edi, ya'ni yangi `micromamba` muhiti
+> sig'masdi — lekin oldingi runlardan qolgani ishlaydi:
+>
+> * `/tmp/mamba/envs/py311/bin/python` — `pytest` 9.1.1,
+>   `sqlalchemy` 2.0.52, `h3` va boshqalar;
+> * `/tmp/pg180` — PostgreSQL **18.6** + PostGIS 3 (`lib/postgis-3.so`,
+>   `share/extension/`).
+>
+> Ketma-ketlik (**bitta** bash chaqiruvida — `pg_ctl` bilan
+> ko'tarilgan server chaqiruvlar orasida o'ladi):
+>
+> ```bash
+> export PGD=/tmp/pgd190 PGPORT=5490 PATH=/tmp/pg180/bin:$PATH LD_LIBRARY_PATH=/tmp/pg180/lib
+> rm -rf $PGD; mkdir -p $PGD; chmod 700 $PGD          # eski pgdata boshqa foydalanuvchida qoladi
+> initdb -D $PGD -U sveta --auth=trust -E UTF8
+> printf "listen_addresses='127.0.0.1'\nport=$PGPORT\nfsync=off\n" >> $PGD/postgresql.conf
+> pg_ctl -D $PGD -l /tmp/pg190.log -w start
+> psql -h 127.0.0.1 -p $PGPORT -U sveta -d postgres -c "CREATE DATABASE sveta OWNER sveta;"
+> psql -h 127.0.0.1 -p $PGPORT -U sveta -d sveta     -c "CREATE EXTENSION postgis;"
+> export DATABASE_URL="postgresql+asyncpg://sveta:sveta@127.0.0.1:$PGPORT/sveta"
+> cd <nusxa>/sveta && TMPDIR=/tmp python -m alembic upgrade head && python -m pytest -q
+> ```
+>
+> O'lchov: to'plam **mount ustida emas**, `/sessions/<sessiya>/tmp/rNNN`
+> dagi nusxada — `cp -r sveta *.md deploy-server` (12 MB, ~10 s),
+> keyin **60 s** bazasiz va **86 s** baza bilan (5042 passed).
+> `pg_isready` bilan har chaqiruv boshida tekshiring: server tirik
+> bo'lmasa `requires_db` **jimgina `skip`** bo'ladi va hisobot yashil
+> ko'rinadi.
+>
+> ⚠️ Mutatsiya partiyasi nusxada yuritiladi va uzilib qolsa **mutant
+> fayl nusxada qoladi** (190-run buni ko'rdi): har partiyadan keyin
+> `diff <nusxa>/app/... <mount>/app/...` bilan tekshiring. Mount
+> hech qachon mutatsiya qilinmaydi.
+
+> 🟢 **168-run (2026-08-19) — TO'LIQ RETSEPT (muhit yo'q bo'lsa).**
 > `/sessions` bo'sh (8.3 GB), shuning uchun hamma narsa `/tmp` ga emas,
 > `/sessions/<sid>/work/` ga quriladi. Ketma-ketlik:
 >

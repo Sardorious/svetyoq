@@ -429,6 +429,22 @@ MODULES = (
     # qarori vaqtga bog'liq bo'lsa, bir xil tarix ikki xil maxraj
     # berardi (190-run).
     Path("app/clustering/tzsource.py"),
+    # §1.1(3) ning ulash qatlami (191-run). Т-4 bu yerda ayniqsa
+    # muhim: uy katagi soatga qarab tanlansa (masalan «oxirgi 30
+    # kunda ochilgan obuna»), bir xil tarix ikki xil sanoq berardi.
+    Path("app/clustering/tzwitness.py"),
+    # §2.3 ning maxrajining ulash qatlami (192-run). Т-1 bu yerda
+    # ayniqsa muhim: «faol» ning oynasi §7 da umuman yo'q, ya'ni
+    # koddagi har qanday son porogni yozilmagan qoida bilan
+    # tushirardi.
+    Path("app/clustering/tzactive.py"),
+    # §12 ning o'lchov asbobi (193-run). Т-1 bu yerda **eng** muhim:
+    # asbob poroglarni o'lchaydi, ya'ni koddagi har qanday son
+    # o'lchanayotgan narsani o'lchov paytida almashtirib qo'yardi va
+    # javob §7 haqida emas, kod haqida bo'lardi. Т-4 ham: tarix
+    # o'tmish faktlaridan iborat va soatga qarash bir xil tarixdan
+    # ikki xil ulush berardi.
+    Path("app/clustering/tzreach.py"),
 )
 
 

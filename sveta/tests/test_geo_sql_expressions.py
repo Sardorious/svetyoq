@@ -147,11 +147,15 @@ UNPACKED_EXTRACTORS = ("_lat_lon", "_position")
 #: bitta. Yangisi qo'shilsa — bu jadval yangilanadi.
 EXPECTED_UNPACK_SITES = {
     "app/clustering/repository.py": 4,
-    "app/notifications/subscriptions.py": 1,
+    # 191-run: `declared_points_stmt` — TZ §1.1(3) ning uy katagi.
+    # Ikkinchi joy ataylab **ekstraktor orqali** yozildi: `ST_Y`/`ST_X`
+    # ni joyida qayta yozish beshinchi nusxani qo'shardi va yuqoridagi
+    # reyestr aynan shuni ushlaydi.
+    "app/notifications/subscriptions.py": 2,
     "app/reports/queries.py": 3,
 }
 
-EXPECTED_UNPACK_COUNT = 8
+EXPECTED_UNPACK_COUNT = 9
 
 #: `_outage_row_columns()` ning kutilayotgan tarkibi — **qo'lda** yozilgan.
 #: Oddiy ustunlar uchun ORM atributining kaliti, kenglik va uzunlik uchun

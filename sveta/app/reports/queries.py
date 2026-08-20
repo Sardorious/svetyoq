@@ -17,8 +17,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func, null, select, update
+from sqlalchemy import Integer, cast, column, func, literal, null, select, union_all, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.reports.models import Report, User
 from app.reports.sources import freeze_weight
@@ -649,6 +650,248 @@ async def blocks_with_users(
     stmt = blocks_with_users_stmt(region_id=region_id)
     return tuple(
         BlockUsersRow(h3_r9=row[0], district_id=row[1], users=int(row[2]))
+        for row in (await session.execute(stmt)).all()
+    )
+
+
+@dataclass(frozen=True)
+class ZoneUsersRow:
+    """TZ §2.3 ning maxrajidagi bitta zona (`2.3-source`).
+
+    Neytral tuzilma: daraja bu yerda **son** (H3 rezolyutsiyasi), nom
+    emas. `app.clustering.tzcount.Level` — klasterlash moduliniki va
+    uni bu yerga olib kirish bog'liqlik yo'nalishini teskari qilardi
+    (`BlockUsersRow` bilan bir xil sabab); rezolyutsiya esa `reports`
+    jadvalining o'z ustunlarida allaqachon yozilgan (`h3_r8`, `h3_r9`,
+    `h3_r10`).
+    """
+
+    resolution: int
+    cell: str
+    #: Zonadagi **turli** foydalanuvchilar soni — §2.3 ning maxraji.
+    users: int
+
+
+#: `05` §5 ning uchta tasdiqlash darajasi — ustun va rezolyutsiya.
+#: Т-1 ga zid emas: bu to'r geometriyasi, §7 ning sozlamasi emas
+#: (`tzcount.LEVEL_RESOLUTION` bilan bir xil izoh). r11 bu yerda
+#: **yo'q**: u manzilni ajratish uchun, zona emas.
+ZONE_LEVEL_COLUMNS: tuple[tuple[int, InstrumentedAttribute], ...] = (
+    (8, Report.h3_r8),
+    (9, Report.h3_r9),
+    (10, Report.h3_r10),
+)
+
+
+def zone_users_stmt(*, region_id: uuid.UUID):
+    """`zone_users` ning `SELECT` i — alohida, chunki o'lchanadi.
+
+    `blocks_with_users_stmt` bilan bir xil sabab: so'rovning **shakli**
+    (uchta guruhlash, birlashma, `NULL` katakning tashlanishi) bazasiz
+    to'plamda ham qulflanishi kerak.
+
+    Uchta `GROUP BY` **bitta** `UNION ALL` ga yig'iladi. Muqobil yo'l —
+    xom `(user_id, h3_r8, h3_r9, h3_r10)` qatorlarini o'qib, sanoqni
+    Python da qilish — jimgina noto'g'ri bo'lardi: bitta odam bitta
+    kvartalning ikkita uy katagidan xabar bersa, u kvartal darajasida
+    **ikki marta** sanalardi va maxraj o'z-o'zidan kattalashardi.
+    `count(distinct …)` ni har daraja uchun alohida bazaga aytish
+    yagona to'g'ri shakl.
+
+    `IS NOT NULL` uchala darajaga ham qo'yiladi, garchi `h3_r9`
+    `NOT NULL` bo'lsa ham: `0012` dan oldin yozilgan qatorlarda `h3_r8`
+    va `h3_r10` bo'sh va `GROUP BY` ularni **bitta `NULL` chelakka**
+    yig'ib, mavjud bo'lmagan zonaga maxraj yasab berardi.
+    """
+    parts = [
+        select(
+            # `cast` — `UNION` da xom bog'langan parametrning turini
+            # PostgreSQL aniqlay olmaydi («could not determine data
+            # type of parameter»).
+            cast(literal(resolution), Integer).label("resolution"),
+            column.label("cell"),
+            func.count(func.distinct(Report.user_id)).label("users"),
+        )
+        .join(User, User.id == Report.user_id)
+        .where(
+            Report.region_id == region_id,
+            User.is_blocked.is_(False),
+            column.is_not(None),
+        )
+        .group_by(column)
+        for resolution, column in ZONE_LEVEL_COLUMNS
+    ]
+    # `column(...)`, `text(...)` emas: `UNION` ning `ORDER BY` i chiqish
+    # ustunining **nomiga** murojaat qiladi, lekin `text()` ni bu yerga
+    # olib kirish `test_architecture_contract` ning xom SQL qorovulini
+    # zaiflashtirardi — u `app/` da `text` ning yagona uyini sanaydi.
+    return union_all(*parts).order_by(column("resolution"), column("cell"))
+
+
+async def zone_users(
+    session: AsyncSession, *, region_id: uuid.UUID
+) -> tuple[ZoneUsersRow, ...]:
+    """TZ §2.3 — «активные пользователи зоны», uchala daraja uchun.
+
+    Bu — §2.3 ning **maxraji**, ya'ni `tzcount.threshold()` ning
+    `active_users` argumenti va `tzwitness.load()` ning sukut
+    qiymatisiz qoldirilgan `active_users` xaritasi. 191-run uni
+    ulashdan **oldin** shart deb yozgan edi; bugungacha uni beradigan
+    so'rov repoda yo'q edi.
+
+    ## Nima uchun oyna yo'q
+
+    §2.3 «активных пользователей» deydi, §3 esa «где есть наши
+    пользователи» — TZ ikki xil so'z ishlatadi. Oyna baribir
+    qo'yilmaydi va sabab **ikkita**:
+
+    1. **§7 da bunday son yo'q.** Faollikning oynasi (30 kun? 90?)
+       sozlamalar jadvalida ham, matnda ham yozilmagan, ya'ni uni
+       kodda tanlash Т-1 ga to'g'ridan-to'g'ri zid.
+    2. **Oyna maxrajni faqat kichraytiradi va bu xavfsiz tomon
+       emas.** §2.3 maxraj kichrayganda **ishga tushadi** va porogni
+       `max(faollar, 2)` gacha **tushiradi**. Ya'ni «faol» ni tor
+       o'qish tasdiqlashni arzonlashtiradi — sozlamada yozilmagan son
+       bilan. Kengroq o'qish esa §2.3 ni **ishlatmaydi**, ya'ni porog
+       §2.1 ning o'zida qoladi: xato qilinsa, qat'iyroq tomonga.
+
+    👤 «Faol» ning ta'rifi (va u umuman mavjudlikdan farq qiladimi) —
+    §2.3 da ham, §7 da ham yo'q. «Ochiq savollar» da.
+
+    ## Nima uchun filtr faqat `is_blocked`
+
+    Sanoq (`tz_evidence`) uchta to'siqdan o'tadi: `is_blocked`,
+    `trust_score` va akkaunt yoshi. Maxraj esa **faqat birinchisidan**,
+    va bu ataylab: maxrajning filtri sanoqnikidan **kuchliroq**
+    bo'lsa, guvoh sanalib, maxrajga tushmay qolardi — ya'ni
+    `active_users < have` bo'lardi va §2.3 zonaning porogini o'zi
+    ko'rgan odamlar sonidan **pastga** qo'yardi. Filtrlar to'plami
+    ichma-ich bo'lgani uchun `active_users >= have` tuzilmaviy
+    kafolat, tasodif emas.
+
+    `is_blocked` ning o'zi esa qoladi: maxrajni **oshirish** ham hujum
+    (`blocks_with_users` dagi bir xil sabab, faqat teskari yo'nalishda
+    — bu yerda u §2.3 ni o'chirib qo'yadi).
+
+    ## Chaqiruvchining yagona majburiyati
+
+    `region_id` — hodisaning mintaqasi bo'lishi kerak. Sanoq
+    `outage_id` bo'yicha, maxraj esa mintaqa bo'yicha filtrlanadi;
+    boshqa mintaqa berilsa yuqoridagi kafolat buziladi.
+
+    Tartib `(resolution, cell)` — Т-3.
+    """
+    stmt = zone_users_stmt(region_id=region_id)
+    return tuple(
+        ZoneUsersRow(resolution=int(row[0]), cell=row[1], users=int(row[2]))
+        for row in (await session.execute(stmt)).all()
+    )
+
+
+@dataclass(frozen=True)
+class TzEvidenceRow:
+    """TZ §1.1 ning sanog'i uchun bitta xabar.
+
+    `EvidenceRow` dan farqi tarkibiy, nusxa emas: og'irlikli hisob
+    (`06` §2.1) nuqta va `weight` bilan ishlaydi, TZ esa **kataklar**
+    bilan — «круги вокруг сообщений не используются» (§1). Ikkalasini
+    bitta qatorga yig'ish `lat`/`lon` ni TZ ning yo'liga olib kirardi
+    va §1 ning birinchi qarorini jimgina bekor qilardi.
+
+    `weight` ham ataylab yo'q: TZ og'irlikli modelni ochiq rad etadi
+    («Ни один из этих коэффициентов не был измерен»).
+    """
+
+    user_id: uuid.UUID
+    created_at: datetime
+    #: `05` §5 ning to'rt darajasi. `h3_r9` `NOT NULL`, qolgani `0012`
+    #: dan oldin yozilgan qatorlarda `NULL` bo'lishi mumkin.
+    h3_r8: str | None
+    h3_r9: str
+    h3_r10: str | None
+    h3_r11: str | None
+
+
+def tz_evidence_stmt(
+    outage_id: uuid.UUID,
+    *,
+    kind: str,
+    min_trust_score: int,
+    account_created_before: datetime,
+):
+    """`tz_evidence` ning `SELECT` i — alohida, chunki o'lchanadi.
+
+    `blocks_with_users_stmt` bilan bir xil sabab: filtrlarning
+    **shakli** bazasiz to'plamda ham qulflanishi kerak. Uchala kirish
+    to'sig'i (`is_blocked`, `trust_score`, akkaunt yoshi) jimgina
+    tushib qolsa, bazasi bor test ularni sezmasligi mumkin — fikstyura
+    bloklangan akkauntni o'z ichiga olmasa hech narsa qizarmaydi.
+    """
+    return (
+        select(
+            Report.user_id,
+            Report.created_at,
+            Report.h3_r8,
+            Report.h3_r9,
+            Report.h3_r10,
+            Report.h3_r11,
+        )
+        .join(User, User.id == Report.user_id)
+        .where(
+            Report.outage_id == outage_id,
+            Report.kind == kind,
+            User.is_blocked.is_(False),
+            User.trust_score >= min_trust_score,
+            User.created_at < account_created_before,
+        )
+        .order_by(Report.created_at.asc(), Report.user_id.asc())
+    )
+
+
+async def tz_evidence(
+    session: AsyncSession,
+    outage_id: uuid.UUID,
+    *,
+    kind: str,
+    min_trust_score: int,
+    account_created_before: datetime,
+) -> tuple[TzEvidenceRow, ...]:
+    """TZ §1.1 + §2.1 uchun dalil qatorlari.
+
+    ## Nima uchun kirish filtrlari saqlanadi
+
+    TZ `06` ning og'irlikli hisobini almashtiradi, lekin `05` §4.3
+    ning **kirish** to'siqlarini emas: bloklangan akkaunt, past
+    ishonch va endigina ochilgan akkaunt bu yerda ham sanalmaydi.
+    Filtrlarni tashlab yuborish TZ ning porogini pasaytirmasdi —
+    u sanoqni **arzonlashtirardi**: uchta yangi akkaunt uchta guvoh
+    bo'lardi va §1.1 ning uchala sharti ham ularga qarshi ish
+    bermasdi (turli akkaunt, turli katak, uy katagi noma'lum).
+
+    ## Vaqt bo'yicha filtr yo'q
+
+    Sirpanuvchi oyna §2.1 niki va u `tzcount.count_witnesses()` da
+    qo'llanadi — darajaga qarab har xil (20/30/45 daqiqa). Uni SQL ga
+    tushirish uchta so'rov talab qilardi va Т-4 ni buzardi: bu yerda
+    `now` yo'q, soat chaqiruvchida.
+
+    Tartib `(created_at, user_id)` — Т-3.
+    """
+    stmt = tz_evidence_stmt(
+        outage_id,
+        kind=kind,
+        min_trust_score=min_trust_score,
+        account_created_before=account_created_before,
+    )
+    return tuple(
+        TzEvidenceRow(
+            user_id=row[0],
+            created_at=row[1],
+            h3_r8=row[2],
+            h3_r9=row[3],
+            h3_r10=row[4],
+            h3_r11=row[5],
+        )
         for row in (await session.execute(stmt)).all()
     )
 
