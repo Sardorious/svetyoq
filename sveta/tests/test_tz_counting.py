@@ -424,6 +424,11 @@ MODULES = (
     Path("app/clustering/tzcount.py"),
     Path("app/clustering/tzstatus.py"),
     Path("app/clustering/tzdispute.py"),
+    # Ulash qatlami ham TZ moduli: u bazani ko'radi, lekin §7 ning
+    # soniga ham, soatga ham tegmasligi kerak — chegaradagi kvartalning
+    # qarori vaqtga bog'liq bo'lsa, bir xil tarix ikki xil maxraj
+    # berardi (190-run).
+    Path("app/clustering/tzsource.py"),
 )
 
 

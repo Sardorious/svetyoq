@@ -551,6 +551,109 @@ async def cells_with_reports_by_mahalla(
 
 
 @dataclass(frozen=True)
+class BlockUsersRow:
+    """TZ §3 ning maxrajidagi bitta kvartal (`3-source`).
+
+    Neytral tuzilma: `app.clustering` uni o'z `ZoneFact` iga o'giradi
+    (`app.clustering.tzsource`), shuning uchun `app.reports`
+    `app.clustering` ni import qilmaydi.
+
+    `district_id` **`None` bo'lishi mumkin** — nuqta mintaqaning
+    birorta tuman poligoniga tushmagan (`05` §5.3 ning defekti).
+    Bunday kvartal jimgina tashlanmaydi: uni «noma'lum tuman»
+    chelagiga yig'ish ikkita har xil tumanning kvartallarini bitta
+    porogga qo'shardi, jimgina yo'qotish esa maxrajni kamaytirib
+    §3 ning ulushini o'z-o'zidan bajariladigan shartga aylantirardi.
+    Qarorni chaqiruvchi qabul qiladi.
+    """
+
+    h3_r9: str
+    district_id: uuid.UUID | None
+    #: Kvartaldagi **turli** foydalanuvchilar soni. §3 ga «bormi»
+    #: yetarli, lekin son chegaradagi katakni tumanga biriktirishda
+    #: kerak (`tzsource`) va shu sababdan bu yerda qaytariladi.
+    users: int
+
+
+def blocks_with_users_stmt(*, region_id: uuid.UUID):
+    """`blocks_with_users` ning `SELECT` i — alohida, chunki o'lchanadi.
+
+    `purge_exact_geom_stmt` bilan bir xil sabab: so'rovning **shakli**
+    (birlashma, filtr, guruhlash) bazasiz to'plamda ham qulflanishi
+    kerak. Bazasi bor test uni **xatti-harakat** bo'yicha o'lchaydi,
+    bu esa shaklni: `is_blocked` filtri va `users` bilan birlashma
+    jimgina tushib qolsa, bazasiz to'plamda hech narsa qizarmasdi.
+    """
+    return (
+        select(
+            Report.h3_r9,
+            Report.district_id,
+            func.count(func.distinct(Report.user_id)),
+        )
+        .join(User, User.id == Report.user_id)
+        .where(Report.region_id == region_id, User.is_blocked.is_(False))
+        .group_by(Report.h3_r9, Report.district_id)
+        .order_by(Report.h3_r9, Report.district_id)
+    )
+
+
+async def blocks_with_users(
+    session: AsyncSession, *, region_id: uuid.UUID
+) -> tuple[BlockUsersRow, ...]:
+    """TZ §3 — «кварталы района, **где есть наши пользователи**».
+
+    Bu — §3 ning **maxraji**, ya'ni `tzscale.from_zone_verdicts()`
+    ning `blocks_with_users` argumenti. 187-run uni ulashdan oldin
+    shart deb yozgan: argumentning sukut qiymati olib tashlangan, ya'ni
+    chaqiruvchi javobni **topa olishi** kerak — bugungacha esa uni
+    beradigan so'rov repoda umuman yo'q edi (`tzscale.RULES` ning
+    `3-source` qatori).
+
+    ## Nima uchun oyna yo'q
+
+    Boshqa hamma agregat so'rov `since` oladi (`active_users_*`,
+    `cells_with_reports_*`), bu esa **olmaydi** va bu ataylab. §3
+    «есть пользователи» deydi — mavjudlik, bugungi faollik emas.
+    Oyna qo'yilsa maxraj «bugun xabar qilgan kvartallar» ga qisqarardi
+    va bu aynan 187-run topgan nuqson: sanoq ham, maxraj ham bir xil
+    hodisadan yig'ilgani uchun ulush har doim bajarilar, §3 dan faqat
+    «не менее 3» qolardi.
+
+    Mavjudlikning yagona izi — xabarning o'zi: foydalanuvchining «uy
+    katagi» hech qayerda saqlanmaydi (`tzcount.Witness.home_r11` ni
+    chaqiruvchi beradi). `geom_exact` 90 kundan keyin `NULL` ga o'tadi
+    (`05` §3.2), `h3_r9` esa qoladi — ya'ni tarixiy mavjudlik
+    maxfiylik tozalashidan keyin ham o'qiladi.
+
+    👤 Mavjudlik eskirishi kerakmi (masalan bir yil xabar bermagan
+    kvartal maxrajdan chiqadimi) — §3 da ham, §7 da ham yo'q, ya'ni
+    sonni kodda o'ylab topish Т-1 ga zid bo'lardi. «Ochiq savollar» da.
+
+    ## Nima uchun bloklangan akkaunt sanalmaydi
+
+    Maxrajni **oshirish** — hujum: bo'sh kvartallarda ochilgan
+    akkauntlar tumanning porogini ko'taradi (50 kvartalning 40 % i
+    12 tanikidan ikki baravar ko'p) va tasdiqlashni abadiy uzoqlashtiradi.
+    To'sish soxtalashtirishdan arzon bo'lmasligi kerak (§1.1 ning
+    ustma-ustlik qarori bilan bir xil sabab), shuning uchun
+    `is_blocked` akkaunt kvartalni maxrajga kiritmaydi. Bu yagona
+    to'siq emas, lekin bugun mavjud yagonasi.
+
+    `trust_score` esa **filtr emas**: u dalilning og'irligi haqida
+    (`05` §4.3), mavjudlik haqida emas — past ishonchli odam ham shu
+    kvartalda yashaydi.
+
+    Tartib `(h3_r9, district_id)` — Т-3: bir xil ma'lumot bir xil
+    javob bersin.
+    """
+    stmt = blocks_with_users_stmt(region_id=region_id)
+    return tuple(
+        BlockUsersRow(h3_r9=row[0], district_id=row[1], users=int(row[2]))
+        for row in (await session.execute(stmt)).all()
+    )
+
+
+@dataclass(frozen=True)
 class CellDensityRow:
     """H3 katakchadagi xabar zichligi (E16).
 

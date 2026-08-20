@@ -185,15 +185,25 @@ RULES: tuple[Rule, ...] = (
     Rule(
         code="3-source",
         note="Kvartalning «foydalanuvchisi bor» belgisi reyestrdan keladi",
-        # Hisob tayyor va `from_zone_verdicts()` uni qabul qiladi,
-        # lekin `has_users` ni **to'ldiradigan so'rov** yo'q: u
-        # `reports`/`users` ustidan zona kesimini talab qiladi va
-        # bugun bunday so'rov repoda yo'q. Shu sababdan bugun
-        # `evaluate()` ni chaqiradigan mahsulot kodi ham yo'q.
-        # 187-run: aynan shu qator §3 ni ulashdan oldin qurilishi
-        # shart. Maxrajsiz ulangan §3 xato tomonga adashadi — ulush
-        # o'z-o'zidan bajariladi va tuman yo'qdan tasdiqlanadi;
-        # shuning uchun `blocks_with_users` endi sukut qiymatisiz.
+        # 190-run: so'rov qurildi — `reports.queries.blocks_with_users`
+        # (mavjudlik, oynasiz; bloklangan akkaunt maxrajni ko'tarmaydi)
+        # va uni `district_of` + `blocks_with_users` ga aylantiradigan
+        # ulash qatlami `app.clustering.tzsource`. 187-run buni §3 ni
+        # ulashdan **oldin** shart deb yozgan edi: maxrajsiz ulangan §3
+        # xato tomonga adashadi — ulush o'z-o'zidan bajariladi va tuman
+        # yo'qdan tasdiqlanadi, shuning uchun `blocks_with_users`
+        # sukut qiymatisiz.
+        built=True,
+    ),
+    Rule(
+        code="3-wired",
+        note="§3 fuqaro oqimida chaqirilmaydi — masshtab hamon `06` §5.3 dan",
+        # Maxraj endi bor, lekin `tzscale.evaluate()` ni mahsulot
+        # quvuri hali chaqirmaydi: `outages.scale` ni `app/clustering/
+        # scale.py` (`06` §5.3 ning narvoni) to'ldiradi. Ikkalasi bitta
+        # savolga **har xil** javob beradi (modul izohidagi jadval).
+        # 👤 2026-08-20 qarori bo'yicha ulash tartibi `PROGRESS.md` da
+        # va §3 unda ikkinchi qadamdan keyin turadi.
         built=False,
     ),
 )

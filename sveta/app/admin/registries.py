@@ -460,11 +460,14 @@ def _probe_tzscale(_doc: str | None = None) -> Probe:
     reyestrda, migratsiyada va vitrinada bor edi, lekin ularni
     o'qiydigan kod yo'q edi. 182-run hisobni qurdi.
 
-    `flagged` — bugun bitta va u **ma'lumot** tarafida: kvartalning
-    «foydalanuvchisi bor» belgisini to'ldiradigan so'rov yo'q, ya'ni
-    §3 ning maxraji hali hech qayerdan kelmaydi va `evaluate()` ni
-    chaqiradigan mahsulot kodi ham yo'q. Verdikt shuning uchun
-    salbiy: hisob to'g'ri, lekin u hech qanday kartaga chiqmaydi.
+    `flagged` — bugun bitta va u **ulash** tarafida. 190-run
+    ma'lumot tarafini yopdi: maxrajni beradigan so'rov
+    (`reports.queries.blocks_with_users`) va uni §3 ning kirishiga
+    aylantiradigan `app.clustering.tzsource` bor. Qolgani —
+    `tzscale.evaluate()` ni fuqaro oqimidan chaqirish: bugun
+    `outages.scale` ni hamon `06` §5.3 ning narvoni to'ldiradi.
+    Verdikt shuning uchun **salbiy** bo'lib qoladi: hisob ham,
+    maxraj ham to'g'ri, lekin ular hech qanday kartaga chiqmaydi.
 
     `undeclared` har doim `0`: ro'yxat §3 ning o'z jadvalidan olingan.
     """

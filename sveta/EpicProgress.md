@@ -11,6 +11,15 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 
 ## Xulosa
 
+* 👤 **QAROR (2026-08-20): TZ NI MAHSULOT QUVURIGA ULASH ENDI
+  BIRINCHI NAVBATDAGI ISH.** TZ qonun, lekin butun qatlam mavjud E5
+  klasterlashining **yonida** turadi — fuqaro oqimi hamon
+  `clustering/service.py` → `confirmation.py` (`06` ning bekor
+  qilingan `W ≥ N_req` i) ustida yuradi va `tzstatus.decide()` ni hech
+  kim chaqirmaydi. Samarqand piloti eski model ustida yig'ilsa,
+  o'lchanadigan poroglar TZ niki bo'lmaydi. Tartib va asoslash —
+  `PROGRESS.md` ning «Odam qaroriga bog'liq bloklar» bo'limida.
+  §10 ning qolgan ikki bandi (ТС-219, ТС-220) kutadi.
 * 🔴 **Т-10 NING TESHIGI TRANZAKSIYANING QOLGAN QISMIGA OCHIQ
   QOLARDI (ТС-218).** `SET LOCAL sveta.recluster` tranzaksiya bilan
   o'ladi, ya'ni `delete_outages` **qaytgandan keyin** ham qorovul
@@ -31,9 +40,14 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   `CONFIRMED` ga o'tishi. `MODERATOR_TARGETS` ga `CONFIRMED` qo'shilsa,
   moderator tasdiqlagan hodisa Т-10 dan tashqarida qolardi. Bugun
   taqiq bilan to'silgan; 👤 savol `PROGRESS.md` da.
-* ⚠️ **Ikkita `requires_db` testi yurmadi** — PostGIS ko'tarilmadi
-  (`/` ham `/sessions` ham 95 % to'la). Baza bo'lgan runda birinchi
-  bo'lib shular yurgizilsin.
+* 🔴 **DB qismi odamning mashinasida yurdi: 1 failed — test dizayni,
+  mahsulot emas.** Qorovulning o'zi ishlagan (`DBAPIError`, `T-10`).
+  Kutilgan baza xatosi butun tranzaksiyani `aborted` ga o'tkazadi va
+  `ROLLBACK` unga qadar qilingan **qonuniy** ishni ham olib ketadi —
+  ya'ni xatodan keyingi holat da'vosi hech nimani o'lchamaydi.
+  `session.begin_nested()` bilan tuzatildi. Mexanizm sandboxdagi sof
+  PostgreSQL da (`/tmp/pg180`, PostGIS siz) uch holatda o'lchandi va
+  tasdiqlandi; loyihaning **o'z** test fayli hali yurgizilmagan.
 * 🟢 **§10 NING UCHTA «BIR BOSQICHLI» BANDI AMALDA TO'RT
   BOSQICHLI BO'LIB CHIQDI (ТС-202, ТС-203, ТС-204).** §1.1 ning
   yaqinlashuvi (turli akkaunt, turli manzil, ustma-ust tushmagan uy

@@ -292,6 +292,20 @@ async def test_the_flag_does_not_stay_open_for_the_rest_of_the_transaction() -> 
 
     Bayroq yopilmasa bu test o'tmaydi: ikkinchi `DELETE` jimgina
     bajarilib, tasdiqlangan hodisa yo'qolardi.
+
+    **Nega `begin_nested()`.** Birinchi yozilishida ikkinchi `DELETE`
+    to'g'ridan-to'g'ri chaqirilgan edi va test yiqildi — lekin
+    qorovulning **o'zi** ishlagan (`DBAPIError`, matnida `T-10`).
+    Sabab PostgreSQL da: xato bergan ifoda butun tranzaksiyani
+    `aborted` holatiga o'tkazadi, ya'ni `ROLLBACK` `doomed` ning
+    qonuniy o'chirilishini ham olib ketardi va testning ikkinchi
+    yarmi («qayta hisoblashning o'z ishi saqlanadi») o'lchanmay
+    qolardi. Savepoint aynan shuni ajratadi: qorovul otiladi, unga
+    qadar qilingan ish esa tirik qoladi.
+
+    `SET LOCAL` savepoint bilan ziddiyatga kirmaydi — bayroq
+    `delete_outages` ichida, ya'ni savepointdan **oldin** yopiladi,
+    demak `ROLLBACK TO SAVEPOINT` unga tegmaydi.
     """
     async with session_scope() as session:
         region_id = await _region(session)
@@ -302,9 +316,10 @@ async def test_the_flag_does_not_stay_open_for_the_rest_of_the_transaction() -> 
         assert await cluster_repo.delete_outages(session, [doomed]) == 1
         # O'sha tranzaksiya, teshikdan **keyin**.
         with pytest.raises(DBAPIError) as err:
-            await session.execute(
-                text("DELETE FROM outages WHERE id = :id"), {"id": survivor}
-            )
+            async with session.begin_nested():
+                await session.execute(
+                    text("DELETE FROM outages WHERE id = :id"), {"id": survivor}
+                )
         assert "T-10" in str(err.value)
 
     async with session_scope() as session:

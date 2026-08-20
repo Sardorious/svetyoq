@@ -152,14 +152,43 @@ Migratsiya, yangi sozlama, i18n kaliti va API **yo'q**.
 M4 ning birinchi urinishi sintaksis xatosi bilan `rc=4` berdi — bu
 KILLED emas, buzilgan mutant; qayta yozildi.
 
-### ⚠️ Yurmagan qism
+### DB qismi — odamning mashinasida yurdi
 
-Ikkita `requires_db` testi bu sandboxda **yurmadi**: PostGIS
-ko'tarilmadi, `/` (9.6 G, 94 %) ham `/sessions` (9.8 G, 95 %) ham
-to'la, `micromamba` ga joy yo'q. Ya'ni «bayroq tranzaksiya ichida
-yopiladi» degan da'vo bugun **manba shakli** bo'yicha (`ast`)
-o'lchandi, **xatti-harakat** bo'yicha emas. Baza bo'lgan runda
-birinchi bo'lib shu ikki test yurgizilsin.
+Sandboxda PostGIS ko'tarilmadi (`/` 94 %, `/sessions` 95 % to'la), ya'ni
+run davomida «bayroq tranzaksiya ichida yopiladi» da'vosi faqat **manba
+shakli** bo'yicha (`ast`) o'lchandi. Run oxirida odam to'plamni o'z
+bazasida yurgizdi:
+
+```
+1 failed, 5013 passed, 2 skipped in 108.61s
+FAILED test_the_flag_does_not_stay_open_for_the_rest_of_the_transaction
+```
+
+**Yiqilgani — test dizayni, mahsulot emas.** Yiqilgan qator oxirgisi:
+
+```python
+with pytest.raises(DBAPIError) as err:          # ✅ o'tdi
+    await session.execute(text("DELETE FROM outages WHERE id = :id"), ...)
+assert "T-10" in str(err.value)                 # ✅ o'tdi
+...
+assert not await _exists(session, doomed)       # ❌ assert not True
+```
+
+Ya'ni qorovul **ishladi**: bayroq `DELETE` dan keyin rostdan ham
+yopiladi va ikkinchi `DELETE` rad etildi. Xato undan keyin:
+PostgreSQL da xato bergan ifoda butun tranzaksiyani `aborted` holatiga
+o'tkazadi, `ROLLBACK` esa `doomed` ning **qonuniy** o'chirilishini ham
+olib ketadi. Kutilgan baza xatosidan **keyingi** holat da'vosi shu
+sababdan hech nimani o'lchamaydi — u har doim «hech narsa
+o'zgarmagan» ni ko'radi.
+
+Tuzatish: ikkinchi `DELETE` `session.begin_nested()` ichiga olindi —
+savepoint qorovulning otilishini unga qadar qilingan ishdan ajratadi.
+`SET LOCAL` bilan ziddiyat yo'q: bayroq `delete_outages` ichida, ya'ni
+savepointdan **oldin** yopiladi.
+
+🔴 **Tuzatilgan variant qayta yurgizilmagan** — baza faqat odamning
+mashinasida. Keyingi run buni birinchi bo'lib tekshirsin.
 
 ## Keyingi qadam
 

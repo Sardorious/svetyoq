@@ -1,5 +1,14 @@
 # Bog'liqliklar va bajarish tartibi
 
+> ⚠️ **ESKIRGAN QISM (2026-08-20, 189-run).** Bu fayl TZ qaroridan
+> (2026-08-19) **oldin** yozilgan va shuning uchun kritik yo'lda eng
+> katta texnik bandni ko'rsatmaydi: **TZ mahsulot quvuriga ulanmagan**
+> — fuqaro oqimi hamon `06` ning bekor qilingan formulasi ustida
+> yuradi. Ulash 2026-08-20 da birinchi navbatdagi ish deb qaror
+> qilindi; tartib `sveta/PROGRESS.md` ning «Odam qaroriga bog'liq
+> bloklar» bo'limida. §2 dagi odam qadamlari (push, `.env`, botni va
+> xaritani sinash, E10-a) **o'z kuchida qoladi**.
+
 **Holat:** 2026-08-13 (145-rundan keyin) · Manba: `sveta/PROGRESS.md`
 «Epic holati» + «Odam qaroriga bog'liq bloklar» + «Ochiq savollar».
 

@@ -12,6 +12,79 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
+> ✅ **190-run (2026-08-20) — §3 NING MAXRAJI MANBAGA EGA BO'LDI
+> (`3-source`); 👤 ULASH TARTIBINING BIRINCHI BANDI BAJARILDI.**
+>
+> 189-run oxirida olingan 👤 qarorning 1-bandi. 187-run
+> `from_zone_verdicts()` ning `blocks_with_users` argumentidan sukut
+> qiymatini olib tashlagan edi — ya'ni chaqiruvchi javob berishga
+> **majbur**, lekin javobni topadigan yo'l repoda umuman yo'q edi.
+> Majburiyat bor, imkoniyat yo'q: bunday holatda birinchi chaqiruvchi
+> qo'lidagi eng yaqin ro'yxatni (bugun xabar qilgan kvartallarni)
+> beradi va §3 jimgina o'z-o'zidan bajariladigan shartga aylanadi.
+>
+> **Ikkita yangi qism.** `reports.queries.blocks_with_users` — so'rov
+> (`BlockUsersRow`, `SELECT` alohida funksiyada, `purge_exact_geom_stmt`
+> bilan bir xil sabab) va `app/clustering/tzsource.py` — ulash qatlami
+> (`resolve` / `load` → `district_of` + `blocks`); `tzscale` **toza**
+> qoldi. Ulash qatlami `SPEC` konstantasi olmaydi — u reyestr
+> modulining belgisi.
+>
+> 🔴 **Oyna ataylab YO'Q.** Qo'shni agregat so'rovlarning hammasi
+> `since` oladi, ya'ni uni bu yerga ham qo'shish eng tabiiy harakat
+> edi. §3 esa «есть пользователи» deydi — mavjudlik, bugungi faollik
+> emas; oyna bilan maxraj «bugun xabar qilgan kvartallar» ga
+> qisqarardi va bu 187-run yopgan nuqsonning boshqa qavatdagi aynan
+> o'zi bo'lardi.
+>
+> 🔴 **Bloklangan akkaunt maxrajni ko'tarmaydi.** Maxrajni
+> **oshirish** — hujum: bo'sh kvartallardagi akkauntlar tumanning
+> porogini ko'taradi (50 kvartalning 40 % i 12 tanikidan ikki
+> baravar) va tasdiqlashni abadiy uzoqlashtiradi. `trust_score` esa
+> filtr emas — u og'irlik haqida, mavjudlik haqida emas.
+>
+> 🔴 **Chegaradagi katak — modulning yagona qarori.** `district_of`
+> `Mapping[str, str]`, ya'ni bitta kvartal bitta tuman; baza bunga
+> kafolat bermaydi (r9 ~349 m tuman chegarasini kesadi). Ikkala
+> tumanga qo'shish §3 ning birinchi jumlasini buzardi va shaharga
+> ikki marta ta'sir qilardi. Qoida: foydalanuvchisi ko'p tomon
+> yutadi, tenglikda identifikatori kichigi (Т-3 — bazadan kelgan
+> tartibga tayanish qorovulni bo'sh qilardi). Tanlanmagan tomon
+> `straddling` da, tumansiz katak `unassigned` da qoladi.
+>
+> ⬜ **`3-source` yashil bo'ldi, lekin reyestrga yangi qator
+> qo'shildi** — `3-wired` (`built=False`): §3 ni fuqaro oqimi hamon
+> chaqirmaydi, `outages.scale` ni `06` §5.3 ning narvoni to'ldiradi.
+> Usiz vitrina «§3 tayyor» deb yolg'on gapirardi.
+>
+> **Yakun:** `tests/test_tz_source.py` (18, bazasiz) va
+> `tests/test_tz_source_db.py` (7, `requires_db`);
+> `test_tz_counting.MODULES` ga yangi modul. **Butun to'plam haqiqiy
+> bazada — 5042 passed, 2 skipped** (PostgreSQL 18.6 + PostGIS 3,
+> `0001…0016`), `ruff` toza, migratsiya/sozlama/i18n/API **yo'q**.
+> 12 mutant: **11 KILLED, 1 ekvivalent** (`join` → `outerjoin` —
+> `user_id` `NOT NULL` + tashqi kalit, va `NULL IS false` baribir
+> `false`).
+>
+> ✅ **189 qoldirgan topshiriq ham bajarildi:** o'sha runda yozilib
+> yurgizilmagan ikkita `requires_db` testi
+> (`test_outage_delete_reach.py` + `test_outage_delete_guard.py`,
+> 16 test) yashil — `SET LOCAL` bayrog'ining tranzaksiya ichida
+> yopilishi va `session.begin_nested()` tuzatishi tasdiqlandi.
+>
+> **Keyingi qadam — 👤 tartibning 2-bandi:** sanash qatlami,
+> `service.evaluate()` → `tzcount.count_witnesses()`;
+> `Witnesses.users` chaqiruvchiga yetib borishi shart.
+>
+> **Sandbox retsepti ishladi:** `/tmp/pg180` (18.6 + PostGIS 3),
+> `/tmp/mamba/envs/py311`; har run **yangi** `initdb`,
+> `listen_addresses='127.0.0.1'`, o'z porti; `pg_ctl start`
+> chaqiruvlar orasida o'ladi, shuning uchun `start` + `alembic` +
+> `pytest` **bitta** bash chaqiruvida. To'plam `/sessions/<sessiya>/tmp/`
+> dagi nusxada (60 s bazasiz, 86 s baza bilan).
+
+---
+
 > ✅ **189-run (2026-08-20) — Т-10 NING TESHIGI TRANZAKSIYANING QOLGAN
 > QISMIGA OCHIQ QOLARDI (ТС-218), VA ESHIKDAN KIM O'TISHINI HECH NIMA
 > O'LCHAMASDI.**
@@ -67,17 +140,57 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 > uchidan-uchiga, `clean` hamon `False`. To'rt mutant — to'rttasi ham
 > KILLED, uchtasi **faqat** yangi fayl bilan.
 >
-> ⚠️ **Ikkita `requires_db` testi yurmadi** — PostGIS ko'tarilmadi
-> (`/` 94 %, `/sessions` 95 % to'la). «Bayroq tranzaksiya ichida
-> yopiladi» da'vosi bugun **manba shakli** bo'yicha o'lchandi,
-> xatti-harakat bo'yicha emas.
+> ⚠️→🔴 **DB QISMI ODAMNING MASHINASIDA YURDI** (run oxirida):
+> **5013 passed, 2 skipped, 1 failed**. Yiqilgani — **test dizayni,
+> mahsulot emas**: qorovulning o'zi ishlagan (`DBAPIError`, matnida
+> `T-10`), ya'ni bayroq `DELETE` dan keyin rostdan ham yopiladi. Xato
+> oxirgi ikkita da'voda edi: PostgreSQL da xato bergan ifoda butun
+> tranzaksiyani `aborted` ga o'tkazadi va `ROLLBACK` `doomed` ning
+> **qonuniy** o'chirilishini ham olib ketadi — ya'ni kutilgan baza
+> xatosidan **keyingi** holat da'vosi hech nimani o'lchamaydi.
+> Ikkinchi `DELETE` endi `session.begin_nested()` ichida.
+> ✅ **MEXANIZM HAQIQIY POSTGRESQL DA O'LCHANDI.** PostGIS
+> ko'tarilmasa ham sandboxda sof PostgreSQL bor (`/tmp/pg180`, 18.6) —
+> `0016` ning qorovuli sof SQL da nusxalandi va uch holat yurgizildi:
+> bayroq **yopilmasa** ikkala qator ham o'chadi (`(bo'sh)`), ya'ni Т-10
+> jimgina o'chadi va **defekt haqiqiy**; **yopilsa** qorovul otiladi,
+> lekin abort qonuniy o'chirishni ham bekor qiladi (qolgan: `1,2`) —
+> testning yiqilish sababi shu; `SAVEPOINT` bilan qorovul otiladi
+> **va** oldingi ish saqlanadi (qolgan: `2`). Ya'ni mahsulot tuzatishi
+> ham, test tuzatishi ham to'g'ri.
 >
-> **Keyingi qadam:** ТС-219 va ТС-220. ТС-219 ning `tests` i bugun
-> `test_schema.py` va `test_schema_index_parity.py`, ya'ni faqat
-> jadvalning shakli — «публикуется» yarmi §7 ning `config_journal` i
-> bilan §8 ning paneli orasidan o'tadi. ТС-220 da tekshirish
-> arziydigani — yettita Т-1 qorovuli `ast` bilan o'lchanadimi yoki
-> matn bilan (matn qidiradigan taqiq o'z docstringiga ilinadi).
+> 🔴 **Loyihaning o'z test fayli hali yurgizilmagan** (u PostGIS
+> talab qiladi). Keyingi run buni birinchi bo'lib tekshirsin —
+> kutilgani 8/8 yashil.
+>
+> **👤 QAROR (2026-08-20, run oxirida) — KEYINGI QADAM
+> O'ZGARDI: TZ NI MAHSULOT QUVURIGA ULASH.** Run oxirida odam
+> «tizimni ishga tushirish uchun nima qoldi» deb so'radi va tekshiruv
+> shuni ko'rsatdi: TZ 2026-08-19 dan beri qonun, lekin butun qatlam
+> mavjud E5 klasterlashining **yonida** turadi. Fuqaro oqimi (xabar →
+> sanash → status → bildirishnoma) hamon `clustering/service.py` →
+> `confirmation.py` ni, ya'ni `06` ning bekor qilingan `W ≥ N_req`
+> formulasini yuritadi; `tzstatus.decide()` ni hech kim chaqirmaydi
+> (buni `app/admin/tzoperator.py` ning izohi ochiq yozgan), feature
+> flag ham yo'q. Pilot eski model ustida yig'ilsa, o'lchanadigan
+> poroglar TZ niki bo'lmaydi.
+>
+> **Keyingi runlar tartibi** (to'liq asoslash `PROGRESS.md` ning
+> «Odam qaroriga bog'liq bloklar» bo'limida, 189-run qarori):
+>
+> 1. `3-source` — §3 ning maxraji («foydalanuvchisi bor kvartallar»);
+>    187-run buni ulashdan **oldin** shart deb yozgan.
+> 2. Sanash: `service.evaluate()` → `tzcount.count_witnesses()`;
+>    `Witnesses.users` chaqiruvchiga yetib borsin (188-run
+>    `ZoneVerdict.users` ni aynan shuning uchun qo'shgan).
+> 3. Status: Т-5 bo'yicha yagona joy — `tzstatus.decide()`.
+> 4. Bildirishnoma: `tzoutage` / `tzrestored` + Т-9 jurnali
+>    (`tz_receipts` ni bugun hech kim chaqirmaydi).
+> 5. Eski `06` yo'lini olib tashlash (reyestrlarda «eskirgan» belgisi).
+>
+> Undan keyin — `tools/threshold_probe.py` (E11 ning yagona
+> o'lchagichi, hamon yo'q). **ТС-219 va ТС-220 kutadi**, ular
+> bloklamaydi.
 
 ---
 
@@ -7124,6 +7237,7 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 190 | [tz_masshtab_manbasi](190_tz_masshtab_manbasi_9f43bdd4.md) | `local_9f43bdd4` | §3 ning maxraji manbaga ega bo'ldi (`3-source`) — 👤 ulash tartibining birinchi bandi. 187-run `blocks_with_users` dan sukut qiymatini olib tashlagan edi, ya'ni chaqiruvchi majbur, lekin javobni topadigan yo'l yo'q edi. Ikkita yangi qism: `reports.queries.blocks_with_users` (+`blocks_with_users_stmt`, `BlockUsersRow`) va ulash qatlami `app/clustering/tzsource.py` (`resolve`/`load`); `tzscale` toza qoldi, ulash qatlami `SPEC` olmaydi. 🔴 **Oyna ataylab yo'q** — §3 «есть пользователи» deydi (mavjudlik, bugungi faollik emas); `since` qo'shish maxrajni «bugun xabar qilgan kvartallar» ga qisqartirib 187 ning nuqsonini boshqa qavatda qaytarardi. 🔴 **Bloklangan akkaunt maxrajni ko'tarmaydi** — maxrajni oshirish hujum: bo'sh kvartallardagi akkauntlar porogni ikki baravar ko'taradi; `trust_score` esa filtr emas (og'irlik haqida). 🔴 **Chegaradagi r9 katagi** ikkala tumanga qo'shilmaydi (§3 ning birinchi jumlasi va shahar darajasining ikki marta sanashi) — foydalanuvchisi ko'p tomon yutadi, tenglikda ID si kichigi (Т-3); `straddling`/`unassigned` yo'qolmaydi. ⬜ `3-source` yashil bo'ldi, lekin reyestrga `3-wired` (`built=False`) qo'shildi: §3 ni fuqaro oqimi hamon chaqirmaydi | ✅ 👤 tartibning 1-bandi; **5042 passed, 2 skipped** — butun to'plam haqiqiy bazada (PostgreSQL 18.6 + PostGIS 3, `0001…0016`); +25 test (18 bazasiz + 7 `requires_db`), migratsiyasiz, ruff yashil; 12 mutant — 11 KILLED, 1 ekvivalent; 189 qoldirgan 16 ta `requires_db` testi ham yashil |
 | 185 | [tz_tiklanish_yoli_tugadi](185_tz_tiklanish_yoli_tugadi_6e04b23c.md) | `local_6e04b23c` | §10 ning tiklanish o'qi tugallandi (ТС-209, ТС-211, ТС-213). Uchchalasi reyestrda bir bosqichli (`RESTORE`) deb yozilgani uchun ta'rifi bo'yicha «yurilmaydigan» edi — lekin bosqichlar ro'yxati navbatdan emas, **da'voning o'zidan** chiqadi: «Квартал не закрыт» hisobning natijasi emas, kartada ham xabarda ham hech narsa o'zgarmasligi. 🔴 Yo'l uzaytirilgach 184-run qorovulining teshigi ochildi: §6.2 ning yuborish huquqi hodisaning **statusidan** olinadi va yopilmagan kvartalli hodisada ham rost (`notifies(CONFIRMED)`), ya'ni `Closure.notifies` chaqiruvchini to'smaydi — `Restoration.blocks` dan xabar yasagan kod svet qaytmagan kvartalga «Свет вернулся, авария длилась 50 минут» yuborardi, karta esa to'g'ri turardi. Filtr `Restoration.announced` ga chiqarildi (yagona mahsulot o'zgarishi); `plan()` ichida tekshirish **rad etildi** — `Closure` `BlockClosure` ni ko'rmaydi (`05` §1, Т-5) va yopilganlik yana kirish fakti bo'lib qolardi. ТС-211 «Восстановлено» o'qini birinchi marta yuradi; yo'l-yo'lakay topildi: uning oltinchi soati В-5 ning **qiyaligini** emas, `share_floor` ni o'lchaydi (`0.40 − 0.05·h` beshinchi soatda chekka tushadi) — qiyalik 0…4 soat oralig'ida alohida qulflandi. ТС-213 «ничего не изменилось» ni butun yo'lning natijasi bilan o'lchaydi (karta va yetkazishlar to'liq solishtiriladi) va yonida majburiy qarama-qarshi holat turadi: «нет» maxrajga tushadi (В-6) va kvartal yopilmay qoladi | ✅ ТС-209/ТС-211/ТС-213 `WALKED`, reyestrda 8/20; 4571 passed, 371 skipped (bazasiz, jami 4942, +11), `requires_db` 370 o'zgarmadi, ruff toza, migratsiyasiz; beshta mutant KILLED |
 | 184 | [tz_tiklanish_yoli](184_tz_tiklanish_yoli_ef2ca8c2.md) | `local_ef2ca8c2` | §10 ning tiklanish o'qi uchidan-uchiga (ТС-210, ТС-212): tiklanish → status → «Свет вернулся». Ikkala band ham o'z modulida allaqachon o'lchanardi, lekin o'lchov `close_block()`/`evaluate_restoration()` da to'xtardi. Yo'lning oxirgi bo'g'inida o'lchanmagan da'vo topildi: `tzrestored.plan()` §6.2 ning yuborish huquqini **so'ramasdi** — docstring 176-rundan beri «chaqirilgan bo'lsa, demak status tanlangan» deb yozardi. ТС-212 buni ochadi: «Данные устарели» da §5 «уведомления — нет» deydi, lekin jimlik statusga aylanishining sharti aynan kvartallarning bir qismi yopilgani, ya'ni yopilganlardan `Closure` yasagan chaqiruvchi jimgina «svet qaytdi» yuborardi. `Closure.notifies` — sukut qiymatisiz maydon (`Outage.notifies` naqli), `plan()` `False` da bo'sh ro'yxat (sabab bilan `DROP` **rad etildi** — keyingi qatlam uni «keyinroq yuboramiz» deb o'qirdi). Ikkinchi topilma reyestrda: `Stage.NOTIFY` bitta modulga qarardi, `Stage.NOTIFY_RESTORED` ajratildi (`tuple[str, ...]` varianti rad etildi — ТС-210 ga aloqasi yo'q `tzoutage` ni talab qilardi). ТС-210 chegarada o'lchanadi: 40 % aynan `tz.restore.answered_share` ga teng, ya'ni `<` va `<=` farqi | ✅ ТС-210/ТС-212 `WALKED`; 4560 passed, 371 skipped (bazasiz, jami 4931, +12), ruff toza, migratsiyasiz; uchta mutant KILLED |
 | 181 | [tz_operator_paneli](181_tz_operator_paneli_5ad29f82.md) | `local_5ad29f82` | TZ §8 ning paneli — 179 qoldirgan navbatning uchinchi va oxirgi bandi. §8 ning to'rtta vakolatidan ikkitasi 179-runda ulangan edi; qolgan ikkitasi («подтвердить или отклонить спорный случай», «закрыть аварию») shu yerda. Ular signal emas: datchik **katak** haqida, operator esa **hodisa** haqida gapiradi — shuning uchun `tz_signals` ga qo'shilmadi, balki yangi toza modul `app/admin/tzoperator.py`, ulash qatlami `app/admin/tzpanel.py` va `0015` (`tz_operator_actions`). 🔴 §8 ning taqiqi o'lchanadigan bo'ldi: erkin matnli asos maydoni «bez vneshnego istochnika» ni bajara olmaydi, shuning uchun `Basis.EXTERNAL`/`JUDGEMENT` va `CONFIRM+JUDGEMENT` → `Refusal.OWN_JUDGEMENT`; ikkinchi qulf bazadagi `confirm_needs_external` cheklovi. 🔴 Rad etish narvonni `cap_at_likely()` bilan «Вероятно» da to'xtatadi — §5 da «Отклонено» yo'q va Т-5 to'qqizinchi statusni taqiqlaydi; kartada `tz.card.rejected`, va shu yerda `tzoutage.Cause.OPERATOR` (176-rundan beri ishlab chiqaruvchisiz turgan) birinchi marta haqiqiy bo'ldi. 🔴 `Resolution.saw` — qarorning qamrovi: yangi qarshi dalil vetoni qaytaradi, aks holda operatorni bir marta chalg'itish tasdiqlashni soxtalashtirishdan arzon bo'lardi. Rad etilgan urinish ham jurnalda (§8 «все действия») va javob `200`, lekin statusga faqat qabul qilingan qaror ta'sir qiladi. Т-5 saqlandi: modul `TzStatus` ni import qilmaydi, ko'prik lug'at qaytaradi. ⚠️ Yo'l-yo'lakay: `test_outbox_pending_is_actually_queried` mutlaq son bilan o'lchardi va butun to'plamda yurish tartibiga bog'liq edi — yangi fayllarsiz ham yiqilardi; endi farq o'lchanadi | ✅ TZ §8 va §11 navbati to'liq; 4808 test (+92), `requires_db` 364 (+18), `0015` migratsiya haqiqiy bazada `upgrade`/`downgrade`/`upgrade` bilan tekshirildi, ruff toza |
