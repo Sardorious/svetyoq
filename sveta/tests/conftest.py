@@ -7,16 +7,41 @@ import os
 os.environ.setdefault("APP_ENV", "test")
 
 import socket  # noqa: E402
+import uuid  # noqa: E402
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy import select  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
+from app.clustering import repository as cluster_repo  # noqa: E402
+from app.clustering.models import Outage  # noqa: E402
 from app.clustering.params import DEFAULT_PARAMS  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.stats import methodology as methodology_mod  # noqa: E402
 from app.stats import service as stats_service  # noqa: E402
+
+
+async def purge_outages(session: AsyncSession, region_id: uuid.UUID) -> int:
+    """Mintaqaning hodisalarini tozalaydi — Т-10 ni buzmasdan.
+
+    `0016` gacha o'n ikkita `requires_db` fayli teardown da bir xil
+    qatorni yozardi: `DELETE FROM outages WHERE region_id = :id`. TZ
+    Т-10 ning triggeri qo'yilgan kuni ularning hammasi qizardi va
+    **bu to'g'ri**: teardown ham aynan «tasdiqlangan hodisani
+    o'chirish», ya'ni qorovul ishladi.
+
+    Tuzatishning ikki yo'li bor edi va tanlov muhim. Fikstyuralarga
+    bayroqni qo'lda qo'ydirish teshikni o'n ikki joyga ko'chirardi —
+    keyin uni kimdir mahsulot kodiga nusxalashi vaqt masalasi. Shuning
+    uchun tozalash **bor** teshikdan o'tadi: `delete_outages` — `05`
+    §9.2 ning yagona o'chiruvchisi. Ya'ni testlar mahsulot bilan bir
+    xil eshikdan yuradi va yangi eshik ochilmaydi.
+    """
+    rows = await session.execute(select(Outage.id).where(Outage.region_id == region_id))
+    return await cluster_repo.delete_outages(session, list(rows.scalars().all()))
 
 
 def default_methodology() -> methodology_mod.Methodology:

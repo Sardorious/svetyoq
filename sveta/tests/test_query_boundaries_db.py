@@ -36,6 +36,7 @@ from sqlalchemy import text as sql
 from app.clustering import repository as repo
 from app.db.session import session_scope
 from app.reports import queries as rq
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -93,7 +94,7 @@ async def world():
         await session.execute(
             sql("UPDATE outages SET merged_into = NULL WHERE region_id = :id"), {"id": region_id}
         )
-        await session.execute(sql("DELETE FROM outages WHERE region_id = :id"), {"id": region_id})
+        await purge_outages(session, region_id)
         await session.execute(sql("DELETE FROM users WHERE region_id = :id"), {"id": region_id})
         await session.execute(
             sql("DELETE FROM mahallas WHERE district_id = :id"), {"id": district_id}

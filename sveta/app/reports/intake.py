@@ -295,6 +295,13 @@ async def create_report(
     public_lat: float,
     public_lon: float,
     h3_r9: str,
+    # TZ §1 — to'rt daraja. Nomli va **ixtiyoriy**: `05` §3 quvurining
+    # tashqarisidan chaqiradigan yo'llar (`tools/simulate.py`, rasmiy
+    # manba) bugun faqat `h3_r9` ni beradi va ular sinmasligi kerak.
+    h3_r7: str | None = None,
+    h3_r8: str | None = None,
+    h3_r10: str | None = None,
+    h3_r11: str | None = None,
     region_id: uuid.UUID,
     district_id: uuid.UUID | None = None,
     mahalla_id: uuid.UUID | None = None,
@@ -312,6 +319,10 @@ async def create_report(
         geom_exact=_point(lat, lon),
         geom_public=_point(public_lat, public_lon),
         h3_r9=h3_r9,
+        h3_r7=h3_r7,
+        h3_r8=h3_r8,
+        h3_r10=h3_r10,
+        h3_r11=h3_r11,
         region_id=region_id,
         district_id=district_id,
         mahalla_id=mahalla_id,

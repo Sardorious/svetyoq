@@ -387,13 +387,33 @@ async def test_notification_counts_come_from_the_period_window(two_regions) -> N
 # ---------------------------------------------------------------------------
 
 
+async def _outbox_pending() -> int:
+    """Yopilmagan qatorlarning bugungi soni — testning boshlang'ich nuqtasi."""
+    async with session_scope() as session:
+        return (
+            await session.execute(
+                text("SELECT count(*) FROM outbox WHERE processed_at IS NULL")
+            )
+        ).scalar_one()
+
+
 async def test_outbox_pending_is_actually_queried(two_regions, clean_audit_and_outbox) -> None:
     """`outbox_pending` — yopilmagan qatorlar soni, doimiy nol emas.
 
     M08 (`outbox_pending = 0`) omon qolgandi: hech bir test bu maydonni
     noldan farqli holatda ko'rmagan. E13-a bloki aynan shu son bilan
     ko'rinadi — `jobs` konteyneri turib qolsa navbat o'sadi.
+
+    🔴 **Farq o'lchanadi, mutlaq son emas** (181-run). `outbox` da
+    `region_id` yo'q va so'rov butun jadvalni sanaydi, ya'ni bu
+    testdan **oldin** yurgan boshqa fayllarning qatorlari ham shu
+    songa qo'shiladi. Mutlaq `== 2` faqat yolg'iz yurganda to'g'ri
+    edi: butun to'plamda son 32 ham, 47 ham bo'lardi — ya'ni test
+    o'zi o'lchamoqchi bo'lgan narsani emas, **yurish tartibini**
+    o'lchardi. Farq esa M08 ni baribir o'ldiradi: doimiy `0` da
+    farq ham `0` bo'ladi.
     """
+    before = await _outbox_pending()
     async with session_scope() as session:
         for topic, processed in (
             ("outage.confirmed", None),
@@ -411,7 +431,7 @@ async def test_outbox_pending_is_actually_queried(two_regions, clean_audit_and_o
     ours, _ = two_regions
     report = await _collect(ours)
 
-    assert report.outbox_pending == 2
+    assert report.outbox_pending - before == 2
 
 
 # ---------------------------------------------------------------------------

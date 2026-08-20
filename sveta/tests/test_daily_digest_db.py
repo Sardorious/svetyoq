@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.db.session import session_scope
 from app.geo import queries as geo_q
 from app.jobs import daily_digest as job
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -56,7 +57,7 @@ async def region_id():
     async with session_scope() as session:
         await session.execute(text("DELETE FROM daily_digest WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM reports WHERE region_id = :id"), {"id": rid})
-        await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM regions WHERE id = :id"), {"id": rid})
 

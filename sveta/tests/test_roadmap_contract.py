@@ -383,6 +383,20 @@ def test_p0_1_is_assumed_because_the_seed_already_answered_it() -> None:
     assert "official" in sources.AUTHORITATIVE_CODES
 
 
+#: Matn skaneridan chiqarilgan fayllar va **sababi**.
+#:
+#: `sources.py` — reyestrning o'zi: `official` kodi u yerda e'lon
+#: qilinadi, ya'ni uni topish topilma emas.
+#:
+#: `tzsensor.py` (178-run, TZ §11/7) — В-7 ning qabul **mantiqi**.
+#: 178-run da istisno «kanal umuman yo'q» degan shart bilan berilgan
+#: edi; 179-run kanalni qurdi (`POST /tz/readings`), ya'ni o'sha shart
+#: eskirdi. Istisno **qoldirildi**, lekin sharti ko'chdi: qabul
+#: qilingan fakt hali `reports` ga ham, `outages` statusiga ham yetib
+#: bormaydi. Quyidagi test aynan shuni har safar qayta o'lchaydi.
+_OFFICIAL_SCAN_EXEMPT = frozenset({"sources.py", "tzsensor.py"})
+
+
 def test_no_code_path_creates_an_official_report() -> None:
     """`01` §7 MVP ning «Ручной разбор публикаций 1055» qatori yo'lsiz.
 
@@ -392,9 +406,48 @@ def test_no_code_path_creates_an_official_report() -> None:
     hits = [
         path.name
         for path, text in _python_sources(APP_DIR / "reports", APP_DIR / "api").items()
-        if "official" in text and path.name != "sources.py"
+        if "official" in text and path.name not in _OFFICIAL_SCAN_EXEMPT
     ]
     assert not hits, f"rasmiy manba bilan xabar yaratadigan yo'l paydo bo'ldi: {hits}"
+
+
+def test_the_sensor_intake_reaches_no_report_and_no_status() -> None:
+    """Yuqoridagi istisnoning **narxi** — 179-runda ko'chgan chegara.
+
+    178-run bu yerda «bironta ham ulangan kanal yo'q» deb yozgan va
+    kanal paydo bo'lgan kunda yiqilishini oldindan aytgan edi. Kanal
+    paydo bo'ldi: `tz_sources` reyestri, `tz_signals` jurnali va
+    `POST /api/v1/tz/readings`. Eski da'voni saqlab qolish testni
+    yolg'onni qo'riqlaydigan qorovulga aylantirardi.
+
+    DP-4 ning o'zi esa hamon rost, faqat **ichkariroq** chegarada:
+    qabul qilingan fakt `reports` jadvaliga ham, hodisaning statusiga
+    ham yetib bormaydi. Ikkala ko'prik — `official_fields` (В-7) va
+    `verified_fields` (§8) — mahsulot kodida **chaqirilmaydi**;
+    ularni faqat test chaqiradi. Chaqiruv paydo bo'lgan kunda bu test
+    yana yiqiladi va DP-4 uchinchi marta qayta o'qiladi.
+
+    Chaqiruv **`ast` bilan** qidiriladi, matn bilan emas: birinchi
+    urinishda regex `app/clustering/tzstatus.py` ning **izohidagi**
+    `tzsensor.verified_fields()` ga ilingan edi — ya'ni qorovul
+    hujjatni kod deb o'qigan.
+    """
+    from app.reports import tzsensor
+
+    assert [item.signal.value for item in tzsensor.INBOUND if not item.wired] == []
+    bridges = {"official_fields", "verified_fields"}
+    callers = []
+    for path, text in _python_sources(APP_DIR).items():
+        if path.name == "tzsensor.py":
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            if name in bridges:
+                callers.append(f"{path.name}:{node.lineno}")
+    assert callers == [], f"ko'prik mahsulot kodida chaqirildi: {callers}"
 
 
 def test_p0_3_is_assumed_because_the_language_is_a_module_constant() -> None:

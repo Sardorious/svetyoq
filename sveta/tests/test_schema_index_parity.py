@@ -92,6 +92,29 @@ BEYOND_SPEC: dict[str, str] = {
     "ix_mahallas_district_id": "`01` NFR-S-02, birlashma orqali (0009)",
     "ix_boundary_staging_geom": "`05` §5.1 import staging (0002)",
     "ix_territory_stats_territory_level": "`06` §9 hudud statistikasi (0003)",
+    "ix_reports_h3_r10_created_at": "TZ §2.1 — uy darajasidagi sanash oynasi (0012)",
+    "ix_config_journal_region_id_key_changed_at": "TZ ТС-219 — kalitning tarixi (0012)",
+    "ix_tz_signals_region_id_key_accepted": (
+        "TZ Т-7 **bazada** — mintaqa ichida qisman yagona kalit (0013)"
+    ),
+    "ix_tz_signals_region_id_at": "TZ §8 — operator paneli va `seen` oynasi (0013)",
+    "ix_tz_signals_region_id_source_id_at": "TZ §11/7 — manbaning oxirgi holati (0013)",
+    "ix_tz_receipts_region_id_key": (
+        "TZ Т-7 **bazada** — bitta xabar bitta manzilga ikkinchi marta ketmaydi (0014)"
+    ),
+    "ix_tz_receipts_region_id_incident_id_cell_kind": (
+        "TZ §6.4 — «кому уже отправили ошибку» (0014)"
+    ),
+    "ix_tz_receipts_region_id_sent_at": "TZ §6.2/5 limitlari va §8 paneli (0014)",
+    "ix_tz_operator_actions_region_id_key": (
+        "TZ Т-7 **bazada** — bir xil tugmaning ikkinchi bosilishi (0015)"
+    ),
+    "ix_tz_operator_actions_region_id_incident_id_decided_at": (
+        "TZ §8 — «shu hodisa bo'yicha oxirgi qaror» (0015)"
+    ),
+    "ix_tz_operator_actions_region_id_decided_at": (
+        "TZ §8 — smena bo'yicha barcha amallar (0015)"
+    ),
 }
 
 #: Skaner bo'shab qolmasligining pastki chegarasi (34-sessiyaning saboqi).

@@ -247,5 +247,53 @@ class RegionConfig(Base):
         PgUUID(as_uuid=True), ForeignKey("regions.id"), primary_key=True
     )
     key: Mapped[str] = mapped_column(Text, primary_key=True)
-    # `jsonb` — son, satr yoki obyekt bo'lishi mumkin (`06` §9 da sonlar).
+    # `jsonb` — son, satr yoki obyekt bo'lishi mumkin (`06` §9 da sonlar,
+    # TZ §4.1 da to'lqinlar massivi).
     value: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    #: TZ §7 — qiymat qayerdan kelgan. Qiymat bilan **birga** chop
+    #: etiladi: `invented` sonni «o'lchangan» deb o'qishni to'sadi.
+    origin: Mapped[str] = mapped_column(Text, nullable=False, server_default="invented")
+
+
+class ConfigJournal(Base):
+    """Sozlama o'zgarishlarining jurnali — faqat qo'shiladi (TZ T-2, ТС-219).
+
+    **Nima uchun alohida jadval.** `region_config` joriy holatni
+    saqlaydi, ТС-219 esa o'zgarishdan keyin **eskisi saqlanishini** va
+    chop etilishini talab qiladi. Bitta jadvalda ikkalasini qilish
+    uchun har o'qishga «eng oxirgi versiya» so'rovi kerak bo'lardi;
+    joriy holat esa har bir xabar yo'lida o'qiladi.
+
+    O'zgartirish va o'chirish **bazada** to'siladi (`0012` dagi
+    trigger). Ilova qatlamidagi tekshiruv T-2 ni bajarmaydi: u
+    «на уровне базы» deydi, ya'ni `psql` dan qo'lda kirish ham
+    to'silishi kerak.
+    """
+
+    __tablename__ = "config_journal"
+    __table_args__ = (
+        # Nom konvensiyadan quriladi (`ck_%(table_name)s_%(constraint_name)s`),
+        # shuning uchun bu yerda faqat oxirgi bo'lagi yoziladi — aks holda
+        # baza `ck_config_journal_ck_config_journal_origin` ni ko'radi.
+        CheckConstraint("origin IN ('invented', 'expert', 'computed')", name="origin"),
+        Index(
+            "ix_config_journal_region_id_key_changed_at",
+            "region_id",
+            "key",
+            text("changed_at DESC"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    region_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("regions.id"), nullable=False
+    )
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    origin: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Kim o'zgartirdi: admin tokeni egasi yoki asbob nomi.
+    changed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

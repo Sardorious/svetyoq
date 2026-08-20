@@ -24,6 +24,7 @@ from app.db.session import session_scope
 from app.geo.bbox import BBox
 from app.geo.registry import RegionInfo
 from app.reports import queries as reports_q
+from tests.conftest import purge_outages
 from tools import simulate
 
 pytestmark = pytest.mark.requires_db
@@ -83,7 +84,7 @@ async def region():
         await session.execute(
             text("DELETE FROM outbox WHERE payload->>'region_id' = :id"), {"id": str(rid)}
         )
-        await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM regions WHERE id = :id"), {"id": rid})
 

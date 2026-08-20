@@ -475,6 +475,14 @@ async def stats_rows_started_between(
     ]
 
 
+#: TZ Т-10 ning yagona teshigi (`0016`). Bazadagi qorovul tasdiqlangan
+#: hodisani o'chirishga yo'l qo'ymaydi; qayta hisoblash (`05` §9.2, Т-3)
+#: esa oynani o'chirib qaytadan quradi va usiz **quruq yurish** ham
+#: bajarilmasdi. Nom `app/` da faqat shu yerda uchraydi — buni
+#: `tests/test_outage_delete_guard.py` ning tripwire testi ushlab turadi.
+RECLUSTER_GUC = "sveta.recluster"
+
+
 async def delete_outages(session: AsyncSession, ids: Sequence[uuid.UUID]) -> int:
     """Hodisalarni o'chiradi (faqat E6 qayta hisoblashida).
 
@@ -485,13 +493,43 @@ async def delete_outages(session: AsyncSession, ids: Sequence[uuid.UUID]) -> int
     Kundalik ishda hodisa **o'chirilmaydi** (`05` §4.3: `merged` alohida
     status, o'chirish emas) — bu funksiya ataylab shu modulda va faqat
     qayta hisoblash asbobidan chaqiriladi.
+
+    `0016` dan beri bu «ataylab» endi **bazada** ham yozilgan: Т-10
+    tasdiqlangan hodisani o'chirishni taqiqlaydi, va taqiq shu funksiya
+    uchun `SET LOCAL` bilan ochiladi. `LOCAL` muhim — bayroq shu
+    tranzaksiya bilan tug'iladi va u bilan o'ladi, ya'ni keyingi
+    so'rovga sizib o'tmaydi va quruq yurishning `ROLLBACK` i uni ham
+    olib ketadi. Bayroqni funksiyaning ichiga qo'yish (chaqiruvchiga
+    emas) ataylab: shunda teshik **bitta** joyda va uni `grep` bilan
+    topish mumkin.
+
+    `SET LOCAL` o'rniga `set_config(…, is_local => true)` — bazada bir
+    xil narsa, lekin ifoda sifatida yoziladi. Bu did emas: `text("SET
+    LOCAL …")` `05` §1 ning «xom SQL ning bitta uyi bor» qorovulini
+    buzardi (`tests/test_architecture_contract.py`), qorovulga istisno
+    ochish esa Т-10 ning teshigini ikkinchi marta kengaytirish
+    bo'lardi.
+
+    **Bayroq `DELETE` dan keyin darhol yopiladi** (189-run). `LOCAL`
+    ning ma'nosi «tranzaksiya bilan o'ladi», ya'ni yopilmagan bayroq
+    shu tranzaksiyaning **qolgan hamma** so'roviga ochiq qolardi — va
+    aynan shu yerda bu nazariy emas: `tools/recluster.py` bu
+    chaqiruvdan **keyin** o'sha tranzaksiyada oynani qaytadan quradi
+    (`clustering.assign` ni har xabar uchun chaqiradi). Bugun u
+    `outages` dan hech nima o'chirmaydi, lekin agar o'chirsa — yoki
+    kelajakdagi biror chaqiruvchi `delete_outages` ni o'z `DELETE` i
+    bilan bitta tranzaksiyaga qo'ysa — Т-10 xatosiz, jurnalsiz va
+    testsiz o'chib qolardi. Yopilgandan keyin teshik aynan ikkita
+    ifoda kengligida qoladi.
     """
     if not ids:
         return 0
+    await session.execute(select(func.set_config(RECLUSTER_GUC, "on", True)))
     await session.execute(
         update(Outage).where(Outage.merged_into.in_(ids)).values(merged_into=None)
     )
     result = await session.execute(delete(Outage).where(Outage.id.in_(ids)))
+    await session.execute(select(func.set_config(RECLUSTER_GUC, "off", True)))
     return int(result.rowcount or 0)
 
 

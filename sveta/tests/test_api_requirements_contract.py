@@ -142,8 +142,23 @@ def _operations(schema: dict):
 
 
 def _params(schema: dict, path: str) -> dict[str, bool]:
-    operation = schema["paths"][f"{settings.api_prefix}{path}"]["get"]
-    return {p["name"]: bool(p.get("required")) for p in operation.get("parameters", [])}
+    """Yo'ldagi **barcha** operatsiyalarning parametrlari.
+
+    Ilgari bu yerda `["get"]` yozilgan edi va 179-run gacha u to'g'ri
+    ishlardi: `region` ni ko'targan har bir yo'l `GET` edi. TZ §11/7
+    ning `POST /tz/readings` i ham `region` ni ko'taradi, ya'ni
+    metodni qattiq yozib qo'yish testni `KeyError` bilan yiqitardi —
+    o'lchanayotgan da'vo esa metod haqida emas, parametrning
+    **majburiy emasligi** haqida.
+    """
+    item = schema["paths"][f"{settings.api_prefix}{path}"]
+    result: dict[str, bool] = {}
+    for method, operation in item.items():
+        if not isinstance(operation, dict) or method == "parameters":
+            continue
+        for p in operation.get("parameters", []):
+            result[p["name"]] = bool(p.get("required"))
+    return result
 
 
 def _sources() -> list[tuple[Path, str]]:
@@ -381,13 +396,20 @@ def test_the_only_authentication_built_is_a_header_token(openapi: dict) -> None:
     assert not {name for name in imported if name.startswith("fastapi.security")}
     assert "securitySchemes" not in openapi.get("components", {})
 
-    guarded = {
-        path
+    guarded = [
+        (path, operation)
         for path, _m, operation in _operations(openapi)
         if any(p["name"] == HEADER_NAME.lower() for p in operation.get("parameters", []))
-    }
+    ]
     assert guarded, "ma'muriy sath sarlavha bilan himoyalangan"
-    assert all("/admin/" in p or p.endswith("/metrics") for p in guarded)
+    # Chegara **tegdan** olinadi, yo'l prefiksidan emas. 179-run gacha
+    # ikkalasi bir xil javob berardi (tokenli hamma narsa `/admin/`
+    # ostida edi), TZ §11/7 ning qabuli esa `/tz/readings` da yashaydi
+    # va u ham tokensiz javob bermaydi. Prefiksga tayanish testni
+    # «himoyalangan yo'l noto'g'ri joyda» deb yiqitardi, holbuki
+    # o'lchanayotgan da'vo — himoyaning **turi** (sarlavhali token,
+    # OAuth emas), uning manzili emas.
+    assert all("admin" in (operation.get("tags") or []) for _path, operation in guarded)
 
 
 # --------------------------------------------------------------------------
@@ -481,11 +503,19 @@ def test_openapi_version_and_prefix_are_what_the_epigraph_claims(openapi: dict) 
 
 
 def test_idempotency_is_incidental_not_enforced(openapi: dict) -> None:
-    """`I-4`: ommaviy sath butunlay `GET`, ma'muriy `POST` da kalit yo'q."""
+    """`I-4`: ommaviy sath butunlay `GET`, ma'muriy `POST` da kalit yo'q.
+
+    «Ommaviy» **teg** bo'yicha aniqlanadi (`test_api_surface_contract.py`
+    dagi bilan bir xil ta'rif). Yo'l prefiksi 179-run gacha shu ta'rifga
+    teng edi; TZ §11/7 ning `POST /tz/readings` i `/admin/` ostida emas,
+    lekin tokensiz javob bermaydi — ya'ni u ommaviy sath emas.
+    Prefiksga tayanish `I-4` ni «ommaviy `POST` paydo bo'ldi» deb
+    o'qirdi va bu **noto'g'ri** xulosa bo'lardi.
+    """
     public = {
         method
-        for path, method, operation in _operations(openapi)
-        if "/admin/" not in path and method != "parameters"
+        for _path, method, operation in _operations(openapi)
+        if "admin" not in (operation.get("tags") or []) and method != "parameters"
     }
     assert public == {"get"}
 

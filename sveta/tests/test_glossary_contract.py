@@ -292,10 +292,13 @@ def test_g6_coverage_index_caveat_is_implemented_not_merely_written() -> None:
 
 def test_g7_h3_range_is_closed_by_the_column_name() -> None:
     assert h3_cells.DEFAULT_RESOLUTION == 9
-    # Rezolyutsiya sozlama emas, sxema: 8 ni yoqish migratsiya talab qiladi.
-    assert "h3_r9" in Report.__table__.columns
-    assert not any(c.name.startswith("h3_r8") for c in Report.__table__.columns)
-    assert gl.TERM_BY_CODE["G-7"].fidelity is gl.Fidelity.NARROWER
+    # Rezolyutsiya sozlama emas, **sxema**: har daraja o'z ustuni bilan
+    # keladi va uni yoqish migratsiya talab qiladi. TZ §1 dan keyin
+    # ustunlar to'rtta emas, beshta — ya'ni «8–9» ta'rifi endi tor
+    # qolmadi, aksincha, kod undan **kengroq** yozadi (`0012`).
+    columns = {c.name for c in Report.__table__.columns}
+    assert {"h3_r7", "h3_r8", "h3_r9", "h3_r10", "h3_r11"} <= columns
+    assert gl.TERM_BY_CODE["G-7"].fidelity is gl.Fidelity.WIDER
 
 
 def test_g8_no_symbol_in_the_repository_is_named_dbscan() -> None:
@@ -449,8 +452,10 @@ def test_fidelity_classes_partition_the_glossary() -> None:
     report = gl.evaluate()
     assert report.by_fidelity == {
         gl.Fidelity.HOLDS: ("G-5", "G-6", "G-10"),
-        gl.Fidelity.NARROWER: ("G-7", "G-9"),
-        gl.Fidelity.WIDER: ("G-2", "G-3"),
+        # `G-7` TZ §1 dan keyin `NARROWER` dan `WIDER` ga o'tdi: to'r
+        # endi to'rt darajali, ya'ni kod «8–9» ta'rifidan kengroq yozadi.
+        gl.Fidelity.NARROWER: ("G-9",),
+        gl.Fidelity.WIDER: ("G-2", "G-3", "G-7"),
         gl.Fidelity.SUPERSEDED: ("G-4", "G-8"),
         gl.Fidelity.UNREACHABLE: ("G-1",),
     }

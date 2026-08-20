@@ -92,7 +92,7 @@ import app as app_pkg
 from app.admin import digest as admin_digest
 from app.admin import registries as registries_mod
 from app.bot import keyboards, reply
-from app.clustering import lookup
+from app.clustering import lookup, tzscale
 from app.clustering.scale import Scale
 from app.clustering.status import OutageStatus
 from app.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
@@ -231,6 +231,9 @@ KEY_TABLES: dict[str, tuple[str, ...]] = {
     # xususiyat (`f"registry.{code}"`), sabab kaliti esa `api/v1/
     # admin.py` da f-satrdan quriladi — ya'ni ikkala oila ham skaner
     # uchun butunlay ko'rinmas.
+    # Masshtab yorliqlari (TZ §3). `ScaleVerdict.key` — hisoblanadigan
+    # xususiyat, ya'ni chaqiruv joyida kalit ko'rinmaydi.
+    "clustering.tzscale.SCALE_KEYS": tuple(tzscale.SCALE_KEYS.values()),
     "admin.registries.REGISTRY_KEYS": registries_mod.REGISTRY_KEYS,
     "admin.registries.REASON_KEYS": registries_mod.REASON_KEYS,
 }

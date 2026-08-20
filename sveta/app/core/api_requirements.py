@@ -170,6 +170,15 @@ REGION_PARAM_PATHS: tuple[str, ...] = (
     "/stats",
     "/stats.csv",
     "/stats/methodology",
+    # TZ §11/7 — qabul ham, reyestr ham bitta mintaqa bo'yicha
+    # bajariladi: manba reyestri mintaqaga tegishli va §7 sozlamalari
+    # ham mintaqadan o'qiladi.
+    "/tz/readings",
+    "/tz/sources",
+    # TZ §8 — operatorning amali ham, uning jurnali ham mintaqa
+    # ichida: hodisaning identifikatori global emas va Т-7 ning
+    # kaliti mintaqani bilmaydi.
+    "/tz/operator/actions",
 )
 
 #: §16 ning beshinchi qatori ruxsat bergan tillar — aynan va tartibda.

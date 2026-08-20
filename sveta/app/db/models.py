@@ -6,7 +6,8 @@ Jadval modellari o'z modullarida yashaydi (`05` §1 — modul chegaralari):
 |---|---|
 | `app.geo` | `regions`, `districts`, `mahallas`, `boundary_staging`, |
 | | `territory_stats`, `region_config` |
-| `app.reports` | `users`, `reports`, `report_sources` |
+| `app.reports` | `users`, `reports`, `report_sources`, `tz_sources`, |
+| | `tz_signals` |
 | `app.clustering` | `outages`, `map_snapshot` |
 | `app.notifications` | `subscriptions`, `outbox`, `notifications` |
 | `app.admin` | `audit_log`, `daily_digest` |
@@ -40,6 +41,7 @@ from app.clustering.models import MapSnapshot, Outage
 from app.db.base import Base, metadata
 from app.geo.models import (
     BoundaryStaging,
+    ConfigJournal,
     District,
     Mahalla,
     Region,
@@ -47,12 +49,13 @@ from app.geo.models import (
     TerritoryStats,
 )
 from app.notifications.models import Notification, OutboxMessage, Subscription
-from app.reports.models import Report, ReportSource, User
+from app.reports.models import Report, ReportSource, TzSignal, TzSource, User
 
 __all__ = [
     "AuditLog",
     "Base",
     "BoundaryStaging",
+    "ConfigJournal",
     "DailyDigest",
     "District",
     "Mahalla",
@@ -66,6 +69,8 @@ __all__ = [
     "ReportSource",
     "Subscription",
     "TerritoryStats",
+    "TzSignal",
+    "TzSource",
     "User",
     "metadata",
 ]

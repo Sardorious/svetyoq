@@ -84,13 +84,21 @@ from enum import StrEnum
 from pathlib import Path
 
 from app.admin import security as security_mod
+from app.admin import tzoperator as tzoperator_mod
 from app.analytics import dashboards as dashboards_mod
+from app.clustering import tzdispute as tzdispute_mod
+from app.clustering import tzrestore as tzrestore_mod
+from app.clustering import tzscale as tzscale_mod
+from app.clustering import tzstatus as tzstatus_mod
 from app.core import api_requirements as api_requirements_mod
 from app.core import architecture as architecture_mod
 from app.core import glossary as glossary_mod
+from app.core import tzconfig as tzconfig_mod
 from app.db import data_model as data_model_mod
 from app.integrations import registry as integrations_mod
 from app.notifications import channels as channels_mod
+from app.notifications import tzoutage as tzoutage_mod
+from app.notifications import tzrestored as tznotify_mod
 from app.obs import monitoring as monitoring_mod
 from app.release import acceptance as acceptance_mod
 from app.release import business_acceptance as bacc_mod
@@ -111,8 +119,10 @@ from app.release import risks as risks_mod
 from app.release import roadmap as roadmap_mod
 from app.release import scope as scope_mod
 from app.release import success as success_mod
+from app.release import tz_acceptance as tzacc_mod
 from app.release import user_stories as user_stories_mod
 from app.release import ux_requirements as ux_mod
+from app.reports import tzsensor as tzsensor_mod
 
 #: i18n kalitlarining prefiksi (`gates.py` ning `release.gate` naqshi).
 KEY_PREFIX = "registry"
@@ -342,6 +352,258 @@ def _probe_glossary(_doc: str | None = None) -> Probe:
         total=len(report.terms),
         flagged=len(report.imprecise),
         undeclared=len(report.missing),
+    )
+
+
+def _probe_tzstatus(_doc: str | None = None) -> Probe:
+    """TZ §5 — sakkizta status, ulardan yettitasi qurilgan.
+
+    `flagged` — `decide()` bugun **qaytara olmaydigan** statuslar.
+    Bugun bitta: «Проверено оператором» (§8). Tiklanishning uchtasi
+    §11/4 da qurildi va endi bu ro'yxatda emas.
+    Verdikt shuning uchun hamon salbiy: §5 jadvali bugungi kodni
+    to'liq tasvirlamaydi va buni operator ko'radigan joyda aytish
+    kerak. Operator paneli (§8) qurilganda u o'z-o'zidan ijobiyga
+    o'tadi.
+
+    `undeclared` har doim `0`: `TzStatus` ning har bir a'zosi §5
+    jadvalining qatori — `tests/test_tz_status.py` buni literal
+    ro'yxat bilan qulflaydi.
+    """
+    total = len(tzstatus_mod.TzStatus)
+    decided = len(tzstatus_mod.DECIDED_TODAY)
+    return Probe(
+        verdict=_verdict(decided == total),
+        total=total,
+        flagged=total - decided,
+        undeclared=0,
+    )
+
+
+def _probe_tzdispute(_doc: str | None = None) -> Probe:
+    """TZ §2.2 — qarshi dalillar va tasdiqni qaytarib olish.
+
+    `flagged` — §2.2 ning **hali bajarilmagan** majburiyatlari. Bugun
+    bitta: tuzatishning haqiqiy yuborilishi (§6.4). Sanash, veto,
+    «Спорно» va operatorga o'tkazish qurilgan, lekin xabar yuboradigan
+    quvur §11 navbatining 6-bandida — ya'ni hozircha `Card.corrects`
+    faqat **majburiyatni e'lon qiladi**, uni bajarmaydi.
+
+    Verdikt shuning uchun salbiy: §6.4 «Это не опция» deydi va shu
+    holat operator ko'radigan joyda turishi kerak.
+
+    `undeclared` har doim `0`: ro'yxat §2.2 ning o'z matnidan olingan.
+    """
+    total = len(tzdispute_mod.OBLIGATIONS)
+    built = sum(1 for item in tzdispute_mod.OBLIGATIONS if item.built)
+    return Probe(
+        verdict=_verdict(built == total),
+        total=total,
+        flagged=total - built,
+        undeclared=0,
+    )
+
+
+def _probe_tzrestore(_doc: str | None = None) -> Probe:
+    """TZ §4 — tiklanish, opros va «Данные устарели».
+
+    `flagged` — §4 ning **kanalsiz** qolgan qoidalari. Bugun uchta va
+    uchalasining ham hisobi yozilgan, yetishmayotgani — yuboradigan
+    yoki qabul qiladigan qatlam: В-4 ning tugmasi va §4.1 ning opros
+    dialogi (§11 navbatining 5–6-bandlari), В-7 ning datchik qabuli
+    (7-band).
+
+    Verdikt shuning uchun salbiy: `close_block()` bugun ishlaydi,
+    lekin uni chaqiradigan hech kim yo'q — va bu holat operator
+    ko'radigan joyda turishi kerak.
+
+    `undeclared` har doim `0`: ro'yxat §4 ning o'z jadvalidan olingan.
+    """
+    total = len(tzrestore_mod.RULES)
+    built = sum(1 for item in tzrestore_mod.RULES if item.built)
+    return Probe(
+        verdict=_verdict(built == total),
+        total=total,
+        flagged=total - built,
+        undeclared=0,
+    )
+
+
+def _probe_tzacceptance(_doc: str | None = None) -> Probe:
+    """TZ §10 — qabul ro'yxati (ТС-201…ТС-220).
+
+    `flagged` — hali **qurilmagan** bandlar (183-rundan beri nol:
+    `0016` Т-10 ning bazadagi taqig'ini qo'ydi va ТС-218 yopildi).
+    `undeclared` — yo'l bo'ylab o'lchanmagan, ya'ni faqat o'z
+    modulida tekshirilgan bandlar: ular «bajarilgan» ko'rinadi, lekin
+    modullar **orasidagi** nosozlikni ko'rmaydi. 181-run ning eng
+    qimmat defekti aynan o'sha oraliqda edi.
+
+    Verdikt shuning uchun hamon salbiy: §10 — hujjatning yakuniy
+    ro'yxati va uni «20/20» deb o'qish operatorni chalg'itardi —
+    yigirmatadan faqat bir nechtasi uchidan-uchiga yurilgan.
+    """
+    report = tzacc_mod.evaluate()
+    return Probe(
+        verdict=_verdict(report.clean),
+        total=report.total,
+        flagged=report.total - report.built,
+        undeclared=report.per_module + report.unmeasured,
+    )
+
+
+def _probe_tzscale(_doc: str | None = None) -> Probe:
+    """TZ §3 — masshtab: tuman va shahar.
+
+    Bu bo'lim §11 ning navbatida **umuman yo'q** va shu sababdan
+    172–181 runlarda qurilmay qoldi: §7 ning `tz.scale.*` sozlamalari
+    reyestrda, migratsiyada va vitrinada bor edi, lekin ularni
+    o'qiydigan kod yo'q edi. 182-run hisobni qurdi.
+
+    `flagged` — bugun bitta va u **ma'lumot** tarafida: kvartalning
+    «foydalanuvchisi bor» belgisini to'ldiradigan so'rov yo'q, ya'ni
+    §3 ning maxraji hali hech qayerdan kelmaydi va `evaluate()` ni
+    chaqiradigan mahsulot kodi ham yo'q. Verdikt shuning uchun
+    salbiy: hisob to'g'ri, lekin u hech qanday kartaga chiqmaydi.
+
+    `undeclared` har doim `0`: ro'yxat §3 ning o'z jadvalidan olingan.
+    """
+    total = len(tzscale_mod.RULES)
+    built = sum(1 for item in tzscale_mod.RULES if item.built)
+    return Probe(
+        verdict=_verdict(built == total),
+        total=total,
+        flagged=total - built,
+        undeclared=0,
+    )
+
+
+def _probe_tznotify(_doc: str | None = None) -> Probe:
+    """TZ §6.3 — bildirishnomaning to'rt turi.
+
+    `flagged` — hali **yasalmaydigan** turlar. 176-runda bittasi
+    qurilgan edi («Свет вернулся», §6.3 ning o'z tartibi bo'yicha);
+    177-run §11/6 ni bajarib qolgan uchtasini qo'shdi — uzilish,
+    rejali ishlar va §6.4 ning tuzatishi (`app.notifications.tzoutage`).
+
+    Verdikt shuning uchun endi ijobiy. U «hammasi yuborilyapti»
+    demaydi: reyestr **xabar yasalishini** o'lchaydi, uni chatga
+    uzatadigan qatlam alohida. Rejali ishlarning e'lonini kiritish
+    (§8 ning operatori) va Т-9 ning jurnal jadvali hali yo'q — bu
+    ikkisi `PROGRESS.md` da yozilgan.
+
+    `undeclared` har doim `0`: ro'yxat §6.3 ning o'z jadvalidan olingan.
+    """
+    total = len(tznotify_mod.NOTICES)
+    built = sum(1 for item in tznotify_mod.NOTICES if item.built)
+    return Probe(
+        verdict=_verdict(built == total),
+        total=total,
+        flagged=total - built,
+        undeclared=0,
+    )
+
+
+def _probe_tzoutage(_doc: str | None = None) -> Probe:
+    """TZ §6.3 ning qolgan uch turi va §6.4 — kirish kanallari.
+
+    `tznotify` xabar **yasaladimi** ni o'lchaydi; bu reyestr ikkinchi
+    savolni o'lchaydi: yasash uchun kerak bo'lgan ma'lumot qayerdan
+    keladi. Uchtadan ikkitasi ulangan: uzilish (hisob va status bor)
+    va tuzatish — 180-run Т-9 ning jadvalini qurdi (`tz_receipts`,
+    `0014`) va uni o'qiydigan qatlamni (`app.notifications.tzreceipts`)
+    yozdi, ya'ni «kimga xato xabar ketgan» endi saqlanadi.
+
+    Uchinchisi yo'q: rejali ishlarning e'lonini §8 ning operatori
+    kiritadi va bunday kirish yo'li hali yozilmagan. Verdikt shuning
+    uchun hamon salbiy. Ikkala savolni bitta reyestrga qo'shish farqni
+    yo'qotardi: «tuzatish qurilgan» va «tuzatishni kimga yuborishni
+    bilamiz» — turli da'volar, va §6.4 aynan ikkinchisini talab qiladi.
+
+    `undeclared` har doim `0`: ro'yxat modulning o'z jadvalidan.
+    """
+    total = len(tzoutage_mod.CHANNELS)
+    wired = sum(1 for item in tzoutage_mod.CHANNELS if item.wired)
+    return Probe(
+        verdict=_verdict(wired == total),
+        total=total,
+        flagged=total - wired,
+        undeclared=0,
+    )
+
+
+def _probe_tzsensor(_doc: str | None = None) -> Probe:
+    """TZ §11/7 — datchik va rasmiy manba qabuli.
+
+    `flagged` — tashqaridan **kira olmaydigan** signallar. 178-run da
+    uchchalasi ham shunday edi: qabul mantiqi ularni bilardi (`built`),
+    lekin na reyestr, na yozadigan endpoint, na jurnal bor edi.
+
+    179-run uchchalasini ham uladi (`tz_sources`, `tz_signals`,
+    `POST /tz/readings`), ya'ni `flagged` endi nol va verdikt ijobiy.
+    O'lchov **kanal** haqida: har signalning `need` i hali bo'sh emas
+    (operator paneli, qurilmaning o'z kaliti), lekin ular qulaylik va
+    xavfsizlik savollari — «signal kira oladimi» degan savolga
+    ikkalasi ham `ha` deb javob beradi. `tzoutage` reyestri bilan bir
+    xil savol, boshqa tomondan qo'yilgan.
+
+    `undeclared` har doim `0`: ro'yxat modulning o'z jadvalidan.
+    """
+    total = len(tzsensor_mod.INBOUND)
+    wired = sum(1 for item in tzsensor_mod.INBOUND if item.wired)
+    return Probe(
+        verdict=_verdict(wired == total),
+        total=total,
+        flagged=total - wired,
+        undeclared=0,
+    )
+
+
+def _probe_tzoperator(_doc: str | None = None) -> Probe:
+    """TZ §8 — operatorning to'rtta vakolati.
+
+    `total` — §8 ning ro'yxati; `flagged` — vakolat bajarilgandan
+    keyin **qolgan** ish (`Power.need`). To'rttasi ham `wired`: amal
+    bajariladi va jurnalga tushadi. Lekin ikkitasining `need` i bo'sh
+    emas va verdikt shuning uchun salbiy — bahsli holatning qarori
+    ham, uzilishni yopish ham hodisaning haqiqiy statusiga yetib
+    bormaydi: butun TZ qatlami mavjud E5 klasterlashining **yonida**
+    turadi. Buni `01` §7 ning DP-4 qorovuli alohida o'lchaydi va bu
+    reyestr uni takrorlaydi, yashirmaydi.
+
+    `undeclared` har doim `0`: ro'yxat modulning o'z jadvalidan.
+    """
+    total = len(tzoperator_mod.POWERS)
+    flagged = sum(1 for item in tzoperator_mod.POWERS if item.need)
+    unwired = sum(1 for item in tzoperator_mod.POWERS if not item.wired)
+    return Probe(
+        verdict=_verdict(flagged == 0 and unwired == 0),
+        total=total,
+        flagged=flagged + unwired,
+        undeclared=0,
+    )
+
+
+def _probe_tzconfig(_doc: str | None = None) -> Probe:
+    """TZ §7 — o'n oltita sozlama, hech biri o'lchanmagan.
+
+    `flagged` — kelib chiqishi `ПРИДУМАНО` bo'lgan qatorlar. Bugun
+    **hammasi**, va verdikt shuning uchun salbiy: 👤 qarori bo'yicha
+    Toshkent tarixi ishlatilmaydi, ya'ni TZ §12 ning oldindan
+    tekshiruvi o'tkazilmagan va sonlar Samarqandning o'z ma'lumotidan
+    keyin o'lchanadi. Reyestr shu holatni yashirmaydi — u operator
+    ko'radigan joyda turadi.
+
+    `undeclared` bu yerda har doim `0`: §7 jadvalidan tashqarida
+    sozlama bo'lsa, u umuman boshqa hujjatniki (`06` §9).
+    """
+    marks = tzconfig_mod.origins()
+    invented = sum(1 for origin in marks.values() if origin is tzconfig_mod.Origin.INVENTED)
+    return Probe(
+        verdict=_verdict(invented == 0),
+        total=len(marks),
+        flagged=invented,
+        undeclared=0,
     )
 
 
@@ -595,9 +857,7 @@ def _probe_business_requirements(_doc: str | None = None) -> Probe:
         verdict=_verdict(report.accurate),
         total=len(report.requirements),
         flagged=sum(
-            1
-            for r in report.requirements
-            if r.delivered not in business_mod.DELIVERED_KEPT
+            1 for r in report.requirements if r.delivered not in business_mod.DELIVERED_KEPT
         ),
         undeclared=0,
     )
@@ -675,10 +935,7 @@ def _probe_business_reporting(_doc: str | None = None) -> Probe:
     return Probe(
         verdict=_verdict(report.accurate),
         total=(
-            len(report.reports)
-            + len(report.dashboards)
-            + len(report.kpis)
-            + len(report.metrics)
+            len(report.reports) + len(report.dashboards) + len(report.kpis) + len(report.metrics)
         ),
         flagged=len(report.flagged),
         undeclared=0,
@@ -1087,6 +1344,86 @@ REGISTRIES: tuple[Registry, ...] = (
         serving=Serving.SELF_CONTAINED,
         endpoint=None,
         probe=_probe_glossary,
+    ),
+    Registry(
+        code="tzstatus",
+        spec=tzstatus_mod.SPEC,
+        module="app.clustering.tzstatus",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzstatus,
+    ),
+    Registry(
+        code="tzdispute",
+        spec=tzdispute_mod.SPEC,
+        module="app.clustering.tzdispute",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzdispute,
+    ),
+    Registry(
+        code="tzrestore",
+        spec=tzrestore_mod.SPEC,
+        module="app.clustering.tzrestore",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzrestore,
+    ),
+    Registry(
+        code="tzacceptance",
+        spec=tzacc_mod.SPEC,
+        module="app.release.tz_acceptance",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzacceptance,
+    ),
+    Registry(
+        code="tzscale",
+        spec=tzscale_mod.SPEC,
+        module="app.clustering.tzscale",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzscale,
+    ),
+    Registry(
+        code="tznotify",
+        spec=tznotify_mod.SPEC,
+        module="app.notifications.tzrestored",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tznotify,
+    ),
+    Registry(
+        code="tzoutage",
+        spec=tzoutage_mod.SPEC,
+        module="app.notifications.tzoutage",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzoutage,
+    ),
+    Registry(
+        code="tzsensor",
+        spec=tzsensor_mod.SPEC,
+        module="app.reports.tzsensor",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzsensor,
+    ),
+    Registry(
+        code="tzoperator",
+        spec=tzoperator_mod.SPEC,
+        module="app.admin.tzoperator",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzoperator,
+    ),
+    Registry(
+        code="tzconfig",
+        spec=tzconfig_mod.SPEC,
+        module="app.core.tzconfig",
+        serving=Serving.SELF_CONTAINED,
+        endpoint=None,
+        probe=_probe_tzconfig,
     ),
     Registry(
         code="scope",

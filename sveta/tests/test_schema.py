@@ -84,15 +84,74 @@ SPEC_TABLES_DIGEST: dict[str, set[str]] = {
     "daily_digest": {"region_id", "digest_date", "payload", "built_at", "delivered_at"},
 }
 
-#: `05` va `06` birga — kod aynan shuni ko'rsatishi kerak.
+# `TZ_Podtverzhdenie_i_uvedomleniya.md` §1 — to'rt darajali H3 to'ri.
+# `05` §2.3 DDL sida faqat `h3_r9` bor, chunki `05` aylana geometriyasiga
+# tayanadi va katak unda ikkinchi darajali edi. TZ aylanani butunlay
+# olib tashlaydi: zona — **doimiy to'r**, ya'ni har daraja o'z ustuniga
+# ega bo'lishi kerak. `h3_r11` zona emas, §1.1 dagi «turli manzil» ni
+# ajratish birligi. Sabab `0012` migratsiyasida.
+ADDED_BY_TZ: dict[str, set[str]] = {
+    "reports": {"h3_r7", "h3_r8", "h3_r10", "h3_r11"},
+    # §7 ning oxirgi qatori: kelib chiqish belgisi qiymat bilan birga.
+    "region_config": {"origin"},
+}
+
+# TZ T-2 va ТС-219 — sozlama o'zgarishlarining faqat qo'shiladigan
+# jurnali. `region_config` joriy holatni saqlaydi, bu jadval esa
+# tarixni: eski qiymat o'chmaydi.
+SPEC_TABLES_TZ: dict[str, set[str]] = {
+    "config_journal": {
+        "id", "region_id", "key", "value", "origin", "changed_by", "note", "changed_at",
+    },
+    # TZ §11/7 va §8 — kim yozishga haqli. `report_sources` (`06` §2) dan
+    # ajratilgan: u xabarning **og'irligini** beradi, bu reyestr esa
+    # og'irlikda umuman qatnashmaydigan manbalarni (В-7 porogni aylanib
+    # o'tadi). Sabab `0013` migratsiyasida.
+    "tz_sources": {
+        "source_id", "region_id", "channel", "cell", "trusted", "note", "created_at",
+    },
+    # Т-2 ning ikkinchi yarmi: «журнал **сообщений** и настроек».
+    # `config_journal` sozlamalarni yopgan, bu jadval — xabarlarni.
+    # Rad etilgan xabar ham yoziladi: §8 ning operatori buzuq qurilmani
+    # ko'rishi kerak.
+    "tz_signals": {
+        "id", "region_id", "source_id", "channel", "signal", "cell", "at",
+        "reference", "actor", "starts_at", "accepted", "reason", "key", "received_at",
+    },
+    # Т-9: «Список получателей каждого уведомления хранится (для §6.4)».
+    # `label` va `lang` ko'chiriladi, `JOIN` qilinmaydi: xabar ketgan
+    # paytdagi manzil nomi — o'sha lahzaning fakti, va §6.4 tuzatishni
+    # aynan o'sha nom bilan talab qiladi.
+    "tz_receipts": {
+        "id", "region_id", "kind", "incident_id", "cell", "user_id",
+        "address_id", "label", "lang", "key", "sent_at", "recorded_at",
+    },
+    # §8: «Все действия пишутся в журнал с указанием, кто и на основании
+    # чего». `basis` — taqiqni o'lchaydigan ustun (erkin matn uni bajara
+    # olmaydi), `seen` esa qaror qaysi manzarada qabul qilingani.
+    "tz_operator_actions": {
+        "id", "region_id", "incident_id", "action", "basis", "actor",
+        "reference", "accepted", "refusal", "seen", "key", "decided_at",
+        "recorded_at",
+    },
+}
+
+#: `05`, `06` va TZ birga — kod aynan shuni ko'rsatishi kerak.
 EXPECTED_COLUMNS: dict[str, set[str]] = {
     **{
-        name: cols | ADDED_BY_06.get(name, set()) | ADDED_BY_E19.get(name, set())
+        name: cols
+        | ADDED_BY_06.get(name, set())
+        | ADDED_BY_E19.get(name, set())
+        | ADDED_BY_TZ.get(name, set())
         for name, cols in SPEC_COLUMNS.items()
     },
-    **SPEC_TABLES_06,
+    **{
+        name: cols | ADDED_BY_TZ.get(name, set())
+        for name, cols in SPEC_TABLES_06.items()
+    },
     **SPEC_TABLES_MAP,
     **SPEC_TABLES_DIGEST,
+    **SPEC_TABLES_TZ,
 }
 
 
@@ -233,6 +292,8 @@ def _tables_with_region_id() -> list[str]:
 def test_region_id_tables_are_known() -> None:
     """Ro'yxat kutilganidek — yangi jadval jimgina qo'shilmasin."""
     assert _tables_with_region_id() == [
+        # TZ T-2 — sozlama jurnalining egasi ham mintaqa.
+        "config_journal",
         "daily_digest",
         "districts",
         "map_snapshot",
@@ -240,6 +301,17 @@ def test_region_id_tables_are_known() -> None:
         "outages",
         "region_config",
         "reports",
+        # TZ §11/7 — reyestr ham, jurnal ham mintaqaga tegishli:
+        # datchik bitta shaharda turadi va §7 sozlamalari mintaqadan
+        # o'qiladi.
+        # TZ §8 — operatorning amali har doim bitta mintaqaning
+        # hodisasi haqida; `action_key()` mintaqani bilmaydi.
+        "tz_operator_actions",
+        # Т-9 — §6.4 ning so'rovi har doim mintaqa ichida: kalitlar
+        # (`delivery_key`) mintaqani bilmaydi.
+        "tz_receipts",
+        "tz_signals",
+        "tz_sources",
         "users",
     ]
 

@@ -24,6 +24,7 @@ from app.core.config import settings
 from app.core.errors import OutOfRegionError, RateLimitedError
 from app.db.session import session_scope
 from app.geo import registry
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -82,7 +83,7 @@ async def region(monkeypatch):
         await session.execute(
             text("UPDATE outages SET merged_into = NULL WHERE region_id = :id"), {"id": region_id}
         )
-        await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": region_id})
+        await purge_outages(session, region_id)
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": region_id})
         await session.execute(
             text("DELETE FROM districts WHERE region_id = :id"), {"id": region_id}

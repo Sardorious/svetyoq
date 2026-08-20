@@ -27,6 +27,7 @@ from app.core.errors import ForbiddenError, NotFoundError
 from app.db.session import session_scope
 from app.geo.h3_cells import cell_of
 from app.reports import moderation as users_mod
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -77,7 +78,7 @@ async def region_id():
         await session.execute(
             sql("UPDATE outages SET merged_into = NULL WHERE region_id = :id"), {"id": rid}
         )
-        await session.execute(sql("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         if touched:
             await session.execute(
                 sql("DELETE FROM audit_log WHERE object_id = ANY(:ids)"), {"ids": touched}

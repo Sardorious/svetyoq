@@ -13,6 +13,7 @@ from datetime import datetime
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -123,3 +124,100 @@ class Notification(UUIDPrimaryKeyMixin, Base):
     )
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="queued")
+
+
+#: TZ §6.3 jadvalining to'rt turi — `app.notifications.tzoutage.Kind` ning
+#: qiymatlari. Ro'yxat shu yerda **ikkinchi marta** yozilmaydi degan qoida
+#: bu yerda buzilmaydi: bu bazadagi `CHECK` ning matni, va u `Kind` bilan
+#: tenglikda `tests/test_tz_receipts.py` da qulflanadi. Modeldan `Kind` ni
+#: import qilish `app.notifications.models` ni toza modulga bog'lardi.
+TZ_RECEIPT_KINDS: tuple[str, ...] = ("outage", "restored", "planned", "correction")
+
+
+class TzReceipt(Base):
+    """Т-9: yuborilgan har bir bildirishnomaning bitta qabul qiluvchisi.
+
+    «Список получателей каждого уведомления **хранится** (для §6.4)» —
+    Т-9 ning butun matni shu. `app.notifications.tzoutage.Receipt` o'sha
+    qatorning toza ko'rinishi; bu jadval — uning saqlanadigan yarmi.
+    Usiz §6.4 bajarilmaydi: xato xabar ketgan, kimga ketgani esa
+    protsess xotirasida qolgan bo'lardi va tuzatish **hech kimga**
+    yuborilmasdi.
+
+    🔴 **Faqat qo'shiladi, xuddi `tz_signals` kabi.** Т-2 «журнал
+    сообщений» deydi va yuborilgan xabar aynan shu. Qatorni o'chirish
+    imkoniyati §6.4 ni ixtiyoriy qilardi: qabul qiluvchilar ro'yxatini
+    o'chirgan xizmat «tuzatadigan hech kim yo'q» degan holatga
+    **o'zi** kelib qoladi. Shuning uchun `UPDATE`/`DELETE` qator
+    triggeri va alohida `TRUNCATE` triggeri.
+
+    🔴 **`incident_id` matn, tashqi kalitsiz.** Toza modul uchun u
+    shaffof identifikator (`str`), va jurnal hodisadan **uzoqroq**
+    yashashi kerak: Т-10 tasdiqlangan uzilishni o'chirishni taqiqlaydi,
+    lekin tuzatish yuborilayotganda hodisa qatori boshqa sababdan
+    (masalan tasdiqlanmagan hodisaning tozalanishi) yo'q bo'lsa,
+    `FOREIGN KEY` qabul qiluvchilar ro'yxatini **birga** olib ketardi.
+    `tz_signals.source_id` da ham xuddi shu qaror, xuddi shu sabab
+    bilan.
+
+    🔴 **`label` ko'chiriladi, `JOIN` qilinmaydi.** Odam manzilini
+    o'chirgan yoki nomini o'zgartirgan bo'lishi mumkin; §6.4 esa
+    xabarni **o'sha** manzil nomi bilan talab qiladi — tuzatish
+    o'qilishi kerak bo'lgan yagona odam uni birinchi xabar bilan
+    solishtiradi. `lang` ham shu sababdan: odam tilini almashtirgan
+    bo'lsa ham tuzatish o'sha tilda tushunarli bo'lsin.
+    """
+
+    __tablename__ = "tz_receipts"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('outage', 'restored', 'planned', 'correction')", name="kind"
+        ),
+        # Т-7 **bazada**: bitta xabar bitta manzilga ikkinchi marta
+        # ketmaydi. Kalit turni ham o'z ichiga oladi (`tzoutage.outage_key`),
+        # ya'ni uzilish, tiklanish va tuzatish bir-birini to'smaydi —
+        # aks holda §6.4 ning tuzatishi «allaqachon yuborilgan» deb
+        # jimgina tashlab yuborilardi.
+        #
+        # Mintaqa kalitning **ichida emas, indeksda**: `delivery_key()`
+        # mintaqani bilmaydi, global yagona indeks esa ikkita shaharning
+        # bir xil identifikatorli hodisasini to'qnashtirardi (179-run
+        # buni `tz_signals` da haqiqiy bazada o'lchab topgan).
+        Index("ix_tz_receipts_region_id_key", "region_id", "key", unique=True),
+        # §6.4 ning yagona so'rovi: «kimga shu hodisa bo'yicha shu
+        # kvartalda xabar ketgan».
+        Index(
+            "ix_tz_receipts_region_id_incident_id_cell_kind",
+            "region_id",
+            "incident_id",
+            "cell",
+            "kind",
+        ),
+        # §6.2/5 ning limitlari (`Ledger`) va §8 ning paneli: mintaqa + vaqt.
+        Index("ix_tz_receipts_region_id_sent_at", "region_id", text("sent_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    region_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("regions.id"), nullable=False
+    )
+    #: `tzoutage.Kind` ning qiymati.
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    incident_id: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Kvartal (r9) — §4 va §6.3 ning fan-out birligi.
+    cell: Mapped[str] = mapped_column(Text, nullable=False)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    address_id: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Xabar ketgan paytdagi manzil nomi — o'sha lahzaning fakti.
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Xabar ketgan paytdagi til.
+    lang: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Т-7 ning kaliti, turi bilan (`tzoutage.outage_key`).
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Xabar ketgan lahza (Т-4: chaqiruvchidan keladi, `now()` emas).
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    #: Qator qachon yozilgani — `sent_at` bilan bir xil emas: qayta
+    #: ishga tushirilgan navbat eski xabarni kech yozishi mumkin.
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

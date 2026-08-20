@@ -307,16 +307,25 @@ TERMS: tuple[Term, ...] = (
         code="G-7",
         term="H3",
         anchor=Anchor.SCHEMA,
-        fidelity=Fidelity.NARROWER,
+        fidelity=Fidelity.WIDER,
         note=(
-            "«Разрешение 8–9» diapazon va'da qiladi; kodda bitta qiymat "
-            "turibdi (`DEFAULT_RESOLUTION = 9`, `ADR-03`). Muhimi shundaki, "
-            "9 sozlama emas, **sxema**: ustun `reports.h3_r9` deb ataladi. "
-            "Ya'ni 8 ishlatilmayotgani emas — uni yoqish migratsiya talab "
-            "qiladi."
+            "«Разрешение 8–9» diapazon va'da qiladi. 2026-08-19 gacha kodda "
+            "bitta qiymat turardi (`DEFAULT_RESOLUTION = 9`) va ta'rif "
+            "`NARROWER` edi. `TZ_Podtverzhdenie_i_uvedomleniya.md` §1 buni "
+            "teskarisiga o'girdi: zona endi aylana emas, **doimiy to'r**, va "
+            "to'rtala daraja bir vaqtda saqlanadi — r7 (tuman), r8 (mahalla), "
+            "r9 (kvartal), r10 (uy), ustiga r11 §1.1 dagi «turli manzil» ni "
+            "ajratish uchun. Ya'ni repo endi ta'rif chiqarib tashlagan "
+            "rezolyutsiyalarni ham yozadi. `DEFAULT_RESOLUTION` o'zgarmadi: u "
+            "`h3_r9` ning egasi bo'lib qoldi, TZ darajalari esa "
+            "`app.geo.pipeline:TZ_LEVELS` da."
         ),
-        anchor_binds=("app.geo.h3_cells:DEFAULT_RESOLUTION", "app.reports.models:Report"),
-        gap="Diapazonning yarmi ustun nomi bilan yopilgan.",
+        anchor_binds=(
+            "app.geo.h3_cells:DEFAULT_RESOLUTION",
+            "app.geo.pipeline:TZ_LEVELS",
+            "app.reports.models:Report",
+        ),
+        gap="Ta'rif 8–9 deydi, sxemada 7, 8, 9, 10 va 11 bor (TZ §1, `0012`).",
     ),
     Term(
         code="G-8",

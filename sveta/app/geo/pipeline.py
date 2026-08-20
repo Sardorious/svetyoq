@@ -38,6 +38,20 @@ from app.geo.h3_cells import cell_of
 from app.geo.jitter import public_point
 from app.geo.models import District, Mahalla, Region
 
+#: TZ §1 — doimiy H3 to'ri. Aylana emas, chunki birinchi xabar
+#: radiusni belgilasa natija «kim birinchi yozgani» ga bog'liq bo'lardi.
+#: `address` (r11, ~50 m) zona emas — §1.1 dagi «turli manzil» ni
+#: ajratish birligi. Sonlar TZ §1 jadvalidan va **sozlama emas**:
+#: to'rning geometriyasi o'zgarsa saqlangan ustunlar ma'nosini
+#: yo'qotadi, ya'ni bu migratsiya masalasi, konfiguratsiya emas.
+TZ_LEVELS: dict[str, int] = {
+    "district": 7,
+    "mahalla": 8,
+    "block": 9,
+    "house": 10,
+    "address": 11,
+}
+
 
 class RegionLike(Protocol):
     """Quvur mintaqadan faqat shu uchtasini talab qiladi.
@@ -66,6 +80,14 @@ class GeoResolution:
     public_lat: float
     public_lon: float
     h3_r9: str
+    #: TZ §1 — to'rt daraja bir vaqtda saqlanadi. `h3_r9` (kvartal)
+    #: tarixiy ustun va o'z nomida qoldi; qolgan uchtasi TZ bilan
+    #: qo'shildi. `h3_r11` (~50 m) — §1.1 dagi «turli manzil»
+    #: yaqinlashuvi: u xabar joyi emas, **ajratish** birligi.
+    h3_r7: str
+    h3_r8: str
+    h3_r10: str
+    h3_r11: str
     region_id: uuid.UUID
     district_id: uuid.UUID | None
     mahalla_id: uuid.UUID | None
@@ -200,6 +222,10 @@ async def resolve(
         public_lat=pub_lat,
         public_lon=pub_lon,
         h3_r9=cell,
+        h3_r7=cell_of(lat, lon, TZ_LEVELS["district"]),
+        h3_r8=cell_of(lat, lon, TZ_LEVELS["mahalla"]),
+        h3_r10=cell_of(lat, lon, TZ_LEVELS["house"]),
+        h3_r11=cell_of(lat, lon, TZ_LEVELS["address"]),
         region_id=region.id,
         district_id=district_id,
         mahalla_id=mahalla_id,

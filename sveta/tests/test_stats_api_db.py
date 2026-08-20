@@ -29,6 +29,7 @@ from app.geo import queries as geo_q
 from app.geo.h3_cells import cell_of
 from app.jobs import refresh_coverage
 from app.stats import coverage, methodology
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -62,7 +63,7 @@ async def region():
     yield rid, code
     async with session_scope() as session:
         await session.execute(text("DELETE FROM reports WHERE region_id = :id"), {"id": rid})
-        await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": rid})
         # `territory_stats` da ikkala daraja ham bor (`06` §3) va
         # `refresh_coverage` ikkalasini ham yozadi. Faqat tumanlarni

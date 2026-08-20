@@ -24,6 +24,7 @@ from sqlalchemy import text as sql
 from app.core.config import settings
 from app.db.session import session_scope
 from app.release import collector, gates
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -48,7 +49,7 @@ async def region_id():
     yield rid
     async with session_scope() as session:
         await session.execute(sql("DELETE FROM map_snapshot WHERE region_id = :id"), {"id": rid})
-        await session.execute(sql("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         await session.execute(sql("DELETE FROM regions WHERE id = :id"), {"id": rid})
 
 

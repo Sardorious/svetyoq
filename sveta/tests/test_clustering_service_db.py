@@ -22,6 +22,7 @@ from app.clustering import repository as repo
 from app.clustering.service import ReportRef, assign, evaluate
 from app.db.session import session_scope
 from app.geo.h3_cells import cell_of
+from tests.conftest import purge_outages
 
 pytestmark = pytest.mark.requires_db
 
@@ -58,7 +59,7 @@ async def region_id():
         await session.execute(
             text("DELETE FROM outbox WHERE payload->>'region_id' = :id"), {"id": str(rid)}
         )
-        await session.execute(text("DELETE FROM outages WHERE region_id = :id"), {"id": rid})
+        await purge_outages(session, rid)
         await session.execute(text("DELETE FROM users WHERE region_id = :id"), {"id": rid})
         await session.execute(text("DELETE FROM regions WHERE id = :id"), {"id": rid})
 

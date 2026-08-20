@@ -44,6 +44,10 @@ def test_permission_names_are_written_down_not_recomputed() -> None:
         "GATES_READ": "gates.read",
         "MEASURES_READ": "measures.read",
         "REGISTRIES_READ": "registries.read",
+        "TZ_INTAKE": "tz.intake",
+        "TZ_SOURCE_READ": "tz.source.read",
+        "TZ_OPERATE": "tz.operate",
+        "TZ_ACTION_READ": "tz.action.read",
     }
 
 
@@ -62,11 +66,31 @@ def test_role_names_are_written_down_too() -> None:
 
 
 def test_viewer_reads_only() -> None:
-    """Uchala ruxsat ham **o'qish**: navbat, kunlik hisobot (`05` §8) va
-    metrikalar (`05` §10). Uchalasi ham faqat agregat son beradi."""
+    """Beshala ruxsat ham **o'qish**: navbat, kunlik hisobot (`05` §8),
+    metrikalar (`05` §10), TZ §8 ning manbalar reyestri va o'sha §8 ning
+    amallar jurnali. Hech biri ma'lumot yaratmaydi va hech biri
+    hodisaning taqdirini o'zgartirmaydi."""
     assert PERMISSIONS[Role.VIEWER] == frozenset(
-        {Permission.OUTAGE_READ, Permission.DIGEST_READ, Permission.METRICS_READ}
+        {
+            Permission.OUTAGE_READ,
+            Permission.DIGEST_READ,
+            Permission.METRICS_READ,
+            Permission.TZ_SOURCE_READ,
+            Permission.TZ_ACTION_READ,
+        }
     )
+
+
+def test_viewer_cannot_create_an_official_source() -> None:
+    """TZ §8: rasmiy manbani **operator** kiritadi.
+
+    `viewer` — smenani endi qabul qilayotgan odam; unga reyestrni
+    ko'rish kerak, lekin uning qo'lida В-7 ni qo'zg'atadigan yozuv
+    bo'lmasligi kerak. Ikkala ruxsat bitta nom ostida bo'lganda bu
+    farq umuman ifodalanmasdi.
+    """
+    assert has_permission(Role.VIEWER, Permission.TZ_SOURCE_READ)
+    assert not has_permission(Role.VIEWER, Permission.TZ_INTAKE)
 
 
 @pytest.mark.parametrize(
@@ -77,6 +101,10 @@ def test_viewer_reads_only() -> None:
         Permission.OUTAGE_MERGE,
         Permission.USER_BLOCK,
         Permission.DIGEST_READ,
+        # §8: «внести официальный источник» — operatorning to'rtinchi amali.
+        Permission.TZ_INTAKE,
+        # §8: «подтвердить или отклонить спорный случай, закрыть аварию».
+        Permission.TZ_OPERATE,
     ],
 )
 def test_moderator_decides_on_outages_and_users(permission: Permission) -> None:

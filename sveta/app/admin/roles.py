@@ -68,6 +68,29 @@ class Permission(StrEnum):
     #: moderatori o'qisa, u hali qabul qilinmagan qarorni bajarilgan
     #: deb o'qishi mumkin.
     REGISTRIES_READ = "registries.read"
+    #: TZ §11/7 — tashqi signalni tizimga kiritish (`POST /tz/readings`).
+    #: **Yozish** ruxsati, va shu sabab alohida: qolgan hamma narsa
+    #: moderatorga hodisa ustidan qaror berardi, bu esa hodisaning
+    #: **manbasini** yaratadi. §8 ning taqiqi («без внешнего источника»)
+    #: aynan shu joyda qo'llanadi va uni o'qish ruxsati bilan bir xil
+    #: nomga qo'shish taqiqni ko'rinmas qilardi.
+    TZ_INTAKE = "tz.intake"
+    #: Manbalar reyestrini o'qish (`GET /tz/sources`). Reyestrda sir yo'q
+    #: (identifikator, kanal, katak), lekin u §8 ning odamiga
+    #: «kim yozishga haqli» degan savolga javob beradi — smenani qabul
+    #: qilayotgan moderator uni yozish huquqisiz ham ko'rishi kerak.
+    TZ_SOURCE_READ = "tz.source.read"
+    #: TZ §8 — operatorning qarori (`POST /tz/operator/actions`):
+    #: bahsli holatni tasdiqlash yoki rad etish, uzilishni yopish.
+    #: `TZ_INTAKE` dan **alohida**: u hodisaning manbasini yaratadi,
+    #: bu esa hodisaning **taqdirini** hal qiladi. Ikkalasini bitta
+    #: nomga qo'shish smenani yangi qabul qilgan moderatorga
+    #: tasdiqlangan uzilishni yopish huquqini jimgina berardi.
+    TZ_OPERATE = "tz.operate"
+    #: Amallar jurnalini o'qish (`GET /tz/operator/actions`). §8 ning
+    #: nazorati o'qishdan boshlanadi va u yozish huquqisiz ham
+    #: kerak — smenani topshirayotgan odam nima qilinganini ko'radi.
+    TZ_ACTION_READ = "tz.action.read"
 
 
 _MODERATOR: frozenset[Permission] = frozenset(
@@ -78,6 +101,13 @@ _MODERATOR: frozenset[Permission] = frozenset(
         Permission.USER_BLOCK,
         Permission.DIGEST_READ,
         Permission.METRICS_READ,
+        # §8 ning operatori — aynan moderator roli: «внести официальный
+        # источник» uning ro'yxatidagi to'rtinchi amal.
+        Permission.TZ_INTAKE,
+        Permission.TZ_SOURCE_READ,
+        # §8 ning birinchi ikkita vakolati — o'sha odamniki.
+        Permission.TZ_OPERATE,
+        Permission.TZ_ACTION_READ,
     }
 )
 
@@ -87,7 +117,18 @@ _MODERATOR: frozenset[Permission] = frozenset(
 #: qilayotgan yangi moderator esa aynan shundan boshlaydi.
 PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.VIEWER: frozenset(
-        {Permission.OUTAGE_READ, Permission.DIGEST_READ, Permission.METRICS_READ}
+        {
+            Permission.OUTAGE_READ,
+            Permission.DIGEST_READ,
+            Permission.METRICS_READ,
+            # Reyestrni **o'qish** — smenani qabul qilishning bir qismi.
+            # `TZ_INTAKE` esa `viewer` da ataylab yo'q: yangi moderator
+            # rasmiy manba yarata olmaydi.
+            Permission.TZ_SOURCE_READ,
+            # Amallar jurnalini o'qish — smenani qabul qilishning bir
+            # qismi; `TZ_OPERATE` esa `viewer` da yo'q.
+            Permission.TZ_ACTION_READ,
+        }
     ),
     Role.MODERATOR: _MODERATOR,
     Role.ADMIN: _MODERATOR
