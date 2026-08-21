@@ -5,11 +5,612 @@ qayerda, testi qaysi, ✅ bo'lishiga nima to'sqinlik qilyapti» — bir
 qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 `PROGRESS.md` (holatning yagona manbai) va `../cowork_session/INDEX.md`.
 
-**Oxirgi yangilanish:** 2026-08-20 (195-run).
+**Oxirgi yangilanish:** 2026-08-21 (220-run).
 
 ---
 
 ## Xulosa
+
+* ✅ **`app/api/v1/map.py` ning tanasi endi bazasiz o'lchanadi, va `/map` shartli so'rovlarni qolgan uchta keshlanadigan endpoint bilan bir xil bajaradi.** 237 qatorlik modulda yettita nom (`get_map`, `get_map_config`, `_cache_headers` va to'rtta javob modeli) butun `tests/` bo'ylab **nol marta** bajarilardi: bazasiz mavjud `test_map_api.py` o'z izohida ikkala endpointning testlari `requires_db` ostidagi fayllarga ko'chirilganini yozadi. Bitta **defekt** topildi va tuzatildi: `api_requirements.py` ning X-1 sharti `app.core.etag:matches` ga bog'langan, `geo.py`/`heatmap.py`/`regions.py` uni chaqiradi, `/map` esa `if_none_match.strip() == etag` bilan o'zi taqqoslardi — `If-None-Match: *`, `W/"…"` va vergulli ro'yxat uchtasida `304`, `/map` da to'liq tana qaytardi. Yangi `tests/test_map_api_handlers.py` (92 test) `stale` ning manbasi (`is_missing`, `built_at` dan qayta hisoblanmaydi), payload ning nusxalanishi (`ETag` barqarorligi), `zoom` ning ikkala sharti, markazning `(lat, lon)` tartibi, ADR-08 ning `style_url` ↔ `tile_url` juftligi, hujjatdagi `OutageFeature` ning `snapshot._feature` bilan mosligi va `/map/i18n` ning oq ro'yxatini qulflaydi. 48 mutant — 47 KILLED; yagonasi ekvivalent (`t()` locale ni o'zi normalizatsiya qiladi) va test buni da'vo qiladi.
+
+* ✅ **`app/api/v1/geo.py` ning tanasi endi bazasiz o'lchanadi** — 446 qatorlik
+  ommaviy chegaralar qatlamida o'nta nom (`get_districts`, `get_mahallas`,
+  `_feature`, `_mahalla_feature`, `_tolerance_m` va to'rtta javob modeli)
+  butun `tests/` bo'ylab **nol marta** chaqirilardi: bazasiz mavjud ikkita
+  test fayli ataylab bazaga borishdan **oldin** qaytadigan yo'llarni
+  tekshiradi, mazmunli yo'l esa butunlay `requires_db` ostida. 218 ning
+  ehtiyoti tasdiqlanmadi: poligon so'rovdan **satr** bo'lib keladi, ya'ni
+  handler tanasi `ST_AsGeoJSON` bloki bilan bir devorga tegmaydi.
+* 🔴 **`geometry=false` uchala joyni bir vaqtda o'zgartiradi** — so'rovga
+  `simplify_deg=0.0`, `with_geometry=False` va javobga `simplify_m: 0`.
+  So'ralgan tolerantlik javobda qolsa, mijoz soddalashtirilgan poligon
+  olganman deb o'ylardi; birorta test buni ko'rmasdi.
+* 🔴 **`_tolerance_m` ning ikkala qirrasi ham o'lchanmagan edi:** `0` —
+  **so'ralgan** «xom poligon» (sukut emas), chegara esa `>` bilan, ya'ni
+  sozlamada e'lon qilingan `max` hali yaroqli. Ikkala mutant ham jim
+  o'tardi: birinchisi aniq so'ralgan poligonni soddalashtirardi,
+  ikkinchisi hujjatdagi sonni hech qachon so'rab bo'lmaydigan qilardi.
+* 🔴 **`geo` javobida ham bir turdagi juftliklar jim almashardi:**
+  `id`/`code`, `name_uz`/`name_ru`, `valid_from`/`valid_to`,
+  `source`/`license`, `district_id`/`district_code` va `registry` blokidagi
+  `versions`/`mahallas`/`districts`. Oxirgi uchtasi `MahallaFact` ning
+  ikkita **satr** maydonidan chiqadi — sonlar teng kesimda almashuv
+  ko'rinmaydi, shuning uchun fikstyura nomutanosib: bitta tuman, uchta nom.
+* 🔴 **`mahallas` da tartibning o'zi qoida:** tuman qorovuli tildan oldin,
+  `available` ning ikkinchi so'rovi (`region_has_mahallas`) esa **faqat**
+  kesim bo'sh bo'lganda — qator bor ekan, spravochnikning borligi
+  allaqachon isbotlangan. Til `language_for` dan keladi (`Accept-Language`
+  dan emas) va `ETag` tarjima qilingan matnni ham qamraydi, shuning uchun
+  `Vary: Accept-Language` bor; `districts` da esa ataylab yo'q.
+* ✅ **`app/api/v1/tz.py` ning tanasi endi bazasiz o'lchanadi** — 447 qatorlik kirish yo'lida (TZ §11/7, §8) ilgari faqat **eshik** tekshirilardi: bazasiz yagona murojaatlar `test_tz_intake.py` va `test_tz_operator.py` dagi `403` testlari edi va ular ataylab «ruxsat tekshiruvidan narisiga o'tmaydigan» tanani yuboradi — handler ning birinchi qatori ham bajarilmasdi. Ma'lumot yo'li `test_tz_intake_db.py` da va u butunlay `requires_db` ostida (sandboxda skip). O'n uchta nom — `post_readings`, `get_sources`, `post_operator_action`, `get_operator_actions`, `_fact_out`, `FactOut`, `RejectionOut`, `IntakeOut`, `SourceOut`, `SourceCollection`, `ActionOut`, `ActionRowOut`, `ActionCollection` — hech qachon chaqirilmagan edi.
+* 🔴 **TZ javobida ham bir turdagi juftliklar jim almashardi:** `_fact_out` da `key`/`source_id`, `channel`/`signal`, `cell`/`reference`, `at`/`starts_at` va `closes_block`/`verifies_outage`; `RejectionOut` da `signal`/`reason`; `SourceOut` da `cell`/`note`; `ActionRowOut` da `actor`/`reference` va `action`/`basis`; `_action_out` da to'rtta `bool` — `accepted`/`resolves`/`confirms`/`closes`. `IntakeOut` ning to'rtta yig'indisi ham bir-biriga ulanardi: `to_operator` ni `len(intake.rejected)` ga bog'lagan mutant buzuq qurilmani takroriy xabarlar orasida yo'qotardi.
+* 🔴 **Т-4 ning yagona soati va §7 ning `_params` i o'lchanmagan edi:** paket bitta `datetime.now(timezone.utc)` ga nisbatan baholanishi qoida, lekin «necha marta o'qildi» va «qaysi mintaqada» hech qayerda yozilmagan — naiv soat ham, ikkinchi o'qish ham jim o'tardi. `_params` yetishmagan kalitni `RegionNotConfiguredError` ga o'giradi va **so'ralgan** kodni xatoga qo'yadi (bazadagi qatorning kodini emas); sozlamasiz mintaqada `commit` umuman bo'lmasligi ham yangi da'vo.
+* 🔴 **Bu modulda ham tartibning o'zi qoida:** ruxsat mintaqani izlashdan **oldin** (to'rtala endpointda), `commit` yozuvdan **keyin** (ikkala `POST` da), o'qish yo'lida `commit` umuman yo'q. `POST /tz/operator/actions` da `closed` bazadagi jurnaldan, `disputed` esa so'rovdan keladi (DP-4) — ikkalasini bir manbaga ulagan mutant operator ko'rgan holat bilan kod ko'rgan holatni ajratib yuborardi.
+* ✅ **`app/api/v1/stats.py` ning tanasi endi bazasiz o'lchanadi** — 530 qatorlik vitrina qatlamining o'n bitta nomi (`coverage_out`, `maturity_out`, `boundaries_out`, `mahallas_out`, `duration_out`, `_bucket_out`, `_report`, `get_stats`, `get_methodology`, `get_stats_csv`) butun `tests/` bo'ylab **nol marta** chaqirilardi: modulning yagona to'liq testi `tests/test_stats_api_db.py` butunlay `requires_db` ostida, ya'ni sandboxda `skip`. `03` §R1.2 ning butun vitrinasi shu rungacha bazasiz to'plamda o'lchanmagan edi.
+* 🔴 **Vitrina javobida bir turdagi juftliklar jim almashardi:** `versions`/`districts`, `total`/`measured`, `median_min`/`p90_min`, `mahalla_id`/`district_id`, `valid_from`/`valid_to`, `min_days`/`min_events`, `suppressed_outages`/`suppressed_reports`, metodologiya bo'limining sarlavhasi/matni — birortasi ham testni yiqitmasdi. Uchta `CoverageIndex` (mintaqa, mahalla bloki, bitta mahalla) ham bir-biriga ulanib ketishi mumkin edi.
+* 🔴 **`mahallas.available` FR-S-802 ning yagona ko'rinadigan belgisi va u qulflanmagan edi:** birinchi o'tishda omon qolgan yagona mutant uni `truncated` ga ulardi, ya'ni ro'yxat kesilmagan har bir javobda «spravochnik yo'q» deb yozilardi — degradatsiyaning aynan teskarisi.
+* 🔴 **Bu modulda ham tartibning o'zi qoida:** mintaqa qorovuli davrni hisoblashdan va hisobotni qurishdan **oldin**, analitika hisobot kelgandan **keyin** va uning `region_code` i bilan (so'ralgan kod bilan emas), til hisobot kelgandan keyin; `/stats.csv` `/stats` bilan **bitta** vitrina ko'rilgan deb sanaladi, metodologiya endpointi esa umuman sanalmaydi.
+* ✅ **`app/api/v1/admin.py` ning tanasi endi bazasiz o'lchanadi** — 620 qatorlik endpoint qatlamida ilgari faqat **eshik** tekshirilardi: bazasiz yagona test faylining (`tests/test_admin_api.py`) hamma holati ruxsat tekshiruvida to'xtaydi, ya'ni handler ning birinchi qatori ham bajarilmaydi; ma'lumot yo'li esa `requires_db` ostida va u API ni emas, `app/admin/service.py` ni o'lchaydi. Usul: handler lar oddiy `async def`, ular FastAPI siz to'g'ridan-to'g'ri chaqiriladi, ulash qatlami esa chaqiruvlarni **tartibi bilan** yozib oladigan o'rinbosarga almashtiriladi.
+* 🔴 **Admin javobida bir turdagi juftliklar jim almashardi:** `lat`/`lon`, `distinct_users`/`independent_reporters`, `started_at`/`last_report_at`, `district_id`/`mahalla_id`, `before`/`after`, `outage_id`/`merged_into`, `summary_key`/`blocks_key`, `closed`/`total` — birortasi ham testni yiqitmasdi. **`needs_review` ning `>=` chegarasi hech qachon otilmagan edi**, holbuki E5 radiusni aynan `max_radius` da kesadi: `>` bo'lsa moderator navbati doim bo'sh qolardi.
+* 🔴 **Admin API da ham tartibning o'zi qoida:** `get_digest` da sana tekshiruvi mintaqani izlashdan **oldin** (yaroqsiz sana bazaga umuman bormaydi), to'rtala yozish endpointida `commit` xizmat chaqiruvidan **keyin**, o'qish endpointlarida ruxsat bazaga murojaatdan — `read_registries` da diskdagi hujjat skanidan — **oldin**. Har uchala mutant bir xil javob berardi.
+* ✅ **`tools/` ning to'rtala asbobining bazali yarmi endi bazasiz o'lchanadi** (`tz_check`, `region_admin`, `recluster`, `simulate`) — navbat **tugadi**. Usul bitta: `session_scope()` / `get_sessionmaker()` va modul chegarasidagi har bir so'rov **yozib oladigan** o'rinbosarga almashtiriladi, tekshiruv esa SQL matnidan emas, bog'langan parametrdan yoki chaqiruvlarning tartibidan olinadi. `requires_db` sandboxda `skip` bo'ladi, ya'ni u yerdagi da'vo o'lchamaydi. `requires_db` sandboxda `skip` bo'ladi, ya'ni u yerdagi da'vo o'lchamaydi. Keyingi nishonlar `app/` da.
+* 🔴 **`simulate.py` ning `cmd_run` iga butun `tests/` bo'ylab nol murojaat bor edi:** chiqish kodlari (`EXIT_BLOCKED`, `EXIT_MISMATCH`, `EXIT_USAGE`), `--apply` qorovulining o'rni va quruq yurish xabari hech qayerda yozilmagan. **`ensure_writable` ning ikkinchi to'sig'i — faol obuna — hech qachon otilib ko'rilmagan edi** (eski test faqat «haqiqiy xabar» sababini tekshiradi), va aynan o'sha to'siq sun'iy hodisa tasdiqlanganda haqiqiy odamga ketadigan bildirishnomani to'sadi. Bu yerda ham tartib qoida: qorovulni `run()` dan keyin ko'chirgan mutant bir xil chiqish kodini berardi, lekin butun sun'iy oqim haqiqiy ma'lumot bilan bitta jadvalda yozilgan bo'lardi.
+* 🔴 **`recluster.py` da tartibning o'zi qoida edi va u hech qayerda o'lchanmasdi:** bildirishnoma qorovulini `detach_window`/`delete_outages` dan keyin ko'chirgan mutant bir xil xato matnini berardi, lekin oyna allaqachon buzilgan bo'lardi.
+* ✅ **ADR-08 YOPILDI (👤 2026-08-21) — OpenFreeMap Liberty.** Xarita foni
+  endi ikkita **alohida** sozlamadan keladi: `MAP_STYLE_URL` (tayyor vektor
+  style JSON, MapLibre ga satr bo'lib uzatiladi — **ustun**) va
+  `MAP_TILE_URL` (`{z}/{x}/{y}` rastr shablon — muqobil). Ular bir-birini
+  almashtirmaydi, tanlov **serverda** (`/map/config`) hal bo'ladi. Ikkovi ham
+  bo'sh bo'lsa sahifa fonsiz ochiladi va `map.tiles_missing` chiqadi —
+  degradatsiya, xato emas. 2026-08-11 dagi OSM rastr qarori bekor: OSM Tile
+  Usage Policy ommaviy trafikni taqiqlaydi, ya'ni qiymat E12 gacha yashardi.
+* ⬜ **E13-a VA E8-b KECHIKTIRILDI (👤 2026-08-21) — ikkovi ham bloklovchi
+  EMAS.** `jobs` profildan tashqariga chiqarilmaydi (serverda `--profile jobs`
+  bilan qo'lda), `DIGEST_CHAT_IDS` esa hozircha shart emas: hisobot yig'iladi,
+  saqlanadi va `GET /admin/digest` orqali o'qiladi — faqat Telegram ga
+  yuborilmaydi. Ikkovida ham kod qarzi yo'q.
+* ⛔ **E17 NING MANBASI HAMON YO'Q.** 2026-08-21 da berilgan ArcGIS xizmati
+  (`Samarkand_Urban_Elements`, «Mahalla centre») o'lchandi va yaramadi:
+  **20 poligon** tarixiy o'zakda (~2 x 2 km, shahar ~120 km²), **nom ham,
+  identifikator ham yo'q** (`Description` va `id` bo'sh), litsenziya e'lon
+  qilinmagan, xizmat anonim tahrirga ochiq. `mahallas` esa `name_uz` ni
+  talab qiladi. Ma'muriy chegaralarning boshqa manbasi kerak.
+* ✅ **`tools/region_admin.py` ENDI O'LCHANADI — `tests/test_region_admin.py`
+  (62 test, 30 mutant / 30 KILLED).** 478 qatorlik faylning birorta o'z testi
+  yo'q edi: yagona murojaatlar manba matnini grep qiladigan kontrakt testlari,
+  ya'ni oltita buyruqning ichidagi birorta qaror o'lchanmagan. Usul 211-run
+  niki: `session_scope()` o'rniga yozib oladigan sessiya, tekshiruv esa
+  `compile().params` dan — baza ham, `requires_db` ham kerak emas.
+* ✅ **ASBOB O'ZI SEED QILGAN KALITNI ENDI RAD ETMAYDI — `known_keys()`.**
+  Bitta savolga ikkita jadval javob berardi: seed `seed_defaults()` dan
+  (17 kalit), `config --key` ning qorovuli va ro'yxatdagi yorliq esa
+  `DEFAULTS` dan (15) — `notify.*` noma'lum deb rad etilardi, holbuki
+  `01` §19 aynan o'sha qiymatni mintaqa uchun alohida kalibrlashni talab
+  qiladi. Yonida: `--seed` endi `--key` ni jim yutmaydi. `DEFAULTS`
+  tegilmadi — u `06` §9 jadvalining nusxasi bo'lib qoldi.
+* ✅ **TZ §12 NING BAZAGA BOG'LIQ YARMI HAM O'LCHANADI — `tz_check.run()`
+  VA `collect()`.** Baza kerak emas: `session_scope()` ning o'rniga so'rovni
+  **yozib oladigan** fikstyura qo'yiladi, tekshiruv esa SQL matnidan emas,
+  `compile().params` dan olinadi. Fikstyuraning ma'lum xavfi (javobni o'ylab
+  topgan soxta baza hech narsani o'lchamaydi) shu ikki qoida bilan yopiladi.
+* ✅ **O'LCHOV O'ZINI YASAGAN KESIM BILAN KALITLANADI, O'RNI BILAN EMAS.**
+  `collect()` endi `measured[cuts.early]` / `measured[cuts.late]` deb oladi;
+  kalit ishonchli, chunki `cutoffs()` `until <= since` ni rad etadi va ikkala
+  kesim hech qachon teng bo'lmaydi.
+* 🔴 **JUFTLIK RO'YXATNING TARTIBI BILAN YIG'ILARDI** —
+  `ReachPair(early=pair[0], late=pair[1])`. Almashuv **jim** bo'lardi: ikkala
+  qator ham to'ladi, `verdicts_differ` ham, `levels_in_dispute` ham simmetrik,
+  faqat «erta» yorlig'i ostida kech kesimning javobi turardi — va aynan kech
+  kesim poroglarni erishuvchanroq ko'rsatadi, ya'ni almashuv §12 ni o'zi
+  so'ragan tomonga og'dirardi.
+* 🔴 **`min_trust_score` ↔ `min_account_age_min` — IKKITA `int`, BITTA MANBA.**
+  Ikkovi ham `settings` dan; almashuv o'lchovning ikkala yarmini ham jimgina
+  siljitardi (birinchisi ishonch balliga, ikkinchisi kesim sanasiga boradi).
+* 🔴 **HISOBOT QURILMAGANINING IKKITA SABABI AJRATILMAGAN EDI.** Mavjud
+  bo'lmagan mintaqa uchun sozlamani o'qigan mutant «sozlanmagan» deb javob
+  berardi va odam mavjud bo'lmagan `region_config` ni qidirishga ketardi.
+* ⚠️ **209-RUNNING XULOSASI HAQIQATNING YARMI EDI:** «sandboxda `run()`
+  yurmaydi, ya'ni uning ichidagi har qanday qaror o'lchovsiz bo'ladi». Qaror
+  bazaga bog'liq bo'lgani uchun emas, uni **ajratadigan fikstyura yo'q**
+  bo'lgani uchun o'lchovsiz edi.
+
+* ✅ **§3 MAXRAJINING MANBASI ENDI JAVOBDA — `tz_check.source_line()`,
+  IKKITA TOPILMA VA `Reason.ALL_BLOCKS_UNASSIGNED`.** `tzsource.BlockRegistry`
+  §3 ning maxrajini quradi va uning izohi chaqiruvchidan bitta narsani
+  talab qiladi: «ular bo'sh emasligini chaqiruvchi **ko'rishi** kerak,
+  aks holda maxraj sababsiz kichrayadi». Talab bajarildi: ikkita son
+  o'z maxraji va ulushi bilan chiqadi, nol bo'lmagani esa topilma
+  beradi va chiqish kodiga ta'sir qiladi.
+* 🔴 **IKKITA SON MAXRAJSIZ, ULUSHSIZ VA TOPILMASIZ CHOP ETILARDI.**
+  `biriktirilmagan kvartal 3` beshtadanmi yoki besh mingdanmi degan
+  savolga javob bermaydi, ya'ni undan hech qanday qaror chiqmasdi;
+  hisobotning verdikti esa ularni umuman ko'rmasdi — kvartallarining
+  yarmi tumanga tushmagan mintaqada asbob `clean` deb yozib chiqish
+  kodi `0` qaytarardi.
+* 🔴 **YO'QOTISHNING ISHORASI BARQAROR EMAS.** Tumandan tashlangan
+  kvartal uni **erishilmasroq** ko'rsatadi (`n >= minimum` da `n`
+  kichrayadi), butun tuman ro'yxatdan chiqib ketsa esa shahar
+  maxraji kichrayadi va shahar **erishuvchanroq** chiqadi. Ikkita
+  teskari xato bir-birini qisman bekor qiladi va sonlarning
+  ko'rinishi tinch qoladi.
+* 🔴 **MAXRAJ SANOQNING O'ZIDAN OLINMAYDI.** `blocks_seen` —
+  `blocks_counted + blocks_unassigned`: `blocks_counted` faqat §3 ga
+  **kirgan** kvartallarni sanaydi, ya'ni yo'qolganlar ta'rifi bo'yicha
+  unda yo'q va nisbat har doim `0` chiqardi.
+* 🔴 **IKKITA ULUSHNING MAXRAJI HAR XIL VA QATORDA NOMLANGAN.**
+  Biriktirilmagan kvartal maxrajdan chiqib ketadi (maxraji —
+  ko'rilganlar), chegaradagi katak esa unda **qoladi** va faqat qaysi
+  tumanga tushgani tanlanadi (maxraji — biriktirilganlar). Bitta
+  maxrajga keltirish ikkita boshqa nuqsonni bitta shkalada o'qishga
+  majbur qilardi.
+* 🔴 **`UNKNOWN` JAVOBNING IKKITA SABABI AJRATILDI.**
+  `no_blocks_with_users` («o'lchaydigan narsa yo'q») va
+  `all_blocks_unassigned` («ma'lumot bor, uni biriktirish yo'qotdi»,
+  `05` §5.3). Bitta token ostida turganda hisobot foydalanuvchi yo'q
+  deb **yolg'on** javob berardi.
+* ⚠️ **TOPILMALAR `coverage_measured` QOROVULIDAN TASHQARIDA.**
+  Sonlar `tzsource` ning to'g'ridan-to'g'ri sanog'i va verdiktga
+  bog'liq emas; qorovul ostida ular eng kerak bo'lgan hisobotda
+  (hamma kvartal biriktirilmagan) jim qolardi. Avvaldan bor nusxasi —
+  `reach.cutoff_decides:verdict`.
+
+* ✅ **HISOBOTNI YETKAZISH ENDI BAZADAN AJRATILGAN —
+  `plan()` / `run()` / `finish()` / `deliver()` / `emit()`.**
+  Skriptning yo'li to'rt qismga bo'lindi va ulardan **bittasi**
+  bazaga bog'liq: `plan()` argumentlardan `Invocation` yasaydi (yoki
+  bazaga bormasdan to'xtaydigan xato), `run()` faqat o'qiydi va
+  `Report | Delivery` qaytaradi, `finish()`/`deliver()` hisobot va
+  bayroqdan matn bilan kodni yasaydi, `emit()` esa yagona `print`.
+* 🔴 **CHOK IKKITA CHIQISHNING ORASIDA EDI VA U O'LCHANMASDI.**
+  201–208 runlar hisobotning ikkala chiqishini ham shakl tomonidan
+  qulfladi, lekin «`--json` bayrog'i qaysi chiqishni tanlaydi» va
+  «chiqish kodi `sh` ga qanday yetadi» degan ikkita qator
+  `session_scope()` dan **keyin** turardi. `run()` bazasiz
+  chaqirilmaydi, ya'ni butun to'plamda o'sha ikki qatorni yuradigan
+  birorta test yo'q edi: bayroqni teskarisiga burgan yoki har doim
+  `0` qaytargan o'zgarish 4997 testda omon qolardi.
+* 🔴 **CHIQISH KODI BAYROQDAN MUSTAQIL.** U `deliver()` da
+  bir marta olinadi, shoxlarning ichida emas: kodni ikkala shoxda
+  alohida hisoblagan variant bir xil bazada ikki xil verdikt
+  beradigan asbob yasardi — hisobotni o'qigan odam va uni
+  skriptdan yuritgan CI boshqa javob olardi.
+* ⚠️ **BAZAGA BOG'LIQ QISM QARORSIZ QOLDIRILDI.** Sandboxda
+  `run()` yurmaydi, ya'ni uning ichiga qaytib kelgan har qanday
+  qaror avtomatik ravishda o'lchovsiz bo'ladi. Shuning uchun
+  yetkazish undan butunlay olib tashlandi va o'lchanmaydigan qism
+  uchta SQL qatoriga qisqartirildi; `main()` ning butun yo'li esa
+  `run()` ni almashtirib (bitta fikstyura) sandboxda ham yuriladi.
+* ⚠️ **IKKITA `ast` QOROVULI:** `print` faqat `emit()` da va
+  `EXIT_ERROR` ni faqat `failure()` yasaydi. Matn qidiradigan
+  qorovul o'z izohiga ilinardi.
+
+* ✅ **`--json` NING SKELETI ENDI BLOKLARGA BOG'LANGAN —
+  `tz_check.report_json_blocks()`.** To'rt bo'lak, matn bloklarining
+  tartibida: `header_json()` (argumentlar), `reach_json()` (§2.1 ning
+  ikkala kesimi va ular haqidagi xulosa), `coverage_json()` (§3) va
+  `findings_json()` (topilmalar, holat, chiqish kodi). `as_json()` da
+  endi na kalit, na tartib bor: u bo'laklarni bitta yassi lug'atga
+  qo'shadi, xuddi `render()` bloklarni `BLOCK_SEPARATOR` bilan
+  yopishtirgani kabi.
+* 🔴 **HISOBOTNING IKKINCHI CHIQISHI O'LCHOVDAN TASHQARIDA QOLGAN
+  EDI.** Yetti run ketma-ket matn hisobotining shaklini qulfladi, shu
+  vaqt ichida `as_json()` sakkizta kalitli yassi lug'at bo'lib qoldi
+  va uning kalitlari hisobotning to'rt savoli bilan **hech qayerda**
+  solishtirilmadi: matnda bloki bor lekin JSON da kaliti yo'q savol
+  skriptga «bu savol berilmadi» degan yolg'on javob bo'lardi. Bir
+  chiqishning shaklini qulflash ikkinchisi haqida hech narsa
+  aytmaydi.
+* 🔴 **`cutoff_decides` VA `levels_in_dispute` UMUMAN QULFLANMAGAN
+  EDI.** Ularni tashlab ketgan yoki doim bo'sh qaytargan o'zgarish
+  `--json` ni o'qiydigan skriptga «javob barqaror» deb ko'rsatardi,
+  holbuki butun asbob ikkita kesimni aynan shu farq uchun yonma-yon
+  o'lchaydi. Xuddi shu naqsh `findings` da ham: uni har doim bo'sh
+  qaytargan o'zgarish butun to'plamda omon qolardi, chunki yagona
+  da'vo **toza** hisobotda o'lchanadi va o'z-o'zidan bajariladi.
+* ⚠️ **BO'LAK BO'SH BO'LMAYDI, KALIT IKKITA BO'LAKKA TEGISHLI
+  BO'LMAYDI.** Birinchisi — blokning yo'qolmasligi qoidasining mashina
+  tomonidagi nusxasi; ikkinchisi birlashtirish paytida bitta bo'lakni
+  jimgina yutishdan saqlaydi (hisobot o'z sonini o'zi yo'qotardi).
+  Ikkovi ham testda **literal** `JSON_BLOCK_KEYS` jadvali bilan, va
+  kalitlar beshala shaklda (toza, o'lchanmagan, topilmali, qisman,
+  qarzli) bir xil bo'lishi talab qilinadi.
+* ⚠️ **FIKSTYURA IKKI TOMONNI AJRATMASA, QULF YO'Q.** `--json` ning
+  ikkala kesimini modul `summary()` i bilan solishtiradigan da'vo
+  bor edi, lekin u `clean_report()` da o'lchanardi va u yerda `early`
+  bilan `late` — **aynan bitta obyekt**, ya'ni ularni almashtirgan
+  o'zgarish ko'rinmasdi.
+
+* ✅ **HISOBOTNING SKELETI ENDI JADVALDA — `tz_check.report_blocks()`.**
+  To'rt blok, tartibda: `header_lines()` (qaysi buyruq shu sonlarni
+  chiqardi), `reach_block()` (§2.1 — tarixda yig'ilganmi),
+  `coverage_block()` (§3 — umuman yig'ilishi mumkinmi) va
+  `findings_lines()` (verdikt va topilmalar). `render()` da endi na
+  f-satr, na tartib qoldi: u bloklarni `BLOCK_SEPARATOR` bilan
+  yopishtiradi, xolos.
+* 🔴 **BLOKLARNING TARTIBI `render()` NING ICHIDA YOZILGAN EDI.**
+  Uni bitta joyda hech narsa qulflamasdi: bo'limni butunlay tashlab
+  ketgan yoki ikkitasini almashtirgan o'zgarish faqat o'sha bo'limni
+  nomma-nom qidiradigan da'volarga ilinardi, ularning har biri esa
+  boshqa savol haqida edi. Har qatorning shakli ayri funksiyaga
+  chiqarilgan, lekin shaklning oxirgi bo'lagi — **qaysi blok
+  qaysidan keyin** — o'lchanmagan joyda qolgan edi. Tartib tasodifiy
+  emas: avval qaysi buyruq, keyin ikkita o'lchov, oxirida ulardan
+  chiqadigan verdikt; verdiktni yuqoriga ko'targan o'zgarish
+  o'quvchiga xulosani **dalilsiz** ko'rsatardi.
+* 🔴 **AJRATGICH BO'SH QATOR UCH JOYDA ALOHIDA YOZILGAN EDI** —
+  `render()` dagi ikkita bo'lim boshi va `findings_lines()` ning
+  birinchi elementi. Bittasini olib tashlagan o'zgarish hisobotni
+  **qisman** yopishtirardi: bir bo'lim ikkinchisining davomiga
+  o'xshab qolardi. `BLOCK_SEPARATOR` yagona qoida, va shundan
+  blokning **ichida** bo'sh qator bo'lmasligi kelib chiqadi —
+  hisobotni skript `text.split(BLOCK_SEPARATOR)` bilan bloklarga
+  ajrata oladi.
+* ⚠️ **BLOK HECH QACHON YO'QOLMAYDI.** O'lchanmagan tarix ham, bo'sh
+  tuman ro'yxati ham o'z qatorini chiqaradi: blokning yo'qligi
+  o'quvchiga «bu savol berilmadi» degan yolg'on javob bo'lardi,
+  holbuki javob — «o'lchanmadi». Bo'sh jadval o'lchangan javobga
+  o'xshamasin qoidasining navbatdagi nusxasi.
+* ⚠️ **BLOK SONINI O'LCHANAYOTGAN KODDAN OLMA.** Testdagi
+  `BLOCK_COUNT` — **literal**: `report_blocks()` dan olingan son blok
+  tashlab ketilganini ham, ikkitasi almashganini ham ko'rmasdi
+  (`ARGUMENT_KEYS` bilan bir xil qoida).
+
+
+* ✅ **MATN HISOBOTI VA `--json` ENDI BITTA ARGUMENT JADVALIDAN
+  O'QIYDI — `tz_check.Report.arguments`.** Yetti argument
+  (`region`, `since`, `until`, `cutoff_early`, `cutoff_late`,
+  `min_account_age_min`, `min_episodes`) ikkala chiqishda ham bor va
+  endi bitta manbadan: `as_json()` jadvalni `**` bilan yoyadi,
+  sarlavha qatorlari undan **kalit bo'yicha** o'qiydi. Sarlavha bloki
+  ham ayri funksiyalarda — `header_lines()` / `title_line()` /
+  `window_line()` / `cutoff_window_line()` / `min_episodes_line()`.
+* 🔴 **BITTA O'LCHOVNING IKKITA MUSTAQIL NUSXASI BOR EDI.**
+  Matn sarlavhasi argumentlarni `render()` ning ichidagi f-satrida,
+  `--json` esa `as_json()` ning lug'atida yasardi va hech narsa
+  ularni solishtirmasdi. Matndagi `erta`/`kech` kesimni almashtirgan
+  yoki bitta maydonni tashlab ketgan o'zgarish JSON ni **to'g'ri**
+  qoldiradi, ya'ni §12 ning javobi qaysi chiqishni o'qiganingga
+  bog'liq bo'lardi va ikkovi ham «o'lchandi» deb ko'rinardi.
+  `as_json()` izohidagi «shakl chaqiruvchida takrorlanmaydi»
+  qoidasining qo'llanmagan oxirgi joyi.
+* ⚠️ **JADVALNI O'LCHANAYOTGAN KODDAN OLMA.** Testdagi
+  `ARGUMENT_KEYS` — **literal**: `Report.arguments` dan olingan
+  ro'yxat javobni har doim rost qilardi va faqat `--json` ga
+  qo'shilgan maydon hech qayerda yiqilmasdi.
+* 🔴 **`verdikt:` HISOBOTDA IKKI XIL SAVOLGA JAVOB BERARDI.**
+  §3 ning sarlavhasi «reyestrlardan o'lchov chiqdimi va nega
+  yo'q», `DIFFER_LABEL` (204-run) esa «ikkita **kesimning**
+  verdikti bir xilmi» deydi. `DECIDER_LABEL` ning `ulush` i va
+  `HIGH_LABEL` ning `ok` i minasining **uchinchi nusxasi**;
+  `COVERAGE_HEAD_LABEL = "zona"`. Yangi test har yorliqni
+  (`«{yorliq}: »`) butun hisobotda **aynan bir marta** deb
+  sanaydi — endi qoida yorliqning o'ziga qo'yilgan.
+* 🔴 **«`render()` DA BIRORTA O'LCHOV f-SATRI QOLMADI»
+  DEGAN XULOSA NOTO'G'RI EDI (205-run).** `  verdikt: {verdict}
+  ({reason})` §3 ning butun yarmi haqidagi xulosani o'lchardi va
+  ayri funksiya sifatida qulflanmagan edi — `coverage_head_line()`,
+  `reach_head_line()` ning juftligi. **Endi** `render()` da haqiqatan
+  birorta f-satr yo'q: faqat tartib va bo'sh qatorlar.
+* 🔴 **`erta`/`kech` UCH JOYDA ALOHIDA YOZILGAN EDI** —
+  sarlavha blokida va ikkita `reach_lines()` chaqiruvining
+  sarlavhasida. Bitta joydagi tahrir hisobotni **o'zi bilan
+  ziddiyatga** solardi: tepada `erta {sana}`, pastda o'sha kesimning
+  sonlari `kech kesim` sarlavhasi ostida. `EARLY_WORD`/`LATE_WORD`
+  — yagona juftlik, `EARLY_TITLE`/`LATE_TITLE` undan hosila.
+
+
+* ✅ **HISOBOTNING YAKUNIY BLOKI ENDI AYRI FUNKSIYALARDA —
+  `tz_check.status_line()` / `findings_head()` / `finding_line()` /
+  `findings_lines()`.** 201 (tuman), 202 (shahar), 203 (daraja),
+  204 (kesim) va 205 (yakuniy blok) bilan `render()` da o'lchov
+  haqidagi **birorta** f-satr qolmadi: qolgan hamma f-satr faqat
+  argumentlarni qaytarib aytadi (mintaqa, oyna, kesim sanalari,
+  `min_episodes`) va bo'lim sarlavhalarini yozadi.
+* 🔴 **`topilma yo'q` IKKI XIL NARSANI ANGLATARDI.**
+  `Report.findings` o'lchanmagan yarmidan topilma **chiqarmaydi**,
+  ya'ni bo'sh ro'yxat «ikkala yarmi ham o'lchandi va hech narsa
+  topilmadi» (o'lchangan, quvontiradigan javob) bilan «o'lchanmagan
+  yarmi topilma bermaydi» (o'lchovning **yo'qligi**) ni ajratmasdi.
+  204 ning kesim sarlavhasi, 203 ning bo'sh gistogrammasi va 196 ning
+  bo'sh maxraji bilan bir xil mina. `NO_FINDINGS_LINE` ↔
+  `NO_FINDINGS_UNMEASURED_LINE`.
+* 🔴 **BO'SH BO'LMAGAN RO'YXAT HAM JIM EDI.** O'lchanmagan yarmi bor
+  hisobotda ro'yxat faqat qolgan yarmidan yig'iladi — u **to'liq
+  emas**, lekin to'liq ro'yxat bilan belgima-belgi bir xil chiqardi.
+  `FINDINGS_HEAD` ↔ `FINDINGS_PARTIAL_HEAD`.
+* 🔴 **TO'LIQLIK `Status` DAN OLINMAYDI —
+  `Report.findings_complete`.** Qamrov qarzi (`has_capacity_debt`)
+  holatni `UNMEASURED` qiladi, lekin o'sha holatda ikkala modul ham
+  son beradi va ro'yxat to'liq qoladi (197-, 199-runlar):
+  `status is UNMEASURED` bo'yicha yozgan mutant o'sha fikstyurada
+  «yarmi o'lchanmadi» degan yolg'on yozardi. Teskarisi ham bor —
+  o'lchanmagan tarixdan ham bitta topilma chiqishi mumkin
+  (`reach.cutoff_decides:verdict` sonlarsiz ko'rinadi), ya'ni
+  ro'yxatning bo'sh emasligi uning to'liqligini bildirmaydi.
+* 🔴 **`holat:` QATORINING SHAKLI HECH QAYERDA QULFLANMAGAN EDI.**
+  Yagona da'vo `Status.CLEAN.value in text` bo'lgan — token butun
+  matnning istalgan joyida uchrasa yetardi; chiqish kodi esa
+  (asbobning mashina o'qiydigan verdikti) matnda umuman
+  o'lchanmagan. `status_line()` uchala bo'lakni birga qulflaydi:
+  barqaror token, `STATUS_LABEL` ning so'zi va kod. `clean` va
+  `unmeasured` qarama-qarshi javoblar edi, lekin ikkovi ham bir xil
+  inglizcha token bilan chiqardi (204 olib tashlagan `True`/`False`
+  literalining oxirgi nusxasi). So'zlar topilmalar sarlavhasi bilan
+  bitta so'zni ham baham ko'rmaydi va buni test tekshiradi —
+  201/203 ning «bir so'z ikki savolga» minasi takrorlanmasin.
+
+* ✅ **KESIM XULOSASI ENDI JIM QOLMAYDI — `tz_check.cutoff_line()` /
+  `cutoff_head()` / `disputed_levels_text()`.** `render()` ning
+  oxirgi ichki f-satri ham ayri funksiyaga chiqdi, ya'ni 201 (tuman),
+  202 (shahar), 203 (daraja) va 204 (kesim) bilan hisobotda o'lchov
+  haqidagi bitta ham f-satr qolmadi. Qatorni o'lchaydigan birorta
+  da'vo yo'q edi: `javob kesimga bog'liq` iborasiga testlarda
+  murojaat topilmasdi.
+* 🔴 **QATORNING YO'QLIGI IKKI XIL NARSANI ANGLATARDI.** Xulosa faqat
+  `cutoff_decides` rost bo'lganda chiqardi, ya'ni jimlik «ikkala
+  kesim ham o'lchandi va rozi» (o'lchangan, quvontiradigan javob)
+  bilan «ikkala kesim ham son bermadi, ta'sir umuman o'lchanmadi» ni
+  ajratmasdi — ikkinchisida `verdicts_differ` yolg'on
+  (`UNKNOWN is UNKNOWN`) va `levels_in_dispute` bo'sh. Bu 203 ning
+  bo'sh gistogrammasi va 196 ning bo'sh maxraji bilan bir xil mina:
+  **o'lchovning yo'qligi o'lchangan javobga o'xshab ko'rinadi**.
+  Uchta sarlavha ajratildi; tartib qulflangan — `cutoff_decides`
+  birinchi tekshiriladi, chunki «erta o'lchandi, kech o'lchanmadi»
+  ham kesimning qarori.
+* 🔴 **`darajalar: -` HAM IKKI XIL NARSANI ANGLATARDI.**
+  `levels_in_dispute` faqat ikkala o'lchovda ham bor darajani
+  solishtiradi, ya'ni bir tomon `UNKNOWN` bo'lsa ro'yxat har doim
+  bo'sh chiqadi va `-` «hech bir daraja qarshilik qilmadi» degan
+  tinchlantiruvchi javobdek o'qilardi. `NO_DISPUTED_LEVELS` (`-`,
+  solishtirildi va rozi) va `LEVELS_NOT_COMPARABLE`
+  (`solishtirib bo'lmadi`) ajratildi.
+* 🔴 **HISOBOTDAGI YAGONA PYTHON LITERALI SHU QATORDA EDI.**
+  `verdikt farqi True/False` — qolgan hamma bayroq so'z bilan
+  yoziladi (`DECIDER_LABEL`, `HIGH_LABEL`, `OVER_CAPACITY_LABEL`,
+  `CONFLICT_LABEL`). U aldamchi ham edi: qator 🔴 bilan boshlanib
+  `verdikt farqi False` deb tugardi, holbuki o'sha holatda 🔴 ni
+  **darajalar** keltirgan bo'ladi. `DIFFER_LABEL` — `verdikt: bir
+  xil` ↔ `verdikt: FARQ`.
+* ⚠️ **HAQIQIY `measure()` ZIDDIYATNI BITTA DARAJAGA QAMAY
+  OLMAYDI:** u uchala darajani ham birga o'zgartiradi, ya'ni «uy va
+  mahalla rozi emas, kvartal rozi» holatini undan yasab bo'lmaydi —
+  aynan o'sha holat esa ro'yxatning tartibini va **rozi** darajaning
+  ro'yxatga tushmasligini o'lchaydi. `one_reach()`/`flip()` shundan;
+  `one_district`/`one_city`/`one_level` bilan bir xil sabab.
+
+* ✅ **DARAJA QATORI ENDI O'Z SAVOLINI AYTADI —
+  `tz_check.level_line()` / `reach_head_line()` / `reach_lines()` /
+  `histogram_text()`.** §12 ning `tzreach` yarmi `district_line`
+  (201) va `city_line` (202) qilgan yo'ldan o'tdi: qator
+  `_reach_lines()` ichidagi olti bo'lakli f-satr edi va uni
+  o'lchaydigan **yagona** da'vo — `sonlar yo'q` ni butun hisobotdan
+  qidirish, ya'ni faqat *o'lchanmagan* holat. O'lchangan qatorning
+  birorta bo'lagi qulflanmagan edi.
+* 🔴 **`ok` BITTA HISOBOTDA IKKITA SAVOLGA JAVOB BERARDI.** Daraja
+  qatori `'YUQORI' if looks_high else 'ok'` bilan tugardi, tuman
+  qatori esa `'ok' if reachable` bilan — biri «§2.1 ning porogi
+  yuqorimi», ikkinchisi «tuman §3 ning porogiga yetadimi». Bir xil
+  so'z ikki xil savolga javob berganda matndan bo'lak qidiradigan
+  har qanday da'vo **o'z-o'zidan** bajariladi: daraja verdiktini
+  butunlay olib tashlagan mutant ham omon qoladi, chunki `ok` ni
+  tuman qatori qoldiradi. Bu 201-run ning `ulush` minasining
+  **ikkinchi nusxasi**. `HIGH_LABEL` — `porog: ok` ↔
+  `porog: YUQORI`, `maxraj:`/`qaror:` bilan bir xil naqsh.
+* 🔴 **SONLARNING YORLIG'I YO'Q EDI.** `house    3/8 (44%)` —
+  juftlik `district_line()` ning `kvartal 5/9` iga, foiz esa
+  `city_line()` ning `qamrov: 44%` iga belgima-belgi o'xshardi,
+  holbuki uchalasi boshqa narsani sanaydi. `yetdi` va `guvohlar`
+  qo'shildi. Bo'sh gistogramma endi `-`: `[]` bo'sh qavs `{0: 8}`
+  (sakkiz hodisada bittayam guvoh yo'q — **o'lchangan** javob) bilan
+  `{}` (o'lchov yo'q) ni ajratmasdi.
+* 🔴 **FIKSTYURA AJRATMASA, `render` NING SARLAVHASI SONLARIDAN
+  UZILIB QOLADI.** Mutatsiya o'lchovi haqiqiy survivor topdi: erta
+  va kech kesimning qatorlarini almashtirgan mutant hech qanday
+  da'voni yiqitmadi, chunki o'sha paytdagi hamma `render` testi
+  ikkala kesimga ham **bir xil** `Reachability` berardi
+  (`clean_report()` ham shunday). §12 uchun bu eng qimmat xato
+  bo'lardi — butun asbob ikkita kesimni ataylab yonma-yon
+  chiqaradi, chunki javob kesimga bog'liq bo'lsa son dalil emas,
+  artefakt.
+
+* ✅ **SHAHAR SATRI ENDI QARORNI KIM QABUL QILGANINI AYTADI —
+  `tz_check.city_line()` / `city_context_line()`.** Tuman qatori
+  `kerak N (ulush M) qaror: …` deydi, shahar satri esa faqat
+  `kerak N` derdi: bir xil savolga ikkita daraja ikki xil
+  to'liqlikda javob berardi va shaharniki hisobotdan umuman
+  o'qilmasdi — javob faqat `coverage.minimum_decides:city`
+  topilmasida, **bayroq shaklida va sonsiz** qolardi. Ikkita satr
+  ikkita boshqa savolga javob beradi: birinchisi porog
+  yig'iladimi, ikkinchisi javob qanchalik ishonchli (o'lik
+  og'irlik, qamrov, biriktirilmagan kvartallar).
+* ✅ **SHAHAR KESIMI MODULDA — `tzcoverage.city_summary()`.**
+  Kalitlar `summary()` ning **ichida** yasalardi, aynan shuning
+  uchun `CityReach` ning maydoni chiqishga jimgina tushmay qolgan
+  edi. Kesim eski kalit nomlarini saqlaydi (`districts_total`,
+  `city_need`, `dead_weight`) va ularga yetishmagan to'rttasini
+  qo'shadi: `city_share_part`, `city_minimum_decides`,
+  `city_coverage`, `city_over_capacity`. Yangi nom bilan
+  takrorlash bitta mapping ichida ikkita haqiqat yasardi.
+* 🔴 **`qamrov: 120%` O'LCHANGAN ULUSHDEK O'QILARDI.** Qamrovning
+  birdan katta bo'lishi — reyestrning nuqsoni
+  (`districts_with_users > districts_total`), ya'ni sonning
+  **ma'nosi** boshqa. `OVER_CAPACITY_LABEL` — `CONTAINMENT_LABEL`
+  bilan bir xil qoida (sonning ma'nosi sonining yonida), lekin
+  yangi **topilma** qo'shilmadi: `coverage.unknown_district` shu
+  holatda har doim yonadi va kuchliroq.
+* 🔴 **TESKARI FIKSTYURA IKKITA SAVOLNI AJRATMASLIGI MUMKIN.**
+  Bir-biriga to'liq teskari ikkita shahar satrida ikkalasida ham
+  `minimum_decides == reachable` bo'lib chiqdi — yorliqni
+  erishuvchanlikdan olgan mutant ikkala da'voni ham o'tkazib
+  yubordi. «Hamma javobi bo'yicha teskari» — yetarli shart emas:
+  ajratish kerak bo'lgan **har juftlik** uchun bittadan qarama-qarshi
+  holat kerak. Xuddi shu naqsh `render` da: reyestri to'liq
+  mintaqada yorliq bo'sh, ya'ni eski f-satr yangi funksiya bilan
+  belgima-belgi bir xil chiqadi va funksiyani chetlab o'tgan mutant
+  omon qoladi.
+
+* ✅ **TUMAN QATORINING SHAKLI ENDI AYRI FUNKSIYADA VA O'LCHANADI —
+  `tz_check.district_line()`.** Qator `render()` ichidagi to'qqiz
+  bo'lakli bitta f-satr edi, ya'ni uni o'lchaydigan yagona da'vo
+  turi — butun hisobotni yasab undan bo'lak qidirish. Bunday da'vo
+  bo'lakning **borligini** o'lchaydi va **qaysi maydondan**
+  kelganini o'lchamaydi. `district_summary()` bilan bir xil
+  qoidaning ikkinchi tomoni: mashina o'qiydigan shakl modulda, odam
+  o'qiydigani `tools/` da, lekin ikkalasi ham bitta funksiyada.
+* 🔴 **BITTA QATORDA `ulush` IKKI XIL SAVOLGA JAVOB BERARDI.**
+  `kerak 4 (ulush 4) ulush` — birinchisi sonning **nomi**
+  (`share_part`), ikkinchisi «qarorni kim qabul qildi» degan
+  **boshqa** savolning javobi (`minimum_decides`). Na odam, na
+  `grep` ajratmasdi; bundan qimmatrog'i — verdiktni o'lchaydigan
+  har qanday da'vo (`"ulush" in text`) sonning yorlig'i tufayli
+  **o'z-o'zidan** bajarilardi, ya'ni verdiktni butunlay olib
+  tashlagan mutant ham omon qolardi. `DECIDER_LABEL` literal
+  jadvali (`qaror: ulush` ↔ `qaror: eng-kam-son`) verdiktni yagona
+  greplanadigan bo'lak qildi; prefiks `CONTAINMENT_LABEL` nikiga
+  (`maxraj:`) ataylab juft.
+* 🔴 **FIKSTYURA MAYDONLARNI BIR-BIRINING NUSXASI QILADI — IKKINCHI
+  JUFTLIKDA HAM.** 200-run M6 da uchratgan mina `coverage()` da ikki
+  joyda bor edi: `districts={name: name}` bilan `district_id == code`
+  va sakkiz kvartalda `need == share_part`. Yangi `one_district()`
+  `DistrictReach` ni to'g'ridan-to'g'ri yasaydi (5/9/4/3, `SAM-07`),
+  hosila maydonlar qo'lda berilmaydi — ular `tzcoverage` ning
+  qoidasi. Ikkita qator to'liq `==` bilan qulflandi va ikkinchisi
+  birinchisiga **hamma javobi bo'yicha teskari**: bo'sh bo'lak
+  o'chirilgan bo'lakdan farq qilmaydi.
+* ✅ **(202 da yopildi) SHAHAR SATRI O'SHA SAVOLGA JAVOB BERMAYDI.**
+  `CityReach.share_part` na matnda, na `tzcoverage.summary()` da bor
+  — javob faqat `coverage.minimum_decides:city` topilmasida va
+  **sonsiz**. 👤 savol ochildi. Ikkinchi qayd:
+  `CityReach.over_capacity` ning mahsulot chaqiruvchisi yo'q, lekin
+  u **ataylab** tegilmadi — `coverage.unknown_district` shu holatda
+  har doim yonadi va kuchliroq.
+
+* ✅ **TUMAN KESIMI ENDI MASHINA O'QIYDIGAN CHIQISHDA HAM BOR.**
+  `tz_check --json` da tuman qatori umuman yo'q edi: yig'ma ro'yxatlar
+  (`unreachable_districts`, `districts_capacity_*`) tumanning **nomini**
+  beradi va sonini bermaydi, ya'ni «bu tuman porogidan qancha uzoq»
+  degan savolga javob faqat matn hisobotining qatorida qolardi.
+  `tzcoverage.district_summary()` — o'n uch maydonli qator,
+  `summary()` ga `districts` bilan chiqadi; `as_json` da bitta ham satr
+  o'zgarmadi, chunki shakl **modulniki**.
+* 🔴 **MAXRAJNING MA'NOSI BAYROQDAN AJRATILDI.**
+  `capacity_conflict` — bayroqning **sababi** va u `over_capacity`
+  yonmaganda `NONE` bo'ladi. Demak poligoni umuman o'qilmagan, lekin
+  qamrovi joyida bo'lgan tumanda `kvartal 8/12` qatori o'lchangan
+  `67 %` dek o'qilardi va o'lchov qarzi hech qayerda ko'rinmasdi.
+  «Sonning ma'nosi» va «son zid chiqdimi» — ikki xil savol:
+  `containment` endi qatorda ham, matn hisobotining **har** satrida ham
+  shartsiz turadi (`CONTAINMENT_LABEL`, `CONFLICT_LABEL` dan ayri
+  literal jadval).
+* 🔴 **QATOR RO'YXATNI ALMASHTIRMAYDI.** Ro'yxat — savolning
+  javobi (kimda qarz bor), qator — dalili (qancha va nimadan).
+  Birini ikkinchisidan tiklab bo'lmaydi: sababi `NONE` bo'lgan tuman
+  hech qaysi ro'yxatda yo'q.
+* 🔴 **BITTA FIKSTYURA MAYDONLARNI BIR-BIRINING NUSXASI QILADI.**
+  Sakkiz kvartalli tumanda `need` bilan `share_part` **teng**, ular
+  bilan birga `minimum_decides` va `reachable` ham bir xil javob
+  beradi — shu holatdagi yagona qator `share_part` ni `need` bilan
+  almashtirgan mutantni o'tkazib yubordi. Qator ikkinchi, hamma
+  javobi bo'yicha teskari tuman bilan qulflandi.
+
+* ✅ **HISOBOT ENDI TOPSHIRIQNI AYTADI — `CapacityConflict` NING
+  TO'RTINCHI QIYMATI.** 198-run jurnalga ikkita ayrim hodisa qo'ygan
+  edi, `tz_check` esa ikkovini bitta yorliq va bitta topilma bilan
+  chiqarardi: odam jurnaldagi ikkita qatorni hisobotdagi bitta bayroq
+  bilan solishtira olmasdi va **qaysi ishni qilish kerakligi
+  hisobotdan umuman o'qilmasdi**. Endi `DENOMINATOR_ESTIMATED`
+  (poligonning o'zi yo'q — chegara reyestri) va
+  `DENOMINATOR_NOT_UPPER_BOUND` (poligon bor, `overlap` sanog'i yo'q —
+  `h3` ning eksperimental API si) ayrim nom, ayrim ro'yxat va ayrim
+  yorliq.
+* 🔴 **BITTA SHART IKKITA QARZNI AJRATMAYDI.** Ikkalasida ham
+  `cellfit.is_upper_bound_safe` `False`, ya'ni 197-running belgisi
+  ishlamaydi; ajratuvchi — **ikkinchi** savol, `cellfit.is_counted`.
+  Yangi qoida yozilmadi: `capacity_conflict` ikkala mavjud funksiyani
+  ham chaqiradi, ya'ni `Containment` ga to'rtinchi qiymat qo'shilsa
+  javob bitta joyda o'zgaradi.
+* 🔴 **MA'NOSI NOMA'LUM SON SANOQ DEB O'QILMAYDI.**
+  `containment is None` `ESTIMATED` tomonga tushadi — aks holda qarz
+  `h3` ga ag'darilib, chegara reyestridagi ish ko'rinmas bo'lardi.
+* 🔴 **RO'YXATLAR QO'SHILMADI, HOLAT ESA BITTA.** Uchta ro'yxat ayrim
+  qoladi; `tz_check` ning `status` i `has_capacity_debt` degan bitta
+  mantiqiy javobni oladi, chunki «hammasi o'lchandimi» degan savol
+  qarzning turini so'ramaydi.
+
+* ✅ **MAXRAJNING IKKITA NUQSONI JURNALDA AJRATILDI —
+  `coverage.cells_not_upper_bound`.** `refresh_coverage` jurnali
+  `containment is ESTIMATE` ni so'rardi, `tzcoverage.capacity_conflict`
+  esa `cellfit.is_upper_bound_safe` ni (faqat `OVERLAP`) — ikkovining
+  orasiga `Containment.CENTER` tushardi va **jimgina o'tardi**:
+  `territory_stats.populated_cells` ga ishonchli tepa chegara bo'lmagan
+  maxraj yozilardi, `tz_check` esa keyinroq o'sha hududda
+  `DENOMINATOR_NOT_UPPER_BOUND` bayrog'ini **izsiz** ko'tarardi. Endi
+  `_log_denominator_quality()` ikkita ayrim ogohlantirish yozadi.
+* 🔴 **«SANALDIMI» VA «ISHONCHLIMI» — IKKI XIL SAVOL.**
+  `cellfit.is_counted(containment)` `is_upper_bound_safe` dan ayri va
+  ular hech qachon bir xil javob bermaydi: `CENTER` birinchisida `True`,
+  ikkinchisida `False`. Ikkovini bitta shart bilan o'qigan chaqiruvchi
+  yo o'qilgan poligonni yo'q qiladi, yo nisbatning birdan oshishiga yo'l
+  ochadi. Qoida `CellCount.exact` xossasidan modul funksiyasiga
+  chiqarildi — chaqiruvchi `containment` ni sonidan ayri olib yuradi.
+* 🔴 **HODISALARNI QO'SHISH SABABNI YO'QOTARDI.** Poligon yo'qmi
+  (chegara reyestri tuzatiladi) yoki `overlap` sanog'i yo'qmi (`h3` ning
+  eksperimental API si) — ikki xil ish, sanoqlari ham qo'shilmasligi
+  kerak.
+* 🔴 **HODISA NOMI — TASHQI KONTRAKT.** Testlar konstantaga murojaat
+  qilgani uchun ikkala nomni bitta satrga tenglashtirish hech qayerda
+  yiqilmasdi (mutatsiya bilan o'lchandi) — nomlar literal jadval bilan
+  qulflandi.
+
+* ✅ **`over_capacity` NING IKKITA SABABI AJRATILDI —
+  `tzcoverage.CapacityConflict`.** 196-run maxrajni sanaydigan qildi
+  va bayroqni «kvartallar poligondan tashqarida» deb o'qishga ruxsat
+  berdi — lekin **poligoni o'qilgan** hududda. O'qilmaganda maxraj
+  baribir yuzadan baholanadi va mahalla o'lchamida bir necha barobar
+  kichik chiqadi, ya'ni bayroq o'lchov nuqsonidan yonadi;
+  `tz_check` esa ikkovini bitta yorliq bilan chiqarib odamni mavjud
+  bo'lmagan ziddiyatni qidirishga yuborardi. Endi ikkita
+  `Finding` (`coverage.outside_polygon` ↔
+  `coverage.capacity_unmeasured`), ikkita yorliq va ikkinchisida
+  `Status.UNMEASURED` (kod `3`), `FINDINGS` emas.
+* 🔴 **AJRATUVCHI BELGI `exact` EMAS, `is_upper_bound_safe`.**
+  `Containment.CENTER` ham **sanoq** (`CellCount.exact is True`),
+  lekin markazi tashqarida qolgan chekka katakni tashlab ketadi —
+  maxraj sifatida ishonchli tepa chegara emas. Sababni `exact`
+  bo'yicha ajratgan kod uni topilma deb o'qirdi. Qoida `CellCount`
+  xossasidan modul funksiyasiga chiqarildi
+  (`cellfit.is_upper_bound_safe`), chunki yangi chaqiruvchi
+  `containment` ni **sonidan ayri** olib yuradi.
+* 🔴 **BO'SH SUKUT VERDIKTNI OG'DIRARDI.**
+  `RegionFacts.blocks_containment` ga sukut qiymat berilmadi: bo'sh
+  xarita hamma hududni «o'lchanmagan» qilardi. Shu bilan bir xil mina
+  `to_facts` da ham bor edi — `geometry` `Iterable` va undan endi
+  ikkita xarita quriladi, generator ikkinchi o'tishda bo'sh bo'lardi
+  (`list(geometry)`).
+
+* ✅ **`populated_cells` ENDI SANALADI, BAHOLANMAYDI —
+  `app/geo/cellfit.py`.** `_geometry_facts` kataklarni
+  `ST_Area / average_hexagon_area(9)` bilan baholardi, chunki bazada
+  `h3` kengaytmasi yo'q. Sabab to'g'ri, xulosa noto'g'ri: kutubxona
+  **Python tomonda bor** va poligon `ST_AsGeoJSON` bilan olib
+  kelinadi. Sanoq `contain='overlap'` bilan — `cells_with_reports`
+  xabar nuqtasining katagidan olinadi va chekkadagi xabarning katagi
+  markazi bilan tashqarida bo'lishi mumkin.
+* 🔴 **TAXMIN TASDIQLASHNING MAXRAJI EDI VA XATOSI ISHORASINI
+  O'LCHAMGA QARAB O'ZGARTIRARDI.** Son `territory_stats.populated_cells`
+  orqali `06` §5.3 ning `cell_coverage_ratio` iga, masshtab narvoniga,
+  Coverage Index ga va `01` §16 ning mahalla indeksiga boradi.
+  O'lchandi (Samarqand kengligi, r9): taxmin/sanoq 0.04 km² da `0.33`,
+  0.95 km² da `0.60`, 23.7 km² da `1.00`, 94.8 km² da `1.09`. Ikkita
+  mustaqil sabab — perimetr (kichik hududda ustun, maxrajni
+  kichraytiradi → **optimistik**) va global o'rtacha katak maydoni
+  (Samarqandda haqiqiysidan ~18 % kichik → ehtiyotkor) — bir-birini
+  qisman bekor qilgani uchun formula «ishlayotgandek» ko'rinardi.
+* ⬜ **`data_quality` KO'TARILMADI, bitta savol ochiq.** Sanoq
+  *qoplaydigan* kataklarni beradi, `06` §3.1 esa *aholi
+  yashaydiganini* so'raydi — bino ma'lumoti hamon yo'q. Ochiq:
+  `ST_AsGeoJSON` yo'li haqiqiy PostGIS da yurgizilmagan
+  (`over_capacity` ning ikkita sababi 197-runda ajratildi).
 
 * ✅ **§12 NING IKKALA YARMI HAM CHAQIRUVCHIGA EGA — `tools/tz_check.py`.**
   193- va 194-runlar §12 ning ikkala modulini qurgan, lekin `app/` da
@@ -80,10 +681,9 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
   (`n == 6..7` da ikkalasi teng, `n >= 8` da ulush oshadi), ya'ni
   qarorni mutlaq eng kam son qabul qiladi — §3 esa «Абсолютное число
   в настройках не задавать» deb yozgan.
-* ⬜ **TAXMINIY QAMROV KESILMAYDI.** `geo.queries._geometry_facts`
-  bazada `h3` yo'qligi uchun `ST_Area / katakcha maydoni` bilan
-  sanaydi; `over_capacity` shuning uchun «qamrov birdan katta» emas,
-  **taxmin noto'g'ri** degani.
+* ✅ **TAXMINIY QAMROV NOMLANADI** (196- va 197-runlar). Maxraj endi
+  poligondan sanaladi, sanalmagan joyda esa `over_capacity`
+  «poligondan tashqarida» emas, `capacity_unmeasured` deb chiqadi.
 
 * ✅ **§12 NING TEKSHIRUVI ENDI O'TKAZILADIGAN BO'LDI —
   POROGLARNING ERISHUVCHANLIGINI O'LCHAYDIGAN ASBOB.** TZ §12 ni
@@ -2575,28 +3175,28 @@ qarashda. Run tarixi bu yerda saqlanmaydi: batafsil tarix va sabablar —
 | E4 | i18n karkasi (UZ/RU) | ✅ | `app/core/i18n/` | — |
 | E5 | Klasterlash: biriktirish, statuslar | ✅ | `app/clustering/` | — (119-run: `status.py` mutatsiyasi 13/13, 0 survivor; 122-run: `geometry.py` 13/13 — 5 qulf, 2 ekvivalent) |
 | E5b | Tasdiqlash va masshtab (`06`) | ✅ | `app/clustering/{confirmation,scale,params,formulas}.py`, `app/reports/{sources,velocity}.py`, `0003` | — (121-run: `scale.py` mutatsiyasi 12/12 — 4 qulf, 2 ekvivalent mutant) |
-| E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | — |
+| E6 | Retrospektiv qayta hisob | ✅ | `tools/recluster.py` | Bazali yarmi endi **bazasiz** ham o'lchanadi (`test_recluster_db_half`, 75 test): chaqiruvlarning tartibi — qorovul o'chirishdan oldin, uzish o'chirishdan oldin, `flush` izdan oldin — bitta ro'yxat bilan qulflangan |
 | E7 | «Ma'lumot yetarli emas» verdikti | ✅ | `app/clustering/lookup.py` | — |
-| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | `DIGEST_CHAT_IDS` (E8-b) |
-| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/{nginx.locations,nginx,nginx.prod}.conf`, `deploy/docker-compose.prod.yml`, `scripts/{deploy,init_tls}.sh`, `0004` | 👤 **domen `bormitok.uz`** DNS bilan yo'naltirilgan (2026-08-12); kod tayyor (122-run: webhook proksi, `limit_req`, `sveta-web` konteyneri, xost nginx sayti). ⚠️ Serverda xost nginx bor va 80/443 band — TLS **xostda** (`certbot --nginx`), konteyner-certbot yo'li (`deploy/nginx.prod.conf`, `deploy/docker-compose.prod.yml`, `scripts/init_tls.sh`) faqat bo'sh server uchun saqlandi. ~~ADR-08~~ 👤 hal: OSM (2026-08-11). Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
+| E8 | Admin-panel: moderatsiya, rollar, audit | 🔄 | `app/admin/`, `0006` | ~~`DIGEST_CHAT_IDS` (E8-b)~~ 👤 2026-08-21: hozircha shart emas — kod qarzi yo'q, hisobot saqlanadi va `/admin/digest` orqali o'qiladi |
+| E9 | Veb-xarita (snapshot, MapLibre) | 🔄 | `app/clustering/snapshot.py`, `app/api/v1/map.py`, `web/`, `deploy/{nginx.locations,nginx,nginx.prod}.conf`, `deploy/docker-compose.prod.yml`, `scripts/{deploy,init_tls}.sh`, `0004` | 👤 **domen `bormitok.uz`** DNS bilan yo'naltirilgan (2026-08-12); kod tayyor (122-run: webhook proksi, `limit_req`, `sveta-web` konteyneri, xost nginx sayti). ⚠️ Serverda xost nginx bor va 80/443 band — TLS **xostda** (`certbot --nginx`), konteyner-certbot yo'li (`deploy/nginx.prod.conf`, `deploy/docker-compose.prod.yml`, `scripts/init_tls.sh`) faqat bo'sh server uchun saqlandi. ~~ADR-08~~ ✅ 👤 hal: **OpenFreeMap Liberty** (2026-08-21; 2026-08-11 dagi OSM qarorini almashtiradi — vektor stil, `MAP_STYLE_URL`). ~~E13-a~~ 👤 kechiktirildi. Qoldi: serverda `deploy.sh` yurgizish + brauzer tekshiruvi; Dark Mode; `outage-halo` `official` ni bilmaydi; to'rtinchi status («Завершено») sirtsiz — 👤 savollar. ✅ 117-run: sahifada qattiq kodlangan matn qolmadi (`04` §6) |
 | E10 | 👤 Yopiq yig'ish bosqichi | ⬜ | — | **Inson ishi** |
 | E11 | Parametrlarni haqiqiy ma'lumotda sozlash | ⬜ | `tools/recluster.py` | E10 (**asbob tayyor**) |
 | E12 | Ommaviy ishga tushirish | ⬜ | — | E10, E11 |
 | E13 | Obuna + bildirishnomalar | 🔄 | `app/notifications/`, `0007` | **Haqiqiy Telegram runi** (E3-a) |
-| E14 | Statistika + Coverage Index | 🔄 | `app/stats/` | Vitrina sahifasi (E14-a) |
+| E14 | Statistika + Coverage Index | 🔄 | `app/stats/`, `app/geo/cellfit.py` | Vitrina sahifasi (E14-a) |
 | E15 | Ommaviy API + OpenAPI | ✅ | `app/api/` | — |
 | E16 | H3 issiqlik xaritasi | 🔄 | `app/stats/heatmap.py` | Haqiqiy zichlik (E10) |
 | E17 | Mahalla darajasi | ⬜ | — | 👤 **poligonlar** |
 | E18 | Rasmiy manba parsing | ⬜ | — | 👤 **H-4** |
-| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | ✅ 2026-08-12: **birinchi** mintaqa (samarkand) prodda import qilindi va faollashtirildi — 6 tuman. Qoldi: **ikkinchi** mintaqani haqiqiy import (`01` §7 uni Future Release da deydi — 👤 savol) |
+| E19 | Ko'p mintaqalilik | 🔄 | `app/geo/{registry,bbox}.py`, `tools/region_admin.py`, `0005`, `0008`, `0009` | ✅ 2026-08-12: **birinchi** mintaqa (samarkand) prodda import qilindi va faollashtirildi — 6 tuman. Qoldi: **ikkinchi** mintaqani haqiqiy import (`01` §7 uni Future Release da deydi — 👤 savol). `region_admin` ning oltala buyrug'i endi o'lchanadi (`test_region_admin`); `config --key` ro'yxati `known_keys()` — seed qilinadigan to'plamning aynan o'zi |
 | E20 | PWA + Web Push | ⬜ | — | E12 |
-| TZ | Tasdiqlash va bildirishnomalar (`TZ_Podtverzhdenie_i_uvedomleniya.md`) | 🔄 | `app/core/tzconfig.py`, `app/clustering/{tzcount,tzstatus,tzdispute,tzrestore,tzactive,tzreach}.py`, `app/notifications/{tzrestored,tzoutage}.py`, `app/reports/{tzsensor,tzintake}.py`, `app/notifications/tzreceipts.py`, `app/admin/{tzoperator,tzpanel}.py`, `app/clustering/tzsource.py`, `app/clustering/tzcoverage.py`, `app/api/v1/tz.py`, `tools/seed_tz_config.py`, `0012`, `0013`, `0014`, `0015`, `0016` | §11 navbatining **yettala bandi** ham qurildi (sozlamalar/jurnal/zonalar; sanash/poroglar/statuslar/karta; qarshi dalillar/«Спорно»/tasdiqni qaytarib olish; tiklanish, opros va «Данные устарели»; «Свет вернулся» bildirishnomasi; uzilish, rejali ishlar va §6.4 ning tuzatishi; datchiklar va rasmiy manbalarning qabuli). §5 jadvalining sakkizala statusi endi hisoblanadi — sakkizinchisini («Проверено оператором») §11/7 yopdi. Kirish kanali **qurildi**: `tz_sources` reyestri, `tz_signals` jurnali (Т-2 ning ikkinchi yarmi) va `POST /api/v1/tz/readings` — `tzsensor.INBOUND` da uchchalasi ham endi `wired=True`. Т-9 ning jurnali ham qurildi (180-run): `tz_receipts` (`0014`) va `app/notifications/tzreceipts.py` — §6.4 ning tuzatishi endi jurnaldan quriladi va ikkinchi marta yuborilmaydi, `Ledger` ham o'sha jadvaldan tiklanadi; o'sha yerda `Receipt.key` ning tursiz kaliti tuzatildi (u Т-7 ni uzilish xabari uchun ishlatmasdan qoldirardi). §8 ning paneli ham qurildi (181-run): `tz_operator_actions` (`0015`), `app/admin/tzoperator.py` (toza) va `app/admin/tzpanel.py` (ulash) — operator bahsli holatni tasdiqlaydi yoki rad etadi va uzilishni yopadi, har amal imzo bilan jurnalga tushadi (rad etilgani ham), §8 ning taqiqi esa `Basis` maydoni va bazadagi `confirm_needs_external` cheklovi bilan ikki marta qulflangan; rad etish narvonni «Вероятно» da to'xtatadi va §6.4 ning tuzatishini majbur qiladi. Qoldi: faktning va qarorning `reports`/statusga yetib borishi — `official_fields`, `verified_fields` va `Resolution` mahsulot kodida chaqirilmaydi (DP-4 shu chegarada o'lchanadi). Hisob, xabar va qaror bor, ularni mavjud E5 klasterlashiga ulaydigan qatlam alohida. 👤 poroglar `ПРИДУМАНО` bo'lib qoladi — TZ §12 ning oldindan tekshiruvi bekor qilindi, sonlar Samarqandning o'z ma'lumotidan keyin o'lchanadi; **o'lchovning asbobi 193-rundan beri bor** (`app/clustering/tzreach.py` + `repository.reach_candidates`), ya'ni yetishmayotgan yagona narsa — sanoqdan mustaqil dalili bor tarixning o'zi. §12 ning **«Дополнительно»** yarmi esa tarixni umuman talab qilmaydi va u o'lchanadigan bo'ldi (`app/clustering/tzcoverage.py`): §3 ning poroglari bugungi reyestrlardan erishuvchanmi degan savolga javob bor, va u §3 ning shahar darajasida yashiringan tuzilmaviy nuqsonni ochdi — foydalanuvchisi bor, lekin `district_block_min` dan kichik tuman shaharning porogini ko'taradi va hech qachon to'ldirmaydi |
+| TZ | Tasdiqlash va bildirishnomalar (`TZ_Podtverzhdenie_i_uvedomleniya.md`) | 🔄 | `app/core/tzconfig.py`, `app/clustering/{tzcount,tzstatus,tzdispute,tzrestore,tzactive,tzreach}.py`, `app/notifications/{tzrestored,tzoutage}.py`, `app/reports/{tzsensor,tzintake}.py`, `app/notifications/tzreceipts.py`, `app/admin/{tzoperator,tzpanel}.py`, `app/clustering/tzsource.py`, `app/clustering/tzcoverage.py`, `app/api/v1/tz.py`, `tools/seed_tz_config.py`, `0012`, `0013`, `0014`, `0015`, `0016` | §11 navbatining **yettala bandi** ham qurildi (sozlamalar/jurnal/zonalar; sanash/poroglar/statuslar/karta; qarshi dalillar/«Спорно»/tasdiqni qaytarib olish; tiklanish, opros va «Данные устарели»; «Свет вернулся» bildirishnomasi; uzilish, rejali ishlar va §6.4 ning tuzatishi; datchiklar va rasmiy manbalarning qabuli). §5 jadvalining sakkizala statusi endi hisoblanadi — sakkizinchisini («Проверено оператором») §11/7 yopdi. Kirish kanali **qurildi**: `tz_sources` reyestri, `tz_signals` jurnali (Т-2 ning ikkinchi yarmi) va `POST /api/v1/tz/readings` — `tzsensor.INBOUND` da uchchalasi ham endi `wired=True`. Т-9 ning jurnali ham qurildi (180-run): `tz_receipts` (`0014`) va `app/notifications/tzreceipts.py` — §6.4 ning tuzatishi endi jurnaldan quriladi va ikkinchi marta yuborilmaydi, `Ledger` ham o'sha jadvaldan tiklanadi; o'sha yerda `Receipt.key` ning tursiz kaliti tuzatildi (u Т-7 ni uzilish xabari uchun ishlatmasdan qoldirardi). §8 ning paneli ham qurildi (181-run): `tz_operator_actions` (`0015`), `app/admin/tzoperator.py` (toza) va `app/admin/tzpanel.py` (ulash) — operator bahsli holatni tasdiqlaydi yoki rad etadi va uzilishni yopadi, har amal imzo bilan jurnalga tushadi (rad etilgani ham), §8 ning taqiqi esa `Basis` maydoni va bazadagi `confirm_needs_external` cheklovi bilan ikki marta qulflangan; rad etish narvonni «Вероятно» da to'xtatadi va §6.4 ning tuzatishini majbur qiladi. Qoldi: faktning va qarorning `reports`/statusga yetib borishi — `official_fields`, `verified_fields` va `Resolution` mahsulot kodida chaqirilmaydi (DP-4 shu chegarada o'lchanadi). Hisob, xabar va qaror bor, ularni mavjud E5 klasterlashiga ulaydigan qatlam alohida. 👤 poroglar `ПРИДУМАНО` bo'lib qoladi — TZ §12 ning oldindan tekshiruvi bekor qilindi, sonlar Samarqandning o'z ma'lumotidan keyin o'lchanadi; **o'lchovning asbobi 193-rundan beri bor** (`app/clustering/tzreach.py` + `repository.reach_candidates`), ya'ni yetishmayotgan yagona narsa — sanoqdan mustaqil dalili bor tarixning o'zi. §12 ning **«Дополнительно»** yarmi esa tarixni umuman talab qilmaydi va u o'lchanadigan bo'ldi (`app/clustering/tzcoverage.py`): §3 ning poroglari bugungi reyestrlardan erishuvchanmi degan savolga javob bor, va u §3 ning shahar darajasida yashiringan tuzilmaviy nuqsonni ochdi — foydalanuvchisi bor, lekin `district_block_min` dan kichik tuman shaharning porogini ko'taradi va hech qachon to'ldirmaydi. §12 ning chaqiruvchisi `tools/tz_check.py` (194-run), va 210-runda uning maxrajining **manbasi** ham javobga qo'shildi: `tzsource.BlockRegistry` ning ikkita nuqsoni (biriktirilmagan va chegaradagi kvartallar) endi o'z maxraji va ulushi bilan chiqadi (`source_line()`), nol bo'lmagani topilma beradi, va «kvartal yo'q» bilan «kvartal bor, lekin biriktirilmagan» ikkita alohida sabab (`Reason.ALL_BLOCKS_UNASSIGNED`) |
 
 **Epicdan tashqari** (`05` §9, §10; `01` §21):
 
 | Blok | Holat | Kod |
 |---|---|---|
-| TEST — sun'iy uzilish generatori (`05` §9.1) | 🔄 | `tools/simulate.py` |
+| TEST — sun'iy uzilish generatori (`05` §9.1) | 🔄 | `tools/simulate.py` (215: bazali yarmi endi **bazasiz** ham o'lchanadi — `test_simulate_db_half`, 53 test: `transaction` ning ikki shoxi, `ensure_writable` ning **ikkala** to'sig'i, `ensure_users` ning eng erta xabari va `cmd_run` ning to'rtta chiqish kodi; qorovul yozishdan oldin, geo limitdan oldin, `flush` izdan oldin) |
 | OBS — kuzatuvchanlik (`05` §10 + `01` §22) | 🔄 | `app/obs/`, `app/core/logging.py` |
 | ANL — analitika hodisalari va dashboardlari (`01` §21) | 🔄 | `app/analytics/` |
 | JOBS — fon vazifalari (`05` §8) | 🔄 | `app/jobs/` |
@@ -2646,21 +3246,26 @@ serverdan keyin ham `postmaster.pid` qoladi va `status || start`
 | E4 | `test_i18n`, `test_i18n_negotiation`, `test_i18n_key_contract`, `test_language_contract`, `test_language_default_db` |
 | E5 | `test_clustering_geometry` — **17 test**: `05` §4.2 ning inkremental markazi va radiusi; mutatsiya 13/13 (122-run — besh qulf: `grow_radius` ning hech qachon tanlanmagan `max` tarmog'i va markaz siljishi, `clamp_radius` chegarasining o'zi va yaxlitlash, `EARTH_RADIUS_M` ning chorak meridian bilan qulflanishi; ikki ekvivalent — `min(1.0, h)` va `attached <= 0`, ikkalasi ham empirik isbot bilan). Qolganlari: `test_clustering_independence`, `test_clustering_status`, `test_clustering_service_db`, `test_status_machine_contract` |
 | E5b | `test_confirmation` — **61 test**: `06` §2.1 ko'paytuvchilari, §7 ishlangan misollari va §12 ssenariylari; mutatsiya 12/12 (118-run, birinchi **mahsulot** moduli — besh survivor: dedupe ning «eng erta» qoidasi, `W` ning `numeric(6,1)` miqyosi, diametr ↔ eng yaqin juftlik, `spread_ok` chegarasi, `n_req` qorovuli — beshalasi qulflandi). `test_scale` — **32 test**: `scale.py` mutatsiyasi 12/12 (121-run — to'rt qulf: `households > 0` va `populated_cells <= 0` qorovullari, mahalla `w >= T` va `ratio >= 0.15` chegaralarining o'zi; ikki ekvivalent mutant sababi bilan qoldirildi). `test_report_sources_contract` — **37 test**: mutatsiya 11/11 (129-run — ikki qulf: `freeze_weight` dagi `06` §2.2 qorovuli (registrdagi `0.0` **seed** bilan soyalangan edi — qulf `SOURCE_BY_CODE` ni patch qilib, «qoida songa bog'liq emas» deb yozildi) va yaxlitlashning `numeric(3,1)` bilan mosligi (hamma test `trust_score = TRUST_DIVISOR` berardi, ya'ni `user_factor == 1.0` va ko'paytma allaqachon bitta kasr xonasida)). `test_clustering_formulas` — **17 test**, yangi fayl: `formulas.py` mutatsiyasi 6/6 (129-run — ikkala qulf ham **hech qachon otilmagan qorovul**: `clamp` ning `low > high` tekshiruvi va `adaptive_threshold` dagi `max(0.0, x)` qisqichi). Qolganlari: `test_reports_velocity`, `test_abuse_contract`, `test_abuse_scenarios_contract`, `test_confirm_params_contract`, `test_territory_stats_contract`, `test_scale_ladder_contract`, `test_confirmation_threshold_contract`, `test_confidence_contract`, `test_worked_examples_contract`, `test_schema_changes_contract`, `test_deescalation_contract`, `test_golden_scenarios_content` |
-| E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db` |
+| E6 | `test_recluster`, `test_recluster_scenario`, `test_recluster_sweep`, `test_recluster_db`, `test_recluster_db_half` |
+| TEST | `test_simulate_db_half` — **53 test** (215-run, bazasiz): `tools/simulate.py` ning bazali yarmi. `transaction` ning `commit`/`rollback` shoxlari va xatoda qayta otilishi; `ensure_writable` ning ikkala to'sig'i (haqiqiy xabar mintaqa bo'yicha, faol obuna **global**) va ularning tartibi; `ensure_users` ning `min` i (oqim tartiblanmagan bo'lishi mumkin) va akkaunt yoshi; `run()` ning to'rtta mustaqil hisoblagichi bitta oqimda, `05` §3.1 ning aniq ↔ ommaviy nuqtasi (fikstyurada to'rtala qiymat har xil), `ReportRef` ning maydonlari **nomi** bo'yicha, oynaning ikkala uchi va `outages = len(rows)` (shu yurish biriktirganlari emas); `cmd_run` ning chiqish kodlari, qorovulning o'rni va `matches_expectation is False` ning `None` dan ajralishi. Mutatsiya 39 dan 38 KILLED; yagona omon qolgani ekvivalent va testda shunday deb qulflangan |
 | E7 | `test_clustering_lookup`, `test_area_status_db` |
+| E8 | `test_admin_api_handlers` — **159 test** (216-run, bazasiz): endpointlarning **tanasi** — `_outage_out` ning o'n yetti maydoni va `needs_review` ning `>=` chegarasi, `list_outages` filtrlari, to'rtala yozish amalining `commit` tartibi, `get_user` ning `USER_BLOCK` ruxsati, `get_digest` ning bazadan **oldin** turgan sana qorovuli, `read_gates`/`read_measures`/`read_registries` hisobotlarining shakli; 65 mutant — 64 KILLED (yagonasi ekvivalent: `i18n.pick_language` sof funksiya). |
 | E8 | `test_admin_service_contract` — **41 test** (167-run, bazasiz): `app/admin/service.py` ni butun repoda faqat `test_admin_moderation_db.py` (`requires_db`) import qilardi; ruxsat o'zgarishdan **oldin**, aynan qaysi `Permission`, `require -> o'zgarish -> record` tartibi, `USER_BLOCK` ↔ `USER_UNBLOCK`, `merge` da `object_id` — manba hodisa, `dict(change.after)` nusxasi, imzo. `test_moderation_users_contract` — **31 test** (166 yozgan 26 + 167 ning 8-bo'limi, +5): mutatsiya **29 → 23 KILLED, 6 SURVIVOR**, to'rttasi qulflandi (`compile(...).params` va SQL shartining matni), ikkitasi ekvivalent. `test_admin_auth` — **21 test**: mutatsiya 11/11 (126-run — olti qulf: `MIN_TOKEN_LENGTH` va `ACTOR_NAMESPACE` ning **absolyut** qiymati (ikkovi ham refleksiv tekshirilardi), `compare_digest` chaqiruvlarining sanog'i — `==` va erta chiqish, rad etish sababining ikki holati, ikki nuqta atrofidagi bo'shliq; bitta ekvivalent — bo'sh token qorovuli `MIN_TOKEN_LENGTH` bilan soyalangan). `test_admin_roles` — **13 test**: mutatsiya 5/5 (129-run — bitta qulf ikkita sinfni yopdi: `Permission` va `Role` ning **satr qiymatlari** oshkora jadval bilan yozildi; ilgari hamma test enum a'zosining o'zini import qilib solishtirardi, ya'ni qiymat o'zgarganda ikkala tomon bir vaqtda siljirdi — 124-run ning refleksivlik sinfi, bu safar `audit_log` va `403` javobi qatlamida). `test_daily_digest` — **30 test**: `digest.py` mutatsiyasi 12/12 (129-run — to'rt qulf: ogohlantirishlar **tartibi** (mavjud testlar `in` bilan tekshirardi), `outages_total`/`moderation_total` da `sum` → `len` (fixture'da chelaklar soni tasodifan yig'indiga yaqin edi) va `PAYLOAD_VERSION` ning mutlaq qiymati (`0006` payload ni qayta hisoblamaydi — raqamni shaklsiz surish arxivni ikkiga bo'lardi)). `test_moderation_users_contract` — **21 test** (166-run, YURGIZILMAGAN: sandbox `VM_DISK_SPACE_INSUFFICIENT`): `app/reports/moderation.py` ni bugungacha faqat `requires_db` testi import qilardi, ya'ni verdikt o'lchanadigan bazasiz to'plamda modul **umuman qamrovsiz** edi. Qo'g'irchoq sessiya + `postgresql.dialect()` ga kompilyatsiya bilan qulflandi: `SELECT` da `tg_id` yo'q (`05` §7.3), ustun tartibi ↔ `row[N]`, `count` ning manbasi `reports`, `int`/`bool` o'girishlari, `NotFoundError` `UPDATE` dan oldin, `set_blocked` idempotentligi, `0..100` ning ikkala cheti, qorovulning bazadan oldinligi, `before`/`after` va `UserRow`/`UserChange` shakli. Qolganlari: `test_admin_api`, `test_admin_audit`, `test_admin_moderation_db`, `test_daily_digest_db`, `test_region_audit`, `test_region_audit_db` |
-| E9 | `test_map_snapshot`, `test_map_api`, `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **33 test** (122-run): nginx ↔ ilova ↔ compose ↔ serverdagi ko'p loyihali stek; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi; `deploy-server/` — `api` aliasi ↔ snippet, polling profili, xost saytining marshrutlashni takrorlamasligi |
+| E9 | `test_map_snapshot`, `test_map_api`, **`test_map_api_handlers`** (220-run, 92 test: uchala endpointning tanasi va to'rtta javob modeli bazasiz — handler lar FastAPI siz chaqiriladi, ulash qatlami chaqiruvlarni tartibi bilan yozib oladi), `test_map_api_db`, `test_timeutil`, `test_deploy_web_contract` — **33 test** (122-run): nginx ↔ ilova ↔ compose ↔ serverdagi ko'p loyihali stek; `/health` nishoni haqiqiy so'rov bilan, ildizda `/health` yo'qligi qorovul sifatida, webhook yo'li `settings.telegram_webhook_path` dan, ACME ↔ redirect tartibi, prod ustqurmasining nishoni, certbot webroot i, baza portining bog'lanishi; `deploy-server/` — `api` aliasi ↔ snippet, polling profili, xost saytining marshrutlashni takrorlamasligi |
 | E13 | `test_notifications_render` — **12 test**: mutatsiya 12/12 (127-run — uch qulf: `started_at` ↔ `ended_at` ning o'rni (testlar vaqtni umuman o'qimasdi), `None` vaqtning zaxirasi (`OutageEvent.started_at` — `datetime | None`, zaxirasiz `process_outbox` **ichida** `AttributeError`), `tzinfo` qorovuli). `test_notifications_outbox` — **17 test**: `app/notifications/events.py` mutatsiyasi 8/8 (130-run — sakkizdan **yettitasi** survivor edi: butun to'plam payloadni faqat `as_payload()` orqali yasagani uchun `_iso` ga UTC bo'lmagan aware vaqt, `_parse_dt` ga esa `datetime` obyekti ham, zonasiz satr ham hech qachon berilmagan; qo'shimchasiga `if not value` ↔ `is None` va uchta **kamaytiruvchi** sukut qiymat — `status=""`, `confidence=0`, `report_count=0`). `test_notify_params` — **24 test**: `app/notifications/params.py` mutatsiyasi 12/12 (130-run — besh qulf: `int(float(v))` (`seed_values` bazaga float yozadi), `seed_values` ning **qiymatlari** (kalitlar to'plami o'zgarmaydi, yangi mintaqa esa standart sifatida yuqori chegarani olardi) va ikkala ogohlantirishning **sharti** — jim zaxira va `max == min` chegarasi). Qolganlari: `test_notifications_db`, `test_notification_domain_contract`, `test_notification_channels_contract` |
-| E14 (`05` §8) | `test_refresh_coverage_contract` — **15 test** (169-run): fon vazifasining o'lchangan maydonlari (`populated_cells` ↔ `area_km2`, `active.get(...,0)` sukuti, `upsert` ga `now`), 30 kunlik oyna (`settings.coverage_window_days` → so'rov) va **butun jurnal** (orfanlar darajasi, `territories` payloadi, hech narsa yozilmaganda sukut). Mutatsiya 18/18 |
-| E14 | `test_stats_boundaries` — **9 test**, mutatsiya 15/15 (125-run: ikkala davr chegarasining o'zi qulflandi); `test_stats_maturity` — **14 test**, mutatsiya 15/15 (`max(0/1, …)` qisqichlari, `min_events` chegarasi, `elif` — tarixsiz mintaqaning yagona sababi); `test_stats_mahalla_coverage` — **19 test**, mutatsiya 20/20 (`MIN_MEASURED_RATIO` va uning `<` chegarasi, `round`↔kesish, aralash sifatda `min`, `sufficiency` o'rtachasi, taqsimotning `band` bo'yicha sanalishi; ikkita yolg'on survivor i18n kalit kontraktida). Qolganlari: `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels` |
+| E14 (`05` §8) | `test_refresh_coverage_contract` — **20 test** (169-run, 198-run bilan): fon vazifasining o'lchangan maydonlari (`populated_cells` ↔ `area_km2`, `active.get(...,0)` sukuti, `upsert` ga `now`), 30 kunlik oyna (`settings.coverage_window_days` → so'rov) va **butun jurnal** (orfanlar darajasi, `territories` payloadi, hech narsa yozilmaganda sukut; 198-rundan — maxrajning ikkita nuqsoni ayrim hodisa bilan va nomlarning literal jadvali). Mutatsiya 18/18, 198-run qo'shgan shartlarda 13/13 |
+| E14 | `test_stats_api_handlers` — **66 test** (217-run, bazasiz): `app/api/v1/stats.py` ning uchala endpointi va o'n to'rtta javob modeli. Handler lar FastAPI siz chaqiriladi, ulash qatlami (`geo.find_region`, `registry.language_for`, `stats_service.resolve_period`/`build_report`/`region_methodology`, `analytics.stats_viewed`, `export.render`/`filename`) chaqiruvlarni **tartibi bilan** yozib oladigan o'rinbosarga almashtiriladi. Fikstyurada so'ralgan kod, bazadagi kod va hisobotdagi kod — uchtasi ham har xil; bir turdagi hech ikkita maydon teng emas. Qulflangani: to'rtta mapper ning har bir maydoni, `statuses()` ning nol bilan to'ldirilishi, `available` ↔ `truncated` ajrimi, qoldiq chelakning katalogdan keladigan yorlig'i, `unassigned_ratio` ning yaxlitlanishi, `warnings` ↔ `warning_texts` parallelligi, CSV ning `attachment` sarlavhasi va `charset`, `METHODOLOGY_PATH` ning marshrut bilan mosligi, `05` §7.3 (javob daraxtida na `user_id`, na koordinata). Mutatsiya **60/60** |
+| E14 | `test_stats_boundaries` — **9 test**, mutatsiya 15/15 (125-run: ikkala davr chegarasining o'zi qulflandi); `test_stats_maturity` — **14 test**, mutatsiya 15/15 (`max(0/1, …)` qisqichlari, `min_events` chegarasi, `elif` — tarixsiz mintaqaning yagona sababi); `test_stats_mahalla_coverage` — **19 test**, mutatsiya 20/20 (`MIN_MEASURED_RATIO` va uning `<` chegarasi, `round`↔kesish, aralash sifatda `min`, `sufficiency` o'rtachasi, taqsimotning `band` bo'yicha sanalishi; ikkita yolg'on survivor i18n kalit kontraktida). Qolganlari: `test_stats_coverage`, `test_stats_aggregate`, `test_stats_service`, `test_stats_export`, `test_stats_duration`, `test_stats_methodology`, `test_stats_api_db`, `test_jobs_coverage_levels`; `test_geo_cellfit` — **26 test** (196-run, bazasiz; 197/198 qo'shgan qoida jadvallari bilan): `app/geo/cellfit.py` — `overlap ⊇ center`, bitta katakdan kichik poligon (`center` da **nol**, `overlap` da bitta), matn/lug'at GeoJSON, `MultiPolygon`, o'qilmagan geometriya `None` (nol emas — «sanay olmadim» ≠ «nol chiqdi»), taxminning **ikkala yo'nalishi** (0.95 km² da `understates`, 95 km² da `overstates`), eksperimental API yo'q bo'lgandagi `CENTER` yo'li, buzuq poligonda vazifa yiqilmasligi va `_geometry_facts` ning uchala kirish shakli. |
 | E15 | `test_geo_mahallas` — **10 test**: mutatsiya 10/10 (128-run — bitta qulf ikkita survivorni yopdi: bo'sh javobning ogohlantirishdan boshqa **hamma** maydoni (`sources=()`, `versions`/`mahallas`/`districts` = 0) o'lchanmagan edi, ya'ni FR-S-802 degradatsiyasi e'lon qilinib, o'sha javobning o'zi mavjud bo'lmagan manba va qatorlar sonini ko'rsatardi). `test_openapi_contract`, `test_api_surface_contract`, `test_geo_api`, `test_geo_api_db`, `test_geo_mahallas_api`, `test_geo_mahallas_api_db`, `test_regions_api_db` |
+| E15 | `test_geo_api_handlers` — **82 test** (219-run, bazasiz): `app/api/v1/geo.py` ning ikkala ommaviy endpointi, ikkita `Feature` xaritasi va sakkizta javob modeli. Handler lar FastAPI siz chaqiriladi, ulash qatlami chaqiruvlarni **tartibi bilan** yozib oladi; mutatsiya 90/90 (6 tasi birinchi o'tishda omon qoldi: `mahallas` javobidagi `region` va `features`, `MahallaFact` ning `district_id`/`name_uz` juftligi, `_parse_at` ning `strip()` i, xatoning `field` i va tashqi `type`) |
 | E16 | `test_heatmap`, `test_heatmap_api`, `test_heatmap_api_db` |
 | E5/E6/E14/E16 | `test_query_boundaries_db` — **36 test** (146-run): `clustering/repository.py` va `reports/queries.py` ning chegaralari — yarim ochiq davr `[since, until)` ning ikkala uchi, `ORDER BY`, `DISTINCT` (odam ↔ xabar), `layer`/`status`/`kind` filtrlari va `trust_score >=` chegarasi. 40 survivordan 39 tasini qulflaydi; so'rov funksiyalarini to'g'ridan-to'g'ri chaqiradi (bot yo'lidan o'tkazish qaysi shart ushlaganini yashirardi) |
-| E19 | `test_region_registry`, `test_regions_api_db` |
+| E19 | `test_region_registry`, `test_regions_api_db`, `test_region_admin` |
+| TZ | `test_tz_api_handlers` — **88 test** (218-run, bazasiz): `app/api/v1/tz.py` ning to'rtala endpointi, sakkizta javob modeli va `_params`. Handler lar FastAPI siz chaqiriladi, ulash qatlami (`geo.require_region`, `tzintake.*`, `tzpanel.*`, `geo_q.load_region_config`, `tzconfig.params_from_mapping`) va soatning o'zi `monkeypatch` bilan almashtiriladi va chaqiruvlar **tartibi bilan** yoziladi. Fikstyura beshta qoidada: bir turdagi ikkita maydon hech qachon teng emas; so'ralgan kod bazadagi koddan farq qiladi; olti sanoq (7/1/2/4/3/5) hech biri teng emas; `closes_block` va `verifies_outage` alohida signallarda o'lchanadi; tartib ham da'vo. **80 mutant — 80 KILLED.** |
 | TZ | `test_tz_operator` — **74 test** (181-run): §8 ning to'rtta vakolati, imzo shakl xatosi sifatida, taqiqning ikkala tomoni (tasdiqlash rad etiladi, rad etish o'tadi), Т-7 ning kaliti, Т-5 ning ko'prigi, `decide()` bilan integratsiya (rad etish «Вероятно» da to'xtaydi va §6.4 ni majbur qiladi), qarorning qamrovi, ruxsatlar va `ast` qorovullari; `test_tz_operator_db` — **18 test** (`requires_db`): Т-2 ning uchta qatlami, bazadagi `confirm_needs_external`, imzosiz qator, Т-7 mintaqa bilan, qarorning qayta ishga tushirishdan keyin tiklanishi |
 | TZ | `test_tzconfig` — **25 test** (172-run): §7 ning yo'q kaliti xato, birlik tekshiruvlari (40 ↔ 0.40), to'lqinlar ro'yxati, darajalarning ajralishi. `test_tz_counting` — **43 test** (173-run): §1.1 ning uch sharti (uy katagi ustma-ust tushganda **bittasi** qoladi), oynaning yopiq qirrasi, §2.1 ning darajalar jadvali, §2.3 ning pastki cheki, ТС-201/202/203/204/207 nomma-nom, Т-1/ТС-220 va Т-4 `ast` bilan, Т-3 yigirma tasodifiy tartib bilan. `test_tz_status` — **23 test** (173-run): §5 ning sakkizta statusi literal ro'yxat bilan, uchta yetkazish sinfining `TzStatus` ni bo'lishi, hisoblagichning argumentlari, §2.3 ning shifti, i18n o'rinbosarlarining ikkala tilda bir xilligi, Т-5 ning `app/` bo'ylab qorovuli. `test_tz_dispute` — **38 test** (174-run): §2.2 ning vetosi va uning yopishqoqligi, ТС-205 nomma-nom, ТС-206 ning status yarmi sakkizta oldingi status bo'yicha parametrlangan jadval bilan (§6.4 tuzatishi faqat bildirishnoma ketishi mumkin bo'lgan statusdan keyin majburiy), ТС-202 va ТС-203 ning simmetrik ko'rinishlari, xabar qilganning «svet bor» i qarshi dalil emasligi, §2.3 ning veto porogiga **tegmasligi**, Т-3 va i18n renderi `test_tz_restore` — **69 test** (175-run): §4.1 ning to'lqinlari va namunaning takrorlanishi (yigirma tasodifiy tartib — o'sha chorak; har to'lqin o'z choragi; hodisa identifikatori ham xeshda), ТС-209/210/211/212/213 nomma-nom, В-5 ning monotonligi va pastki cheki, В-6 ning `0/0` qirrasi, В-7 ning manbasiz rad etilishi, В-8 ning persentili va bo'sh tarixda **ishlamasligi**, §4.2 ning ikkita soni tashqariga yaxlitlanishi va statistikadagi ulushi, statuslar ustuvorligi (veto > tiklandi > jimlik > qisman), Т-1/Т-4 `ast` bilan va Т-5 ning yo'nalishi (`tzrestore` `tzstatus` ni import qilmaydi)  `test_tz_restored_notice` — **57 test** (176-run): ТС-214 (geolokatsiya obuna emas), ТС-215 (tunda ushlanadi, ertalab yagona svodka), ТС-216 (oltinchi xabar ushlanadi), ТС-217 (xabar qilganga tiklanish xabari **boradi**), tinch soat oynasining sutkadan oshishi va mahalliy zonada o'qilishi, soatlik limitning tiklanishga tegmasligi (`sent_hour` bor va o'qilmaydi), kvartallar bo'yicha fan-out, Т-7 ning kaliti va Т-9 ning ro'yxati, i18n o'rinbosarlari ikkala tilda, Т-1/Т-4 `ast` bilan va `05` §1 chegarasi (`app.clustering` importi yo'q). `test_tz_outage_notice` — **56 test** (177-run): ТС-217 ning ikkinchi yarmi (xabar qilganga uzilish xabari **bormaydi**), ТС-215/216 uzilish uchun, ТС-206 nomma-nom (tuzatish o'sha odamlarga), tekshiruvlar tartibi (obunasizga sabab «obuna yo'q»), soatlik limit sutkalikdan **oldin** (`send_at` erta bo'shaydi), rejali ishlarning 12 soatlik oynasi ikki tomondan, boshlangan ishning e'lon qilinmasligi, tuzatishning jurnal**dan** qurilishi va joriy obunalarni o'qimasligi, noto'g'ri «svet qaytdi» ning tuzatilmasligi, Т-7 kalitining turi bilan (aks holda tuzatish «allaqachon yuborilgan» deb tashlanardi), `Kind` ↔ `NOTICES` mosligi, Т-1/Т-4/Т-5 `ast` bilan. `test_tz_sensor` — **58 test** (178-run): manbasiz `Reading` konstruktorda yiqiladi, ro'yxatdan o'tmagan va ishonchi olingan manba, §8 ning `actor` talabi (avtomatik kanalda esa yo'q), datchikning katagi reyestrdan va `CELL_MISMATCH`, kelajak/eski xabar chegaralari, Т-7 ning kaliti to'rt qismining har biri bo'yicha, paket **ichidagi** dublikat, heartbeat va kech kelgan eski xabar (`REPEAT`), «raqqosa» ning to'silishi va operatorga chiqishi, rejali ishlar e'lonining takror deb tashlanmasligi, paketning hodisa tartibida o'qilishi, В-7 ko'prigi haqiqiy `OfficialSource` yasashi va `close_block` ni yopishi (nazorat: manbasiz o'sha kvartal **ochiq** qoladi), §8 ko'prigi va sakkizinchi status — narvondan yuqoriligi, §2.3 tavqidan o'tmasligi, «Спорно» dan **past**ligi, kartada imzo bo'lib chiqishi, `DECIDED_TODAY == set(TzStatus)`, ikkita yangi sozlamaning majburiyligi, reyestrning `built` ↔ `wired` ajrimi, Т-1/Т-4 `ast` bilan va `05` §1 chegarasi (`app.clustering`/`app.notifications` importi yo'q, `TzStatus` nomi `ast` da yo'q — matn qidiruvi o'z izohiga ilinardi) `test_tz_intake` — **31 test** (179-run): jurnal qatori faktning har bir maydonini ko'chiradimi, har bir `Reject` sababi yoziladimi, `Reject.NONE` hech qachon rad etishning sababi bo'lmasligi (baza cheklovi shunga tayanadi), javob sanoqlari o'z ro'yxatlari bilan mos kelishi, ruxsatning ikkiga bo'linishi, Т-1/Т-4 va `05` §1 qorovullari `ast` bilan. `test_tz_intake_db` — **19 test** (179-run, `requires_db`): Т-2 ning uchala taqiqi, Т-7 ning mintaqa ichidagi yagonaligi va **boshqa mintaqada takrorlanishi** (aynan shu ikkitasi haqiqiy bazada nosozlikni ochdi), reyestr cheklovlari (katagi yo'q datchik, bo'sh satrli katak, katagi bor operator, noma'lum kanal), sikl xotirasining jurnaldan tiklanishi. `test_tz_receipts` — **16 test** (180-run): `Kind` ↔ `CHECK` ↔ `TZ_RECEIPT_KINDS` bitta to'plam, kalitning turi (`RESTORED` istisnosi bilan), tuzatishning jurnalga tushishi va nomni birinchi xabardan ko'chirishi, jurnalda hodisaga tashqi kalit yo'qligi, Т-1/Т-4 va `05` §1 qorovullari `ast` bilan. `test_tz_receipts_db` — **18 test** (180-run, `requires_db`): Т-2 ning uchala taqiqi va noma'lum tur, Т-7 ning mintaqa ichidagi yagonaligi va boshqa mintaqada takrorlanishi, turlarning bir-birini to'smasligi, §6.4 ning aynan o'sha odamlarga borishi va **ikki marta yuborilmasligi**, `Ledger` ning mahalliy sutkasi, soatlik oynasining faqat uzilishni sanashi va mintaqa chegarasi. Yo'l fayllari (§10 ning `walk` maydoni): `test_tz_walk` (ТС-201/205/206/**207**), `test_tz_walk_restore` (ТС-209…213), `test_tz_walk_notice` (ТС-214…217) `test_tz_walk_scale` (ТС-208) va `test_tz_walk_count` — **18 test** (188-run): ТС-202/ТС-203/ТС-204 bitta testda `COUNT` → `DISPUTE` → `RESTORE` → `STATUS` bo'ylab, §1.1 ning uchala sharti uchala modulda ham bir xil ishlashi (`Drop` sabablari bir xil), ТС-203 ning teskari qirrasi (bitta r11 katagidagi uchta **ko'rsatilgan manzil** tasdiqlaydi), oynaning darajaga bog'liqligi (uy 20 ↔ kvartal 30 ↔ tiklanish kvartal oynasi), `ZoneVerdict.users` ning `Witnesses.users` ga tengligi, `reporters` bilan va usiz **teskari** verdikt (`Подтверждено` ↔ `Спорно`), В-4 dan keyin `SAME_HOME` bilan bosilgan akkauntning ko'tarilishi va `reporters` ning sukut qiymatisizligi (`inspect.signature` tripwire). `test_tz_walk_scale` — **10 test** (187-run): ТС-208 dalildan tuman verdiktigacha, §3 ning maxraji chaqiruvchidan yo'qolganda o'sha dalildan **teskari** verdikt chiqishi, «50 kvartal» ning hisobga umuman kirmasligi, kam odamli kvartalning maxrajda qolib sanoqqa kirmasligi va `blocks_with_users` ning sukut qiymatisizligi (`inspect.signature` tripwire). |
-| TZ | `test_tz_check` — **40 test** (bazasiz): §12 ning chaqiruvchisi (`tools/tz_check.py`). Uchta qarorni ajratadigan fikstyura bilan qulflaydi — kesim sanasi javobni tanlashi mumkinligi (bir tomonda uy darajasi yuqori, ikkinchisida yo'q; kvartal va mahalla ikkalasida ham yuqori, ya'ni ziddiyat **bitta** darajaga qamaladi), «o'lchanmadi» ning «topilma bor» dan ustunligi (qamrovda haqiqiy topilma bor, tarix esa `UNKNOWN`) va hisobotning shakli modulniki ekani (`as_json` moduldagi `summary()` bilan solishtiriladi, literal lug'at bilan emas). Ikkita test qorovullarni **bo'sh lug'atdan** ajratadi: verdikti `UNKNOWN`, `levels` i to'la qo'lda yig'ilgan `Reachability`, va `levels_that_look_high` `levels` dan farq qiladigan fikstyura |
-| TZ | `test_tz_coverage` — **72 test** (bazasiz) va `test_tz_coverage_db` — **4 test** (`requires_db`): §12 ning «Дополнительно» yarmi. Bazasiz yarmi uchta qarorni ajratadigan fikstyura bilan qulflaydi — shaharning tepa chegarasi tumanlarning **natijasi** (bir xil uchta tuman qo'shnilarining soniga qarab ikkita teskari verdikt beradi), qamrovning maxraji `geo` dan (o'ziga bo'lish har doim 100 % berardi) va ulush erishuvchanlikni to'smaydi (`share_need(n) <= n` butun `(0, 1]` oralig'ida). Bazali yarmi ikkita reyestrning **filtri bir xil emasligini** o'lchaydi: yopilgan chegara versiyasi qamrovdan chiqadi, kvartallari §3 da qoladi. Т-1/Т-4 takrorlanmaydi — modul `test_tz_counting.MODULES` reyestriga qo'shildi |
+| TZ | `test_tz_check` — **146 test** (bazasiz; 209-run bilan o'lchandi): §12 ning chaqiruvchisi (`tools/tz_check.py`). Uchta qarorni ajratadigan fikstyura bilan qulflaydi — kesim sanasi javobni tanlashi mumkinligi (bir tomonda uy darajasi yuqori, ikkinchisida yo'q; kvartal va mahalla ikkalasida ham yuqori, ya'ni ziddiyat **bitta** darajaga qamaladi), «o'lchanmadi» ning «topilma bor» dan ustunligi (qamrovda haqiqiy topilma bor, tarix esa `UNKNOWN`) va hisobotning shakli modulniki ekani (`as_json` moduldagi `summary()` bilan solishtiriladi, literal lug'at bilan emas). Ikkita test qorovullarni **bo'sh lug'atdan** ajratadi: verdikti `UNKNOWN`, `levels` i to'la qo'lda yig'ilgan `Reachability`, va `levels_that_look_high` `levels` dan farq qiladigan fikstyura . Hisobotning **matn** shakli ayri funksiyalarda va to'liq `==` bilan qulflangan (`district_line`, `city_line`/`city_context_line`, `reach_head_line`/`level_line`/`reach_lines`); har biri uchun ikkitadan fikstyura — biri ikkinchisiga hamma javobi bo'yicha teskari va hech bir maydon boshqasining nusxasi emas (`one_district()`, `one_level()`). `render` esa har sarlavhaning **ostidagi** qatorlarni indeks bo'yicha beradi: erta va kech kesim har xil `Reachability` oladi, aks holda ikkovini almashtirgan mutant omon qolardi . Kesim xulosasining uchala holati ham alohida qulflangan (ziddiyat / o'lchandi va rozi / ikkala tomon ham son bermadi) — qator ilgari faqat birinchisida chiqardi, ya'ni jimlik ikkita boshqa javobni bildirardi; bo'sh daraja ro'yxatining ikki ma'nosi (`-` ↔ `solishtirib bo'lmadi`) ham ajratilgan. Fikstyura `one_reach()`/`flip()`: haqiqiy `measure()` uchala darajani birga o'zgartiradi, ya'ni bitta daraja rozi, ikkinchisi rozi emas degan holatni undan yasab bo'lmaydi . Hisobotning **yakuniy bloki** ham qulflangan: `status_line()` tokenni, so'zni va chiqish kodini birga beradi (uchala holat uchta har xil kod), topilmalar sarlavhasi esa to'rt holatni ajratadi — bo'sh/to'liq, bo'sh/o'lchanmagan, to'la/to'liq, to'la/to'liq emas. To'liqlik `Status` dan emas `findings_complete` dan olinadi va buni qamrov qarzi fikstyurasi (holat `UNMEASURED`, lekin ikkala yarmi ham o'lchangan) ajratadi; alohida test to'rtala sarlavha va uchala holat so'zining hech biri boshqasining bo'lagi emasligini tekshiradi. **Sarlavha bloki** ham qulflangan: matn va `--json` bitta `Report.arguments` jadvalidan o'qiydi (testdagi `ARGUMENT_KEYS` literal), to'rt qator to'liq `==` bilan, ikkita kesim sanasi o'z so'zining yonida va har yorliq butun hisobotda aynan bir marta uchraydi; §3 ning verdikt qatori `coverage_head_line()` da, ikkita qarama-qarshi qamrov fikstyurasi bilan. Hisobotning **skeleti** ham qulflangan: `report_blocks()` to'rt blokni tartibda beradi, testdagi `BLOCK_COUNT` literal, blokning ichida bo'sh qator yo'q va ajratgich yagona (`BLOCK_SEPARATOR`) — beshta fikstyurada blok tashlab ketilishi, ikkitasi almashishi, tumanlarning shahar qatorlaridan oldin chiqishi va kesim xulosasining blok boshiga surilishi ajraladi. Hisobotning **ikkinchi chiqishi** ham qulflangan (208-run): `report_json_blocks()` to'rt bo'lakni matn bloklarining tartibida beradi, testdagi `JSON_BLOCK_KEYS` literal (birinchi bo'lagi — `ARGUMENT_KEYS` ning o'zi), bo'lak bo'sh emas, kalit ikkita bo'lakka tegishli emas va kalitlar beshala shaklda bir xil; `cutoff_decides`/`levels_in_dispute` ikkala tomonga ham o'lchanadi, kesimlar esa **har xil** fikstyurada (`clean_report()` da ikkovi bitta obyekt bo'lgani uchun almashuv ko'rinmasdi), va har bo'lakning qiymati o'z blokining matnidan qidiriladi **8-bo'lim (209-run) — yetkazish:** `--json` qaysi chiqishni tanlashi, chiqish kodining bayroqdan mustaqilligi (uchala holatda ham), `emit()` ning yagona `print` i, `plan()` ning har bir argumenti va tekshiruvlar tartibi, `finish()` ning ikki shoxi hamda `run()` ni almashtirib yuriladigan to'liq `main()` yo'li; ikkita `ast` qorovuli (`print` faqat `emit()` da, `EXIT_ERROR` faqat `failure()` da). |
+| TZ | `test_tz_coverage` — **82 test** (bazasiz; 199-run bilan o'lchandi — oldingi son 72 eskirgan edi) va `test_tz_coverage_db` — **4 test** (`requires_db`): §12 ning «Дополнительно» yarmi. Bazasiz yarmi uchta qarorni ajratadigan fikstyura bilan qulflaydi — shaharning tepa chegarasi tumanlarning **natijasi** (bir xil uchta tuman qo'shnilarining soniga qarab ikkita teskari verdikt beradi), qamrovning maxraji `geo` dan (o'ziga bo'lish har doim 100 % berardi) va ulush erishuvchanlikni to'smaydi (`share_need(n) <= n` butun `(0, 1]` oralig'ida). Bazali yarmi ikkita reyestrning **filtri bir xil emasligini** o'lchaydi: yopilgan chegara versiyasi qamrovdan chiqadi, kvartallari §3 da qoladi. Т-1/Т-4 takrorlanmaydi — modul `test_tz_counting.MODULES` reyestriga qo'shildi. 199-rundan: o'lchov qarzining ikkita turi (`ESTIMATE` ↔ `CENTER`) **ochiq ajratiladi**, ma'nosi noma'lum son `ESTIMATED` tomonga tushadi, uchala ro'yxat kesishmaydi va `CapacityConflict` ning qiymatlari literal jadval bilan qulflangan |
 | TZ | `test_tz_reach` — **31 test** (193-run, bazasiz) va `test_tz_reach_db` — **6 test** (`requires_db`): §12 ning o'lchov asbobi. Bazasiz yarmi uchta qarorni qulflaydi — maxraj tasdiqlangan hodisalardan olinmaydi, §2.3 o'lchov paytida o'chiq (`ast` bilan: chaqiruvda `active_users` kalit so'zi yo'q), zonalar qo'shilmaydi (eng yaxshisi yutadi) — va so'rovning shaklini (`confirmed_at`/`status` matnda yo'q). Bazali yarmi: `pending` ham, `confirmed` ham tarixda qoladi, `crowd` ko'rinadi lekin sanalmaydi, va o'lchov sanoqdan boshqa to'plamni sanamaydi (endigina ochilgan akkaunt ikkalasida ham tushib qoladi). Т-1/Т-4 bu yerda takrorlanmaydi — modul `test_tz_counting.MODULES` reyestriga qo'shildi |
 | TZ | `test_tz_active` — **22 test** (192-run, bazasiz) va `test_tz_active_db` — **10 test** (`requires_db`): §2.3 ning **maxraji** (`2.3-source`). Bazasiz yarmi so'rovning shaklini qulflaydi (uchta `GROUP BY`, `count(distinct)`, `IS NOT NULL`, oynasizlik, faqat `is_blocked`) va `None` ↔ `0` farqini, bazali yarmi so'rovning o'zini: bitta odam bitta kvartalning ikkita uy katagidan xabar bersa kvartal darajasida **bitta** sanaladi, bir yillik xabar maxrajda qoladi, past ishonchli akkaunt dalil bermaydi lekin maxrajda **bor** (`active_users >= have`). Ikkita test ochiq nomlangan topilmani ushlab turadi: §2.3 «Дополнительно» ustunini tushirmaydi, va maxrajsiz kam odamli zona hech qachon yetmaydi |
 | TZ | `test_tz_witness` — **29 test** (191-run, bazasiz) va `test_tz_witness_db` — **9 test** (`requires_db`): §1.1(3) ning **uy katagi** va sanash qatlamining choki. Bazasiz yarmi ulash qatlamining qarorlarini o'lchaydi (eng eski obuna yutadi, tenglikda katak ID si kichigi; bir katakdagi ikkita obuna ikkilanish emas; obunasiz akkaunt hech kim bilan to'qnashmaydi; Т-3 — teskari tartib bir xil natija) va ikkala so'rovning **shaklini** qulflaydi (`tz_evidence_stmt`: uchala kirish to'sig'i, to'rt daraja, `since` **yo'qligi**, bog'langan parametrlar; `declared_points_stmt`: `is_active` va `ORDER BY`). Markaziy test — `test_three_accounts_from_one_flat_are_one_witness`: turli r11 katagidan yozgan uchta akkaunt bitta uyda yashasa bitta guvoh; yonida `test_accounts_without_subscriptions_still_count` (obuna sanoqqa kirish sharti **emas**) va `test_the_declared_address_key_is_left_empty`. Bazali yarmi bazasiz to'plamda qizarmaydigan da'volarni o'lchaydi: bekor qilingan obuna uy katagi bo'lmaydi, uchala kirish to'sig'i (bloklangan / past ishonch / yangi akkaunt) haqiqiy `WHERE` da ishlaydi, qo'shni hodisaning va boshqa `kind` ning dalillari qo'shilmaydi; fikstyura **ikkita hodisa** quradi (bittasi `outage_id` filtrini o'lchay olmasdi). 8 mutant — 8 KILLED |

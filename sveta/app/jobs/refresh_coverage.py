@@ -7,15 +7,30 @@ degani:
 | Maydon | Manba | Izoh |
 |---|---|---|
 | `area_km2` | `ST_Area(geom::geography)` | har doim mavjud |
-| `populated_cells` | maydon / H3 r9 katakcha maydoni | `06` §3.1 fallback |
+| `populated_cells` | poligonni qoplaydigan H3 r9 kataklar | `06` §3.1 fallback |
 | `active_users_30d` | `reports` | o'z ma'lumotimiz |
 
 `population` va `households` **tegilmaydi** — ular ochiq statistikadan
 qo'lda to'ldiriladi (`06` §3.1) va fon vazifasi ularni o'chirib
 yubormasligi kerak.
 
-`data_quality` yangi qatorda `estimated` bo'ladi: `populated_cells`
-binolardan emas, maydondan baholanadi. Mavjud qatorda u **o'zgartirilmaydi**
+`populated_cells` **sanaladi**, baholanmaydi: poligon `ST_AsGeoJSON` bilan
+olib kelinadi va `app.geo.cellfit` uni `h3` bilan qoplaydi. Yuzadan
+baholash (`maydon / o'rtacha katak maydoni`) faqat poligon o'qilmaganda
+qoladi va o'shanda jurnalda ko'rinadi — u mahalla darajasida maxrajni
+2-3 barobar kichraytirib, `cell_coverage_ratio` ni dalilsiz ko'taradi
+(`cellfit` modul izohidagi o'lchov jadvali).
+
+Maxrajning sifati jurnalda **ikkita** chegara bilan yoziladi
+(`_log_denominator_quality`): «umuman sanalmadi» va «sanaldi, lekin
+tepa chegara emas». Ikkinchisi 197-rungacha yo'q edi va aynan shu
+oraliqda `Containment.CENTER` jimgina o'tardi — `tz_check` esa keyinroq
+o'sha hududda `DENOMINATOR_NOT_UPPER_BOUND` bayrog'ini izsiz
+ko'tarardi.
+
+`data_quality` yangi qatorda baribir `estimated` bo'ladi: sanoq
+**qoplaydigan** kataklarni beradi, `06` §3.1 esa aholi yashaydiganini
+so'raydi va bino ma'lumoti hamon yo'q. Mavjud qatorda u **o'zgartirilmaydi**
 — aholi ma'lumoti qo'lda kiritilgan bo'lsa, sifatni pasaytirish noto'g'ri
 bo'lardi. `06` §3.2 bo'yicha `estimated` masshtab da'vosini bir pog'ona
 pasaytiradi va Coverage Index pog'onasini ham (E14) — ya'ni taxminiy
@@ -53,6 +68,7 @@ from app.clustering.scale import QUALITY_ESTIMATED
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import session_scope
+from app.geo import cellfit
 from app.geo import queries as geo_q
 from app.jobs.runner import JOBS, Job
 from app.reports import queries as reports_q
@@ -111,6 +127,76 @@ LEVELS: tuple[LevelPass, ...] = (
 )
 
 
+#: Poligon umuman o'qilmadi — maxraj yuzadan baholandi.
+EVENT_CELLS_ESTIMATED = "coverage.cells_estimated"
+#: Poligon o'qildi va kataklar sanaldi, lekin son **tepa chegara emas**:
+#: markazi tashqarida qolgan chekka katak sanoqqa kirmagan.
+EVENT_CELLS_NOT_UPPER_BOUND = "coverage.cells_not_upper_bound"
+
+
+def _log_denominator_quality(
+    facts: list[geo_q.TerritoryGeometryFacts],
+    *,
+    region_code: str,
+    level: str,
+) -> None:
+    """Maxrajning sifati jurnalda ko'rinsin — **ikkita** chegara bilan.
+
+    197-rungacha bu yerda bitta shart bor edi (`containment is
+    ESTIMATE`), `app.clustering.tzcoverage` da esa boshqasi
+    (`cellfit.is_upper_bound_safe`, ya'ni faqat `OVERLAP`). Ikkovining
+    orasiga `Containment.CENTER` tushardi va u jimgina o'tardi:
+    `territory_stats.populated_cells` ga ishonchli tepa chegara
+    bo'lmagan maxraj yozilardi, `tz_check` esa keyinroq o'sha hududda
+    `DENOMINATOR_NOT_UPPER_BOUND` deb bayroq ko'tarardi — jurnalda
+    hech qanday izsiz. Odam sababni qidirib, o'lchov qarzi borligini
+    hech qayerdan bilmasdi.
+
+    Shuning uchun ikkala savol ham `cellfit` ning qoidalaridan
+    olinadi va bu yerda takrorlanmaydi: `is_counted` — «poligon
+    o'qildimi», `is_upper_bound_safe` — «son maxraj sifatida
+    ishonchlimi». `Containment` ga to'rtinchi qiymat qo'shilsa,
+    javob bitta joyda o'zgaradi.
+
+    Ikkita hodisa **ajratilgan**, chunki tuzatishlari ham har xil:
+    birinchisi chegara reyestrini (poligon yo'q yoki buzuq),
+    ikkinchisi `h3` ning eksperimental API sini talab qiladi
+    (`cellfit.count_from_geojson`).
+    """
+    estimated = [fact for fact in facts if not cellfit.is_counted(fact.containment)]
+    if estimated:
+        # Baholash mahalla o'lchamida maxrajni bir necha barobar
+        # kichraytiradi (`cellfit` modul izohidagi jadval), ya'ni
+        # `cell_coverage_ratio` va Coverage Index dalilsiz ko'tariladi —
+        # xatosiz va sonlari joyida.
+        log.warning(
+            EVENT_CELLS_ESTIMATED,
+            extra={
+                "region": region_code,
+                "level": level,
+                "territories": len(estimated),
+                "of": len(facts),
+            },
+        )
+
+    loose = [
+        fact
+        for fact in facts
+        if cellfit.is_counted(fact.containment)
+        and not cellfit.is_upper_bound_safe(fact.containment)
+    ]
+    if loose:
+        log.warning(
+            EVENT_CELLS_NOT_UPPER_BOUND,
+            extra={
+                "region": region_code,
+                "level": level,
+                "territories": len(loose),
+                "of": len(facts),
+            },
+        )
+
+
 async def _refresh_level(
     session: AsyncSession,
     level: LevelPass,
@@ -144,6 +230,8 @@ async def _refresh_level(
             data_quality=QUALITY_ESTIMATED,
             now=now,
         )
+
+    _log_denominator_quality(facts, region_code=region_code, level=level.level)
 
     orphans = active.get(None, 0)
     if orphans and level.orphans_are_defect:

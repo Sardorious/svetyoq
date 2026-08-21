@@ -110,9 +110,28 @@ class Settings(BaseSettings):
     geo_boundaries_precision: int = 6
 
     # --- Xarita ---
-    # Tayl manbasi ADR-08 (litsenziya) hal bo'lgandan keyin to'ldiriladi.
-    # Bo'sh bo'lsa veb-xarita fon rasmisiz, faqat uzilish nuqtalari bilan
-    # ochiladi — noma'lum litsenziyali taylni standart qilib qo'yishdan afzal.
+    # 👤 ADR-08 YOPILDI (2026-08-21): OpenFreeMap Liberty, atributsiya
+    # `OpenFreeMap © OpenMapTiles Data from OpenStreetMap`.
+    #
+    # Ikkita sozlama ataylab alohida, chunki ular MapLibre ga ikki xil
+    # narsa sifatida beriladi va biri ikkinchisining o'rnini bosmaydi:
+    #
+    # * `MAP_STYLE_URL` — tayyor **style JSON** ning manzili (vektor).
+    #   MapLibre ga `style: "<url>"` deb satr ko'rinishida uzatiladi va
+    #   qatlamlarni, shriftlarni, atributsiyani stilning o'zi olib
+    #   keladi. OpenFreeMap shu turdagi manba.
+    # * `MAP_TILE_URL` — `{z}/{x}/{y}` shablonli **rastr** tayl manbasi.
+    #   Bunda style ni sahifa o'zi yasaydi (`web/app.js:baseStyle`).
+    #
+    # Ikkovi ham bo'sh bo'lsa xarita fon rasmisiz, faqat uzilish
+    # nuqtalari bilan ochiladi va `map.tiles_missing` banneri chiqadi —
+    # bu xato emas, ataylab tanlangan degradatsiya.
+    #
+    # Standart qiymat **bo'sh** qoladi: ishlab chiqarish qiymati
+    # `.env` dan keladi (`.env.example` da to'ldirilgan namunasi bor),
+    # ya'ni tashqi xizmatga murojaat testlarda ham, sukut bo'yicha
+    # ko'tarilgan ilovada ham o'z-o'zidan paydo bo'lmaydi.
+    map_style_url: str = ""
     map_tile_url: str = ""
     map_tile_attribution: str = ""
     map_snapshot_ttl_s: int = 60

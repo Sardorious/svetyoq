@@ -141,6 +141,27 @@ def seed_defaults() -> dict[str, float]:
     return {**DEFAULTS, **notify_seed_values()}
 
 
+def known_keys() -> frozenset[str]:
+    """Asbob **taniydigan** kalitlar — seed qiladiganlarining aynan o'zi.
+
+    212-rungacha bu savolga ikkita jadval javob berardi: seed
+    `seed_defaults()` dan (17 kalit), `config --key` ning qorovuli va
+    ro'yxatdagi `[noma'lum kalit]` belgisi esa `DEFAULTS` dan (15).
+    Ikkalasining farqi — `notify.*`, ya'ni asbob **o'zi seed qilgan**
+    ikkita kalitni keyin noma'lum deb rad etardi (`EXIT_USAGE`) va
+    ro'yxatda ularga «noma'lum kalit» deb yorliq qo'yardi. Zarari
+    `01` §19 ning aynan o'zida yozilgan: obuna radiusi mintaqa uchun
+    **alohida kalibrlanadi**, ya'ni bu qiymat o'zgarishi kutilgan —
+    va uni o'zgartiradigan yagona hujjatlangan yo'l asbobda yopiq
+    edi, qo'lda `UPDATE` esa `audit_log` siz qolardi (BR-024).
+
+    `DEFAULTS` tegilmaydi: u `06` §9 jadvalining nusxasi bo'lib
+    qoladi (`tests/test_confirm_params_contract.py`), birlashma esa
+    ilgarigidek faqat `seed_defaults()` da.
+    """
+    return frozenset(seed_defaults())
+
+
 # --- buyruqlar ----------------------------------------------------------------
 
 
@@ -352,6 +373,16 @@ async def cmd_config(args: argparse.Namespace) -> int:
             print(f"[BLOK] '{code}' topilmadi.")
             return EXIT_BLOCKED
 
+        if args.seed and args.key:
+            # Ilgari `--seed` yutardi va `--key` **jim** tashlab
+            # ketilardi: odam `config --seed --key confirm.min_users
+            # --value 5` yozib, «N ta kalit qo'shildi» degan javobni
+            # va `0` chiqish kodini olardi, qiymat esa o'zgarmasdi.
+            # Asbobning o'z qoidasi (`_set_active`): jim bajarishdan
+            # ko'ra bloklagan afzal.
+            print("[BLOK] `--seed` va `--key` birga berilmaydi — alohida chaqiring.")
+            return EXIT_USAGE
+
         if args.seed:
             added = await _seed_config(session, region.id)
             if added:
@@ -366,11 +397,12 @@ async def cmd_config(args: argparse.Namespace) -> int:
             return EXIT_OK
 
         if args.key:
-            if args.key not in DEFAULTS:
-                # `06` §9 dagi ro'yxat — yopiq. Noma'lum kalit jim yotib
-                # qolardi va uni yozgan odam nima uchun ishlamayotganini
-                # bilmasdi.
-                print(f"[BLOK] noma'lum kalit '{args.key}'. `06` §9 ro'yxatiga qarang.")
+            if args.key not in known_keys():
+                # Ro'yxat — yopiq. Noma'lum kalit jim yotib qolardi va
+                # uni yozgan odam nima uchun ishlamayotganini bilmasdi.
+                # Yopiqlikning manbai `known_keys()`, ya'ni asbob
+                # seed qiladigan to'plamning aynan o'zi.
+                print(f"[BLOK] noma'lum kalit '{args.key}'. `06` §9 va `notify.*` ro'yxati.")
                 return EXIT_USAGE
             try:
                 value = float(args.value)
@@ -408,8 +440,9 @@ async def cmd_config(args: argparse.Namespace) -> int:
         if not rows:
             print("Konfiguratsiya bo'sh — kod DEFAULTS ga tushadi. `config --seed` qiling.")
             return EXIT_OK
+        known = known_keys()
         for key, value in rows:
-            mark = "" if key in DEFAULTS else "  [noma'lum kalit]"
+            mark = "" if key in known else "  [noma'lum kalit]"
             print(f"{key:<32} {value}{mark}")
     return EXIT_OK
 

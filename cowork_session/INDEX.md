@@ -12,150 +12,842 @@ yo'qoladi. Bu yerda u repo bilan birga saqlanadi.
 
 ## Qayerda to'xtadik
 
-> ✅ **195-run (2026-08-20) — §12 NING IKKALA YARMI HAM ENDI
-> CHAQIRUVCHIGA EGA: `tools/tz_check.py`.**
+> ✅ **220-run (2026-08-21) — `app/api/v1/map.py` NING TANASI
+> O'LCHANDI, VA `/map` X-1 SHARTNOMASINI ENDI QOLGAN UCHTA
+> ENDPOINT BILAN BIR XIL BAJARADI.**
 >
-> 194 qoldirgan yagona bloklanmagan ish. 193- va 194-runlar §12 ning
-> ikkala modulini qurgan edi, lekin `grep` `app/` da ikkalasiga ham
-> birorta chaqiruv topmasdi — faqat docstring havolalari.
-> Chaqiruvchisiz o'lchov asbobi — o'lchov emas, imkoniyat. Endi bitta
-> buyruq, bitta hisobot (matn yoki `--json`), bitta chiqish kodi.
+> 219 qoldirgan to'rtta qadamdan bloklanmagani — **birinchisi**, va
+> 219 nomzodni bir dona qoldirgan edi (`map.py`, 237 q.), ya'ni
+> tanlash uchun `ast` skani ham kerak bo'lmadi.
 >
-> **Qurilgani:** `tools/tz_check.py` (toza yadro `cutoffs` →
-> `ReachPair` → `Report` + `render`/`as_json`, hamda `collect`,
-> `run`, `main`), `app/clustering/tzreach.summary()` —
-> `tzcoverage.summary()` ning juftligi, `tests/test_tz_check.py`
-> (40 test) va `tools/README.md` ning yangi bo'limi.
+> 🔴 **Bazasiz mavjud test o'z izohida bo'shliqni yozib qo'ygan.**
+> `tests/test_map_api.py`: «`/map` bazaga tegadi, shuning uchun u
+> `test_map_api_db.py` da» va «`/map/config` E19 dan beri bazaga
+> tegadi … uning testlari `test_regions_api_db.py` ga ko'chirildi».
+> Ikkala manzil ham `pytestmark = requires_db` — sandboxda `skip`.
+> Yettita nom (`get_map`, `get_map_config`, `_cache_headers`,
+> `OutageProperties`, `OutageFeature`, `MapCollection`, `MapConfig`)
+> 5650 testlik to'plamda bir marta ham bajarilmasdi.
 >
-> 🔴 **Kesim sanasi javobni tanlaydi.** `tzreach.load()` butun tarix
-> uchun bitta `account_created_before` oladi, mahsulot esa uni har
-> hodisada qaytadan hisoblaydi. Kech kesim (`until - yosh`)
-> tarixning boshidagi hodisada mahsulot **rad etgan** akkauntlarni
-> qabul qiladi → guvohlar ko'proq → poroglar erishuvchanroq
-> ko'rinadi; erta kesim (`since - yosh`) aksincha. Bittasini tanlab
-> qo'yish §12 ni aynan o'zi so'ragan tomonga og'dirardi — «пороги не
-> завышены» degan javob jimgina qulaylashardi. Shuning uchun o'lchov
-> **ikki marta** yuritiladi: javoblar bir xil bo'lsa son dalil, farq
-> qilsa — artefakt (`reach.cutoff_decides`, daraja nomi bilan).
-> Narxi — so'rovlar ikki barobar; §12 oflayn va umuman bir marta
-> yuritiladi.
+> 🔴 **TOPILGAN DEFEKT — `/map` o'z reyestrida e'lon qilingan
+> shartnomadan chekingan edi.** `api_requirements.py` ning X-1 sharti
+> `app.core.etag:matches` ga `binds` qilingan; `geo.py` (ikkita),
+> `heatmap.py` va `regions.py` uni chaqiradi, `/map` esa — E9 dagi
+> **eng eski** keshlanadigan endpoint — `if_none_match.strip() ==
+> snap.etag` bilan o'zi taqqoslardi. Ya'ni `If-None-Match: *`,
+> `W/"…"` va vergulli ro'yxat uchtasida `304`, `/map` da esa
+> **to'liq GeoJSON tanasi**. Tuzatildi (ikki qator); `matches()` ning
+> natijasi eski taqqoslashning **ustto'plami**, yaroqli holat
+> yo'qolmaydi.
 >
-> 🔴 **«O'lchanmadi» — «o'tdi» emas.** Bugungi bazada `tzreach`
-> `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi va `levels` bo'sh; bo'sh
-> lug'atni «hech bir daraja yuqori emas» deb o'qish loyihaning eng
-> qimmat yolg'on javobi bo'lardi. To'rtta chiqish kodi — `0` toza,
-> `1` hisobot qurilmadi, `2` topilma bor, `3` yarmi o'lchanmadi — va
-> `3 > 2`: «topilma bor» degan kod qolgan hamma narsa o'lchandi degan
-> ma'noni beradi.
+> 🔴 **`/map` kodni `.lower()` qilmaydi, `/map/config` qiladi** — bu
+> farq koddan boshqa hech qayerda yozilmagan edi. Fikstyurada sukut
+> kod ataylab bosh harfda (`SAMARKAND-DEFAULT`).
 >
-> 🔴 **Mutatsiya ikkita o'lchanmagan qorovulni ochdi.** (1) `findings`
-> dagi `if self.reach.measured` shartini olib tashlagan mutant
-> birorta testni yiqitmadi: `UNKNOWN` da `levels` allaqachon bo'sh,
-> ya'ni himoyani qorovul emas, bo'sh lug'at qilardi — verdikti
-> `UNKNOWN`, sonlari joyida bo'lgan qo'lda yig'ilgan `Reachability`
-> bilan ajratildi. (2) `summary()["levels_that_look_high"]` ni
-> `levels` bilan almashtirgan mutant ham omon qolardi: fikstyurada
-> «bir daraja yuqori, boshqasi yo'q» holati yo'q edi. Ikkala test
-> qo'shilgandan keyin 14 mutant — 14 KILLED.
+> 🔴 **`stale` `snap.is_missing` dan, `built_at` dan qayta
+> hisoblanmaydi.** Haqiqiy `Snapshot` da ular bog'langan, ya'ni
+> mutant ekvivalent bo'lib ko'rinardi — fikstyura ikkovini ajratadi,
+> haqiqiy bog'liqlik esa alohida test bilan qulflanadi.
 >
-> ⚠️ **Partiyadan oldin bazaviy holatni chop eting.** M9-M12 birinchi
-> urinishda bazaviy holat qizil bo'lganda yurgizildi va to'rttala
-> «KILLED» ham soxta chiqdi.
+> 🔴 **`body = dict(snap.payload)` — nusxa, va bu `ETag` ning
+> shartnomasi:** joyida yozgan mutant `built_at`/`stale` ni payload ga
+> qo'shardi va `compute_etag` mazmun o'zgarmagan holda ham har
+> daqiqada yangi hash berardi.
 >
-> **Nima qoldi.** §12 kod tomondan tugadi; javobi endi ma'lumotga
-> bog'liq — `layer='official'` li hodisa bo'lmaguncha `tz_check`
-> `UNKNOWN` qaytaradi va bu E10 gacha o'zgarmaydi. 👤 savol
-> o'zgarmadi: qaysi zonaning verdikti hodisani tasdiqlaydi (ulash
-> 3-bandi). Keyingi bloklanmagan ish —
-> `geo.queries._geometry_facts` ning taxminiy qamrovi (bazada `h3`
-> yo'q, `ST_Area / katakcha maydoni` bilan sanaladi), ya'ni
-> `over_capacity` hozir «taxmin noto'g'ri» degani va uning o'z
-> o'lchovi yo'q.
+> 🔴 **`zoom=11 if (found and found.bbox) else 6` ning ikkala sharti
+> ham kerak:** faqat `found` ga qisqartirgan mutant bbox siz
+> mintaqada markazni **mamlakat** dan, masshtabni **shahar** dan
+> olardi.
+>
+> 🔴 **Hujjatdagi sxema haqiqiy payload bilan solishtirilmasdi:**
+> javob `JSONResponse` bilan qo'lda quriladi, ya'ni FastAPI
+> `MapCollection`/`OutageFeature` ni tekshirmaydi. Endi
+> `snapshot._feature(...)` ning kalitlari model bilan belgima-belgi
+> solishtiriladi.
+>
+> **Qurilgani:** `tests/test_map_api_handlers.py` (yangi, 92 test).
+> `app/api/v1/map.py` da **ikki qator** (import + `matches`) va modul
+> docstringi. **5742 passed, 410 skipped** (edi 5650/410), `ruff`
+> toza, migratsiya/sozlama/i18n/API kaliti yo'q.
+> **48 mutant — 47 KILLED.**
+>
+> ⚪ **Bitta ekvivalent mutant:** `normalize_language(locale)` →
+> `locale` — `language` handler da faqat `t(key, language)` ga
+> boradi, `t()` esa birinchi qatorida o'zi normalizatsiya qiladi.
+> To'liq to'plamda ham omon qoldi. Kod tegilmadi; ekvivalentlik
+> **testda da'vo qilib** qo'yildi va `PROGRESS.md` ning «Ochiq
+> savollar» iga yozildi.
+>
+> ⚠️ **Muhit:** `/sessions` 99 % to'la (120 MB), `/` da 2.5 GB bo'sh,
+> `/tmp/mamba/envs/py311` 219-rundan tirik. Nusxa `/tmp/w220`
+> (45 MB), to'liq to'plam nusxada 47–52 s, mount ustida 65 s.
+> Mutatsiya harnessi `/tmp/mut220/` da — **repoga kirmadi**.
+>
+> **Keyingi qadam.** (1) `app/` dagi keyingi o'lchanmagan modul —
+> `app/api/v1/regions.py`, `heatmap.py` yoki `outages.py`, nishon
+> `ast` skani bilan tanlansin; (2) ⛔ `ST_AsGeoJSON` ni PostGIS li
+> bazada (alohida run); (3) 👤 `ruff format --check` — 119-rundan
+> beri qizil; (4) 👤 `sveta/tools/_mut219.py` (0 bayt) ni o'chirish;
+> (5) 👤 X-1 ning «yettita javob» sanog'i bugungi kodga mos keladimi.
 
-> ✅ **194-run (2026-08-20) — §12 NING «ДОПОЛНИТЕЛЬНО» YARMI
-> QURILDI: §3 NING POROGLARI REYESTRLARDAN O'LCHANADI.**
->
-> 193 qoldirgan uchta qadamdan ikkinchisi. Birinchisi (👤 qaysi
-> zonaning verdikti hodisani tasdiqlaydi) hamon javobsiz, ya'ni
-> bloklangan. §12 ning oxirgi jumlasi alohida savol beradi —
-> «сколько районов и кварталов в Самарканде и в скольких из них есть
-> пользователи — от этого зависит §3» — va u **tarixga tayanmaydi**:
-> `tzreach` bugun `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi, bu
-> yarim esa bugungi reyestrlardan hozir o'lchanadi. §12 dan qolgan
-> yagona bloklanmagan ish shu edi.
->
-> **Qurilgani:** `app/clustering/tzcoverage.py` (toza yadro
-> `RegionFacts` → `measure` → `Coverage`, hamda `to_facts`, `load`,
-> `summary`). `load()` uchta so'rovni birlashtiradi va hech birini
-> qayta yozmaydi: `tzsource.load()`, `geo.queries.current_districts`,
-> `geo.queries.district_geometry_facts`. `need` ham qayta
-> hisoblanmaydi — `tzscale.share_need()` chaqiriladi.
->
-> 🔴 **Shaharning porogi tumanlarning NATIJASIDAN yig'iladi.**
-> `tzscale.city()` maxrajga foydalanuvchisi bor har bir tumanni
-> qo'shadi, sanoqqa esa faqat tasdiqlanganini — ya'ni ikkita
-> kvartalli tuman shaharning porogini **ko'taradi** va uni hech
-> qachon **to'ldirmaydi** (`district_block_min` uni to'sadi). Uchta
-> uch kvartalli tuman yolg'iz qolganda shaharni tasdiqlaydi (3 dan
-> 3), yoniga to'rtta bir kvartalli tuman qo'shilsa — endi
-> tasdiqlamaydi (7 dan 4 kerak, 3 bor). Bir xil uchta yaxshi tuman,
-> qo'shnilarining soniga qarab ikkita teskari verdikt — xatosiz va
-> jurnalsiz. Tepa chegara shuning uchun `districts_reachable`,
-> `districts_with_users` emas; farqi — `dead_weight`.
->
-> 🔴 **Ikkita maxraj bor va ular almashtirilmaydi.** §3 niki —
-> foydalanuvchisi bor zonalar (`reports`), qamrovniki — mavjud
-> zonalar (`geo`). Qamrovni `blocks_with_users` dan hisoblash har
-> doim `1.0` berardi (maxraj sanoqning o'zidan); §3 ni
-> `districts_total` dan hisoblash bo'sh tumanlarni maxrajga qo'shib
-> «считаем от 12» ni bekor qilardi. Geo reyestri §3 ning maxrajini
-> **kichraytirmaydi** ham: yopilgan chegara versiyasi (`valid_to`)
-> qamrovdan chiqadi, o'sha tumandagi kvartallar esa §3 da qoladi va
-> `unknown_districts` da nomlanadi (bazadagi test aynan shuni
-> o'lchaydi).
->
-> 🔴 **Ulush erishuvchanlikni hech qachon to'smaydi.**
-> `share_need(n, share) <= n` har qanday `share <= 1` uchun va
-> `tzconfig._check` `Unit.SHARE` ni `(0, 1]` bilan qulflaydi — savol
-> tuzilmaviy ravishda `n >= minimum` ga qisqaradi. `0.40` va uchta
-> bilan `n <= 5` da ulush umuman ishlamaydi, `n == 6..7` da ikkalasi
-> teng, `n >= 8` da ulush oshadi. §3 esa «Абсолютное число в
-> настройках не задавать» deb yozgan — holbuki kichik shaharda
-> qarorni aynan mutlaq son qabul qiladi. Bu — §12 ning «от этого
-> зависит §3» jumlasining amaliy ma'nosi.
->
-> ⬜ **Taxminiy qamrov kesilmaydi.** `geo.queries._geometry_facts`
-> bazada `h3` yo'qligi uchun `ST_Area / katakcha maydoni` bilan
-> sanaydi, ya'ni `over_capacity` — «qamrov birdan katta» emas,
-> **taxmin noto'g'ri** degani.
->
-> **Yakun:** `tests/test_tz_coverage.py` (72, bazasiz) va
-> `tests/test_tz_coverage_db.py` (4, `requires_db`). **Butun to'plam
-> haqiqiy bazada — 5237 passed, 2 skipped** (edi 5158/2),
-> `requires_db` 408 (+4), `ruff` toza, migratsiya/sozlama/i18n/API
-> **yo'q**. 13 mutant: **13 KILLED**; biri
-> (`blocks_by_district` ni tuman boshiga bittadan sanashga
-> aylantirish) birinchi o'tishda omon qoldi — fikstyurada bitta
-> tumanda bir nechta kvartalli holat yo'q edi, ya'ni §3 ning
-> maxrajiga yagona ko'prikdan birorta test o'tmasdi; ajratuvchi
-> fikstyura qo'shilgach o'ldi.
->
-> **Keyingi qadam:** (1) 👤 savol o'zgarmadi — qaysi zonaning
-> verdikti hodisani tasdiqlaydi; (2) §12 ning **ikkala yarmi ham**
-> endi kod, qolgan ish — `tools/` da ikkalasini bitta hisobotga
-> chiqaradigan skript (`tzreach.measure` + `tzcoverage.summary`), u
-> §12 ni odam yuritadigan qilardi.
->
-> **Sandbox:** `/tmp/pg180` + `/tmp/mamba/envs/py311` tirik. Ikkita
-> yangi mina: (a) `/tmp` ga **unix-soket** yozib bo'lmaydi
-> (`could not open lock file "/tmp/.s.PGSQL.NNNNN.lock"`) —
-> `unix_socket_directories` ni `pgdata` papkasiga bur; (b) Postgres
-> chaqiruvlar orasida **o'ladi**, ya'ni `start` + `alembic` +
-> `pytest` bitta bash chaqiruvida bo'lishi shart. `initdb`
-> `/sessions/<sid>/tmp/pgdata194` (port `55194`), nusxa
-> `/sessions/<sid>/tmp/r194`, to'liq to'plam baza bilan ~95 s.
-> Disk: `/` da 200 MB, `/sessions` da 270 MB.
+---
 
+> ✅ **219-run (2026-08-21) — `app/api/v1/geo.py` NING TANASI
+> O'LCHANDI, VA 218 NING «PostGIS BILAN BITTA DEVOR» EHTIYOTI
+> TASDIQLANMADI.**
+>
+> 218 qoldirgan uchta qadamdan bloklanmagani — **birinchisi**, ikkita
+> nomzoddan kattarog'i (`geo.py`, 446 q.) olindi.
+>
+> ✅ **`ST_AsGeoJSON` handler ga umuman tegmaydi.** U
+> `app/geo/queries.py` da, so'rovning ichida; handler ga poligon
+> allaqachon **satr** bo'lib keladi (`BoundaryRow.geojson`) va u bilan
+> qilinadigan yagona ish — `json.loads(...)`. Ya'ni butun tana
+> bazasiz o'lchanadi, PostGIS li run esa so'rovning **SQL** yarmiga
+> tegishli bo'lib qoladi.
+>
+> 🔴 **Bazasiz testlar bor edi va yashil edi — lekin ular eshikni
+> o'lchardi.** `test_geo_api.py` ning o'z izohi buni yozadi:
+> «mazmunli tekshiruvlar `test_geo_api_db.py` da; bu yerda — bazaga
+> borishdan **oldin** qaytadigan xatolar». O'nta nom
+> (`get_districts`, `get_mahallas`, `_tolerance_m`, `_mahalla_feature`
+> va oltita javob modeli) butun `tests/` da nol marta chaqirilardi.
+>
+> 🔴 **`_tolerance_m` ning ikkala qirrasi:** `0` — **so'ralgan** xom
+> poligon (sukut emas), chegara esa `>` bilan, ya'ni sozlamadagi `max`
+> hali yaroqli. Ikkala mutant ham jim o'tardi.
+>
+> 🔴 **`geometry=false` uchala joyni bir vaqtda o'zgartiradi:**
+> `simplify_deg=0.0`, `with_geometry=False` va javobda `simplify_m: 0`.
+> So'ralgan tolerantlik javobda qolsa, mijoz soddalashtirilgan poligon
+> olganman deb o'ylardi — holbuki poligon umuman yo'q.
+>
+> 🔴 **`available` FR-S-802 ning yagona ko'rinadigan belgisi:**
+> `bool(rows) or region_has_mahallas(...)` — qator bor ekan, ikkinchi
+> so'rov **bajarilmaydi**; `or` ning tartibi ham, `bool(rows)` ga
+> qisqartirish ham jim o'tardi.
+>
+> 🔴 **`registry` ning uchta soni ikkita satr maydonidan chiqadi**
+> (`district_id` va `name_uz`) — fikstyurada sonlar teng bo'lsa
+> almashuv ko'rinmaydi. Nomutanosib kesim qo'shildi: bitta tuman,
+> uchta nom.
+>
+> **Qurilgani:** `tests/test_geo_api_handlers.py` (yangi, 82 test).
+> `app/api/v1/geo.py` ga **tegilmadi**. **5650 passed, 410 skipped**
+> (edi 5568/410), `ruff` toza, migratsiya/sozlama/i18n/API yo'q.
+> **90 mutant — 90 KILLED**; birinchi o'tishda 6 tasi omon qoldi va
+> oltita yangi test yozdirdi.
+>
+> ⚪ **Bitta ekvivalent mutant:** `_parse_at` dagi `replace(«Z»)` —
+> Python 3.11 ning `fromisoformat` i «Z» ni o'zi qabul qiladi. Kod
+> tegilmadi, `PROGRESS.md` ning «Ochiq savollar» iga yozildi.
+>
+> ⚠️ **Muhit:** `/sessions` 99 % to'la (120 MB), `/` da 2.8 GB bo'sh,
+> `/tmp/mamba/envs/py311` tirik; nusxalar `/tmp/w219` va `/tmp/r219`,
+> to'liq to'plam 48–58 s. **Qoldiq:** `sveta/tools/_mut219.py` mount
+> ustida qolib ketdi — sandbox `rm` ga ruxsat bermaydi, o'chirish
+> tugmasi esa runni to'xtatadi; fayl **bo'shatildi** (0 bayt) va
+> o'chirish 👤 ga yozildi.
+>
+> **Keyingi qadam.** (1) `app/` dagi keyingi o'lchanmagan modul —
+> `app/api/v1/map.py` (237 q.); (2) ⛔ `ST_AsGeoJSON` ni PostGIS li
+> bazada (alohida run); (3) 👤 `ruff format --check` — 119-rundan
+> beri qizil; (4) 👤 `sveta/tools/_mut219.py` ni o'chirish.
+
+---
+
+> ✅ **218-run (2026-08-21) — `app/api/v1/tz.py` NING TANASI
+> O'LCHANDI: 447 QATORLIK KIRISH YO'LIDA FAQAT **ESHIK**
+> TEKSHIRILARDI.**
+>
+> 217 qoldirgan uchta qadamdan bloklanmagani — **birinchisi**, va 217
+> ikkita nomzod qoldirgan edi. `tz.py` olindi: `ast` skani uni kattaroq
+> teshik deb ko'rsatdi (19 nomdan **13 tasi** butun `tests/` matnida
+> uchramaydi, `geo.py` da 14 dan 9), va `geo.py` ning yarmi
+> `ST_AsGeoJSON` ga tayanadi — ya'ni u PostGIS bloki bilan **bitta
+> devorga** tegadi.
+>
+> 🔴 **Bazasiz yagona murojaatlar `403` eshigi edi.** `test_tz_intake.py`
+> va `test_tz_operator.py` ning o'z izohi aytadi: `ONE_ACTION` — «eng
+> kichik yaroqli so'rov tanasi, **ruxsat tekshiruvidan narisiga
+> o'tmaydi**». Ya'ni handler ning **birinchi qatori ham** hech qachon
+> bajarilmagan. Ma'lumot yo'li `tests/test_tz_intake_db.py` da, u
+> butunlay `requires_db` ostida (sandboxda `skip`) va API ni emas,
+> `app/reports/tzintake.py` ni import qiladi. 216-run ning `admin.py` da
+> topgan naqshi bilan so'zma-so'z bir xil.
+>
+> 🔴 **Javobning shakli jim buzilardi.** O'nta juftlik almashtirildi va
+> birortasi ham 5480 testni yiqitmasdi: `_fact_out` da `key`/`source_id`,
+> `channel`/`signal`, `cell`/`reference`, `at`/`starts_at`,
+> `closes_block`/`verifies_outage`; `RejectionOut` da `signal`/`reason`;
+> `SourceOut` da `cell`/`note`; `ActionRowOut` da `actor`/`reference` va
+> `action`/`basis`; `_action_out` da to'rtta `bool` —
+> `accepted`/`resolves`/`confirms`/`closes`.
+>
+> 🔴 **`IntakeOut.to_operator` ni `len(intake.rejected)` ga ulash jim
+> o'tardi.** `DUPLICATE` va `REPEAT` — normal ish tartibi, ular §8 ning
+> odamiga chiqarilmaydi. Ikkala son bitta bo'lsa **buzuq qurilma
+> takroriy xabarlar orasida yo'qolardi** — В-7 uchun eng muhim savol
+> («kvartal nega yopilmadi») sanoqda ko'rinmay qolardi.
+>
+> 🔴 **Т-4 ning yagona soati o'lchanmagan edi.** `datetime.now()` (naiv,
+> mahalliy vaqt) ham, `ingest` ichida ikkinchi marta soat o'qish ham jim
+> o'tardi: birinchisi `at` bilan solishtirishni siljitardi, ikkinchisi
+> paketning boshi va oxirini turli oynalarga bo'lardi.
+>
+> 🔴 **§7 ning `_params` i hech qachon chaqirilmagan.** Uchta yangi
+> da'vo: yetishmagan kalit `RegionNotConfiguredError` ga o'giriladi
+> (`ConfigMissingError` xom holda chiqmaydi), xatoda **so'ralgan** kod
+> turadi va o'sha paytda `ingest` ham, `commit` ham bo'lmaydi.
+>
+> 🔴 **Tartibning o'zi qoida:** ruxsat mintaqadan **oldin** (to'rtala
+> endpointda), `commit` yozuvdan **keyin** (ikkala `POST` da), o'qish
+> yo'lida `commit` **umuman yo'q**. Va `closed` bazadagi jurnaldan,
+> `disputed` esa so'rovdan keladi (DP-4) — ikkalasini bir manbaga ulagan
+> mutant operator ko'rgan holat bilan kod ko'rgan holatni ajratib
+> yuborardi.
+>
+> **Qurilgani:** `tests/test_tz_api_handlers.py` (yangi, 88 test).
+> `app/api/v1/tz.py` ga **tegilmadi**. **5568 passed, 410 skipped**
+> (edi 5480/410), `ruff` toza, migratsiya/sozlama/i18n/API yo'q.
+> **80 mutant — 80 KILLED**, birinchi o'tishda omon qolgani yo'q.
+> Ikkinchi bosqich (nusxadagi to'liq to'plam) kerak bo'lmadi: omon
+> qolgan nomzod chiqmadi, o'ldirish esa monoton — tor tanlov to'liq
+> to'plamning qism to'plami.
+>
+> ⚠️ **Muhit:** `/sessions` 99 % to'la (121 MB), nusxa `/tmp/w218` da,
+> `/tmp/mamba/envs/py311` tirik. Mount ustida `grep -r tests/` 120 s ga
+> **sig'madi**; nusxadagi to'liq to'plam — 48 s.
+>
+> **Keyingi qadam.** (1) `app/` dagi keyingi o'lchanmagan modul —
+> `app/api/v1/geo.py` (446 q., 9/14) yoki `app/api/v1/map.py` (237 q.);
+> ⚠️ `geo.py` ning yarmi `ST_AsGeoJSON` ga tayanadi, lekin `_tolerance_m`
+> va javob modellari bazasiz ham o'lchanadi; (2) ⛔ `ST_AsGeoJSON` ni
+> PostGIS li bazada (alohida run, `/` da 2.8 GB bo'sh);
+> (3) 👤 `ruff format --check` — 119-rundan beri qizil.
+
+---
+
+> ✅ **217-run (2026-08-21) — `app/api/v1/stats.py` NING TANASI
+> O'LCHANDI: `03` §R1.2 NING BUTUN VITRINASI BAZASIZ TO'PLAMDA
+> QURILMAGAN EDI.**
+>
+> 216 qoldirgan uchta qadamdan bloklanmagani — **uchinchisi**, va
+> 216 ikkita nomzod qoldirgan edi: kattarog'i (`app/api/v1/stats.py`,
+> 530 q., 26 nomdan 16 tasi butun `tests/` da uchramaydi) olindi.
+>
+> 🔴 **Modulning yagona to'liq testi `requires_db` ostida.**
+> `tests/test_stats_api_db.py` — `pytestmark = requires_db`, ya'ni
+> sandboxda `skip`. Bazasiz suzib yuradigan yagona murojaatlar —
+> `test_stats_methodology.py` dagi ikkita mapper va sxemaning
+> **nomlarini** tekshiradigan kontraktlar. `heatmap.py` `coverage_out`
+> va `maturity_out` ni import qiladi, lekin chaqirmaydi — bilvosita
+> qoplama ham yo'q edi.
+>
+> 🔴 **Javobning shakli jim buzilardi.** O'n to'rtta javob modelida bir
+> turdagi juftliklar: `versions`/`districts`, `total`/`measured`,
+> `median_min`/`p90_min`, `mahalla_id`/`district_id`,
+> `valid_from`/`valid_to`, `min_days`/`min_events`,
+> `suppressed_outages`/`suppressed_reports`, `band`/`message_key`/
+> `data_quality`/`limiting_factor`, metodologiya bo'limining
+> `title`/`body` va `code`/`spec`. Har biri almashtirildi — birortasi
+> ham 5414 testni yiqitmasdi.
+>
+> 🔴 **`mahallas.available` — FR-S-802 ning yagona ko'rinadigan belgisi
+> va u qulflanmagan edi.** Birinchi o'tishda yagona omon qolgan mutant
+> uni `truncated` ga uladi: `mahallas` jadvali E17 gacha bo'sh, ya'ni
+> mutant ro'yxat kesilmagan **har bir** javobda «spravochnik yo'q» deb
+> yozardi — degradatsiyaning aynan teskarisi, yaroqli holat nosozlikka
+> o'xshab qolardi. Fikstyurada ikkala bayroq bir tomonga qaragan edi.
+>
+> 🔴 **`statuses()` ↔ xom `by_status`.** `_bucket_out` uchala statusni
+> nol bilan ham qaytarishi kerak («yo'q kalit nol dan boshqa narsani
+> anglatardi»); fikstyurada chelakda bitta status bor, ya'ni xom
+> lug'atni qo'ygan mutant qolgan ikkitasini jimgina yo'qotardi.
+>
+> 🔴 **Tartibning o'zi qoida.** `find_region` → `resolve_period` →
+> `build_report` → `stats_viewed`; `get_methodology` da qorovul tildan
+> ham, qiymatlarni o'qishdan ham oldin. Analitikada: `region` —
+> hisobotdan (so'ralgan koddan emas), `district_id`/`mahalla_id` —
+> `None` (nol emas), `period` — hal qilingan oynadan (so'rovdagi xom
+> `from`/`to` `None/None` bo'lardi). `/stats.csv` `/stats` bilan bitta
+> vitrina ko'rilgan deb sanaladi, `/stats/methodology` esa umuman
+> sanalmaydi.
+>
+> **Qurilgani:** `tests/test_stats_api_handlers.py` (yangi, 66 test).
+> `app/api/v1/stats.py` ga **tegilmadi**. **5480 passed, 410 skipped**
+> (edi 5414/410), `ruff` toza, migratsiya/sozlama/i18n/API yo'q.
+> **60 mutant — 60 KILLED.**
+>
+> 🟡 **Yangi ochiq savol (👤).** `/stats` va `/heatmap` davr
+> shartnomasini bitta funksiyadan oladi, lekin **tartibi har xil**:
+> `/heatmap` avval davrni tekshiradi, `/stats` esa avval mintaqani
+> izlaydi. Noma'lum mintaqa **va** buzuq davr bilan kelgan bitta
+> so'rov `/heatmap` dan `422`, `/stats` dan `404` oladi. `05` §7.2
+> tartibni yozmaydi — kod o'zgartirilmadi, bugungi tartib testda
+> qulflandi, savol `PROGRESS.md` ga yozildi.
+>
+> **Keyingi qadam.** (1) `app/` dagi keyingi o'lchanmagan modul —
+> `app/api/v1/tz.py` (447 q., 13/19) yoki `app/api/v1/geo.py` (446 q.);
+> (2) ⛔ `ST_AsGeoJSON` ni PostGIS li bazada (`/` da 2.8 GB bo'sh,
+> `/tmp/mamba/envs/py311` tirik — PostGIS ko'tarish alohida run);
+> (3) 👤 `ruff format --check` — 119-rundan beri qizil.
+
+---
+
+> ✅ **216-run (2026-08-21) — `app/api/v1/admin.py` NING TANASI
+> O'LCHANDI: 620 QATORLIK QATLAMDA FAQAT **ESHIK** TEKSHIRILARDI.**
+>
+> 215 qoldirgan uchta qadamdan bloklanmagani — **uchinchisi**: `tools/`
+> navbati tugadi, `app/` ga qaytish. `ast` bilan skan qilinganda eng
+> katta bo'shliq `app/api/v1/admin.py` da chiqdi (620 q., 31 nomdan
+> 17 tasi butun `tests/` da uchramaydi).
+>
+> 🔴 **Bazasiz yagona testi faqat eshikni o'lchardi.**
+> `tests/test_admin_api.py` ning o'z docstringi aytadi: «barcha
+> holatlar ruxsat tekshiruvida to'xtaydi, so'rov bazaga yetib
+> bormaydi» — ya'ni handler ning **birinchi qatori ham**
+> bajarilmaydi. Ma'lumot yo'li `tests/test_admin_moderation_db.py`
+> da, u butunlay `requires_db` ostida (sandboxda `skip`) va u API ni
+> emas, `app/admin/service.py` ni import qiladi.
+>
+> 🔴 **Javobning shakli jim buzilardi.** `_outage_out` o'n yettita
+> ustunni ko'chiradi va ichida bir turdagi juftliklar bor: `lat`/`lon`
+> (ikkalasi `float`), `distinct_users`/`independent_reporters`,
+> `started_at`/`last_report_at`, `district_id`/`mahalla_id`. Almashuv
+> **birorta testni yiqitmasdi**. Xuddi shu `read_audit` da
+> (`before`/`after`), `merge_outage` da (`outage_id`/`merged_into`),
+> `read_gates` da (`summary_key`/`blocks_key`, `closed`/`total`).
+>
+> 🔴 **`needs_review` ning chegarasi hech qachon otilmagan edi.**
+> `05` §4.2 `>=` bilan yozilgan va bu muhim: E5 radiusni aynan
+> `max_radius` da kesadi, ya'ni `>` bo'lsa moderator navbati **doim
+> bo'sh** qolardi va buni hech narsa aytmasdi.
+>
+> 🔴 **Bu modulda ham tartibning o'zi qoida.** `get_digest` da sana
+> tekshiruvi `require_region` dan **oldin** (yaroqsiz sana bazaga
+> umuman bormaydi), to'rtala yozish endpointida `commit` xizmat
+> chaqiruvidan **keyin**, `read_registries` da ruxsat **diskdagi
+> hujjat skanidan** oldin. Har uchala mutant bir xil javob berardi.
+>
+> 🔴 **`get_user` ning ruxsati ataylab `USER_BLOCK`**, `OUTAGE_READ`
+> emas: karta bloklash qarori uchun ochiladi, ya'ni `viewer` uni
+> ko'rmasligi kerak. Kodda izoh bor edi, testda — yo'q.
+>
+> **Qurilgani:** `tests/test_admin_api_handlers.py` (yangi, 159 test).
+> `app/api/v1/admin.py` ga **tegilmadi** — bu run kod o'zgartirmadi.
+> **5414 passed, 410 skipped** (edi 5255/410), `ruff` toza,
+> migratsiya/sozlama/i18n/API yo'q. **65 mutant — 64 KILLED.**
+>
+> **Ikkita mutant birinchi o'tishda omon qoldi** va ikkalasi ham bir
+> xil bo'shliqni ko'rsatdi: `read_measures` va `read_registries` da
+> qorovulni hisobot qurishdan keyin ko'chirish. Qolgan sakkizta
+> endpointda tartib jurnal bilan qulflangan edi, bu ikkitasida esa
+> yo'q. Ikkita test qo'shildi — ikkalasi ham KILLED.
+>
+> ⚪ **Yagona omon qolgani ekvivalent, va buni test aytadi:** qorovulni
+> `i18n.pick_language` dan keyin ko'chirish hech narsani
+> o'zgartirmaydi — u sof funksiya, sessiyani ham, diskni ham
+> so'ramaydi va chaqirilishi kuzatilmaydi. Mutant qo'llangan holda
+> **butun to'plam** yashil (47 s).
+>
+> **Ikkita kichik dars.** (1) Matn qidiradigan qorovul o'z
+> docstringiga ilinadi: «joyida hisoblash yozilmaydi» da'vosi
+> `"store" not in getsource(...)` bilan darhol yiqildi, chunki
+> `get_digest` ning docstringida `stored` so'zi bor — `ast` bilan
+> qayta yozildi. (2) `from __future__ import annotations` bilan
+> `signature().annotation` — **satr**; `Query(ge=…, le=…)`
+> chegaralarini olish uchun `typing.get_type_hints(...,
+> include_extras=True)` va `Query.metadata` kerak.
+>
+> **Keyingi qadam.** (1) ⛔ `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish (disk to'siq emas: `/` da 2.9 GB; PostGIS ko'tarish
+> alohida run); (2) 👤 `make lint` ning `ruff format --check` qadami —
+> 119-rundan beri qizil; (3) `app/` dagi keyingi o'lchanmagan modul —
+> `app/api/v1/stats.py` (530 q., 16/26) yoki `app/api/v1/tz.py`
+> (447 q., 13/19).
+
+---
+
+> ✅ **215-run (2026-08-21) — `simulate` NING BAZAGA BOG'LIQ YARMI
+> O'LCHANDI; `tools/` NAVBATI TUGADI.**
+>
+> 214 qoldirgan uchta qadamdan bloklanmagani — **birinchisi**:
+> `tools/simulate.py` (948 q.), `tools/` dagi oxirgi o'lchanmagan
+> asbob. Uning toza yarmi `tests/test_simulate.py` da (83 test)
+> qulflangan, bazali yarmi esa faqat `tests/test_simulate_db.py` da,
+> u esa butunlay `requires_db` ostida — sandboxda `skip`, ya'ni
+> o'lchagandek ko'rinadigan, lekin hech narsani o'lchamaydigan da'vo.
+>
+> 🔴 **`cmd_run` da da'voning o'zi yo'q edi.** Grep butun `tests/`
+> bo'ylab **nol** murojaat berardi: `EXIT_BLOCKED`, `EXIT_MISMATCH`,
+> `EXIT_USAGE` va quruq yurish xabari hech qayerda yozilmagan. CLI
+> ning chiqish kodi — skript uchun yagona javob.
+>
+> 🔴 **`ensure_writable` ning ikkinchi to'sig'i hech qachon otilib
+> ko'rilmagan edi.** Eski test faqat `match="haqiqiy xabar"` ni
+> tekshiradi, ya'ni `subs.count_active` ni butunlay o'chirgan mutant
+> o'sha faylda ham omon qolardi — va aynan shu to'siq sun'iy hodisa
+> `confirmed` ga o'tganda **haqiqiy odamga** ketadigan
+> bildirishnomani to'sadi. Yana: u mintaqa bo'yicha emas, **global**
+> sanaladi (obuna nuqta va radius bilan saqlanadi) — asimmetriya ham
+> yozilmagan edi.
+>
+> 🔴 **Bu modulda ham tartibning o'zi qoida.** Qorovulni `run()` dan
+> **keyin** ko'chirgan mutant bir xil chiqish kodini va bir xil
+> matnni berardi — tranzaksiya baribir bekor qilinadi; farqi
+> shundaki, o'sha paytgacha butun sun'iy oqim haqiqiy ma'lumot bilan
+> bitta jadvalda yozilgan bo'lardi. Shu turdagi yana ikkitasi:
+> `geo.resolve` `check_rate_limit` dan **oldin** (hududdan
+> tashqaridagi nuqta odamning limitini yemasin) va `flush()` barmoq
+> izidan **oldin**.
+>
+> 🔴 **Maxfiylik jimgina buzilishi mumkin edi:** `create_report` ga
+> aniq va ommaviy koordinata almashtirib berilsa `geom_exact` va
+> `geom_public` o'rin almashardi va **birorta son o'zgarmasdi**.
+> Fikstyurada to'rtala qiymat ham har xil.
+>
+> **Qurilgani:** `tests/test_simulate_db_half.py` (yangi, 53 test).
+> `tools/simulate.py` ga **tegilmadi** — bu run kod o'zgartirmadi.
+> **5255 passed, 410 skipped** (edi 5202/410), `ruff` toza,
+> migratsiya/sozlama/i18n/API yo'q. **39 mutant — 38 KILLED.**
+>
+> ⚪ **Yagona omon qolgani ekvivalent, va buni test aytadi:** bo'sh
+> oqim qorovulini `ensure_users` dan keyin ko'chirish hech narsani
+> o'zgartirmaydi, chunki bo'sh oqimda `ensure_users` bironta so'rov
+> qilmaydi; tartib `since = stream[0].at` ning `IndexError`
+> bermasligi uchun muhim, va u qorovuldan **keyin** turadi. Mutant
+> qo'llangan holda butun to'plam yashil.
+>
+> **Ikkita ajratish mutatsiyadan keyin qo'shildi:** `users` (3)
+> `generated` (5) dan kichik bo'ldi (teng bo'lganda `users=len(stream)`
+> omon qolardi) va biriktirilganlar ikkita, biriktirilmagani bitta
+> (teng bo'lganda `is None` ni teskari qilgan mutant bir xil
+> `unassigned` berardi). Uchinchisi — fikstyura endi sessiyaning
+> **ochilishini** ham yozib oladi (`"open"`), aks holda `warn` ni
+> tranzaksiya ichiga ko'chirgan mutant omon qolardi.
+>
+> **Keyingi qadam.** (1) ⛔ `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish (disk to'siq emas: `/` da 3.0 GB; PostGIS ko'tarish
+> alohida run); (2) 👤 `make lint` ning `ruff format --check` qadami —
+> 119-rundan beri qizil; (3) `app/` dagi o'lchanmagan modullarga
+> qaytish — `tools/` tugadi.
+
+---
+
+
+
+> ✅ **214-run (2026-08-21) — `recluster` NING BAZAGA BOG'LIQ YARMI
+> O'LCHANDI: CHAQIRUVLARNING TARTIBI ENDI QULFLANGAN.**
+>
+> ⚠️ **Avval: 213-run bu bo'limni yangilamasdan uzilgan.** U
+> `PROGRESS.md` va `EpicProgress.md` ni yozib ulgurgan, `cowork_session/`
+> ga esa tegmagan — `CLAUDE.md` dagi 30-sessiya stsenariysi yana
+> takrorlandi. 214 uni tikladi: `213_adr08_openfreemap_7c9cb9b5.md`
+> qo'shildi (213 va 212 **bitta sessiyada** yurgan). Belgisi ochiq
+> ko'rinardi: jurnalning tepasida INDEX bilmagan qator turardi va
+> bazaviy to'plam 5119 emas, **5127** edi.
+>
+> 213 qoldirgan uchta qadamdan bloklanmagani — uchinchisi
+> (`recluster.py` va `simulate.py` ning bazali yarmi). Nishon —
+> `tools/recluster.py` (946 q.): uning toza yarmi uchta faylda
+> qulflangan, bazali yarmi esa faqat `requires_db` ostida, ya'ni
+> sandboxda `skip` — o'lchagandek ko'rinadigan, lekin hech narsani
+> o'lchamaydigan da'vo. Grep buni tasdiqladi: `_one_run`,
+> `_effective_value`, `ReclusterBlocked`, `_RegionMissing`,
+> `detach_window` — `_db.py` dan tashqari **nol** murojaat.
+>
+> 🔴 **Bu modulda tartibning o'zi qoida edi, va tartib o'lchanmasdi.**
+> Bildirishnoma qorovulini `detach_window`/`delete_outages` dan
+> **keyin** ko'chirgan mutant bir xil xato matnini va bir xil chiqish
+> kodini berardi; farqi shundaki, quruq yurishda ham oyna buzilgan
+> bo'lardi va `--apply` bilan bu commit ga tushardi — «foydalanuvchi
+> ko'rgan faktni o'chirmaymiz» va'dasi jimgina buzilardi. Endi
+> fikstyura chaqiruvlarning **nomlarini tartibi bilan** yozib oladi va
+> butun quvur bitta ro'yxat bilan qulflangan.
+>
+> 🔴 **Ikkita `outage_ids_started_in` bir xil emas:** birinchisi
+> o'chiriladigan eski hodisalar, ikkinchisi endigina yaratilganlari.
+> Fikstyura ikkalasiga **ataylab har xil** javob beradi — aks holda
+> almashtirgan mutant omon qolardi (203-running darsi).
+>
+> 🔴 **Hisobotdagi mintaqa kodi bazadan olinadi**, `args.region` dan
+> emas: ikkovi ham `str`, almashuv jim bo'lardi. Fikstyurada so'ralgan
+> (`Samarkand`) va saqlangan (`samarkand`) kod farq qiladi.
+>
+> **Qurilgani:** `tests/test_recluster_db_half.py` (yangi, 75 test).
+> `tools/recluster.py` ga **tegilmadi** — bu run kod o'zgartirmadi.
+> **5202 passed, 410 skipped** (edi 5127/410), `ruff` toza,
+> migratsiya/sozlama/i18n/API yo'q. **36 mutant — 35 KILLED.**
+>
+> ⚪ **Yagona omon qolgani ekvivalent, va buni endi test aytadi:**
+> `report = variant` → `report = baseline` ssenariy tarmog'ida hech
+> narsani o'zgartirmaydi, chunki `reports_for_replay` `region_config`
+> ni o'qimaydi — ikkala yurish bir xil oynani qayta quradi. Da'vo
+> o'lchandi (mutant bilan butun to'plam yashil) va testda
+> ekvivalentlikning o'zi qulflandi.
+>
+> **Keyingi qadam.** (1) `tools/simulate.py` ning bazali yarmi — shu
+> usul bilan, `tools/` dagi oxirgi o'lchanmagan asbob; (2) ⛔
+> `ST_AsGeoJSON` yo'lini PostGIS li bazada yurgizish (disk to'siq emas:
+> `/` da 3.1 GB; PostGIS ko'tarish alohida run); (3) 👤 `make lint`
+> ning `ruff format --check` qadami — 119-rundan beri qizil.
+
+---
+
+
+> ✅ **212-run (2026-08-21) — `region_admin` NING BAZAGA BOG'LIQ YARMI
+> O'LCHANDI, VA ASBOB O'ZI SEED QILGAN KALITNI RAD ETISHI TUZATILDI.**
+>
+> 211 qoldirgan uchta qadamdan bloklanmagani — uchinchisi (`tools/`
+> dagi qolgan asboblar). Birinchisi (`ST_AsGeoJSON` ni PostGIS li
+> bazada yurgizish) hamon qilinmadi: disk to'siq emas (`/` da 2.9 GB),
+> PostGIS ko'tarish alohida run.
+>
+> **Nishon nima uchun `region_admin.py`:** uchtasidan yagona
+> **butunlay o'lchanmagani**. 478 qator, oltita buyruq va birorta o'z
+> testi yo'q edi — repodagi yagona murojaatlar manba matnini `grep`
+> qiladigan yoki `build_parser()` ni chaqiradigan kontrakt testlari.
+> `recluster.py` (946 q.) va `simulate.py` (948 q.) da testlar bor.
+> Fayl esa E19 ning chiqish mezonini bajaradigan yagona yo'l va
+> BR-024 ning spravochnik tomonidagi yagona bajaruvchisi.
+>
+> 🔴 **Bitta savolga ikkita jadval javob berardi.** Seed
+> `seed_defaults()` dan (17 kalit: `06` §9 + `notify.*`),
+> `config --key` ning qorovuli va ro'yxatdagi `noma'lum kalit`
+> yorlig'i esa `DEFAULTS` dan (15). Ya'ni asbob **o'zi seed qilgan**
+> ikkita kalitni keyin noma'lum deb rad etardi (`EXIT_USAGE`) va
+> ro'yxatda ularga darhol yorliq qo'yardi. Narxi `01` §19 ning o'zida:
+> obuna radiusi mintaqa uchun **alohida kalibrlanadi**, ya'ni
+> o'zgarishi kutilgan qiymat asbobda yopiq edi, qolgan yo'l esa qo'lda
+> `UPDATE` — `audit_log` siz (BR-024). Endi yagona manba —
+> `known_keys()`; `DEFAULTS` tegilmadi va `06` §9 nusxasi bo'lib qoldi.
+>
+> 🔴 **`--seed` `--key` ni jim yutardi:** javob «N ta kalit qo'shildi»,
+> chiqish kodi `0`, qiymat esa o'zgarmasdi. Endi `EXIT_USAGE` —
+> asos asbobning o'z qoidasi (`_set_active`: jim bajarishdan ko'ra
+> bloklagan afzal).
+>
+> 🔴 **Birinchi o'tishda bitta mutant omon qoldi:** `Region.code` →
+> `Region.name_uz`. Da'vo bog'langan **qiymatni** tekshirardi,
+> kalitning **nomini** emas — ustun almashganda qiymat o'zgarmaydi,
+> faqat kalit `code_1` dan `name_uz_1` ga o'tadi. Qoida test izohida
+> so'zma-so'z yozilgan, da'voda bajarilmagan edi.
+>
+> **Qurilgani:** `tests/test_region_admin.py` (yangi, 62 test),
+> `known_keys()`, `--seed`+`--key` qorovuli, `tools/README.md` ga
+> bo'lim va `config --set` → `config --key` tuzatishi (mavjud
+> bo'lmagan bayroq hujjatlangan edi). **5119 passed, 409 skipped**
+> (edi 5057/409), `ruff` toza, migratsiya/sozlama/i18n/API yo'q.
+> **30 mutant — 30 KILLED.**
+>
+> 👤 Ikkita yangi savol `PROGRESS.md` da: `--center` bbox dan
+> tashqarida bo'lsa qabul qilinadi; `notify.*` `06` §9 jadvaliga
+> yozib qo'yilsinmi.
+>
+> **Keyingi qadam.** (1) ⛔ `ST_AsGeoJSON` PostGIS li bazada —
+> alohida run; (2) `recluster.py` va `simulate.py` ning bazali yarmi:
+> ikkovida test bor, lekin bazaga tegadigan qarorlar `requires_db`
+> ostida, ya'ni sandboxda `skip` — 211/212 usuli ularni bazasiz
+> o'lchaydi; (3) 👤 `make lint` ning `ruff format --check` qadami.
+
+---
+
+
+> ✅ **211-run (2026-08-21) — BAZAGA BOG'LIQ YARMI HAM O'LCHANDI:
+> `run()` VA `collect()`, YOZIB OLADIGAN SESSIYA BILAN.**
+>
+> 210 qoldirgan uchta qadamdan bloklanmagani — ikkinchisi
+> (`run()` ning SQL qatorlari uchun test). Birinchisi
+> (`ST_AsGeoJSON` ni PostGIS li bazada yurgizish) hamon qilinmadi:
+> disk to'siq emas (`/` da 3.1 GB), PostGIS ko'tarish alohida run.
+>
+> ⚠️ **209-running xulosasi haqiqatning yarmi edi** — «sandboxda
+> `run()` yurmaydi, ya'ni uning ichiga qo'yilgan har qanday qaror
+> o'lchovsiz bo'ladi». Qaror bazaga bog'liq bo'lgani uchun emas,
+> uni **ajratadigan fikstyura yo'q** bo'lgani uchun o'lchovsiz edi.
+> Uchta so'rovning **atrofida** to'rtta qaror qolgan va birortasi
+> ham 5045 testda o'lchanmasdi.
+>
+> 🔴 **Juftlik ro'yxatning tartibi bilan yig'ilardi:**
+> `ReachPair(early=pair[0], late=pair[1])`. Almashuv **jim**
+> bo'lardi — ikkala qator ham to'ladi, `verdicts_differ` ham,
+> `levels_in_dispute` ham simmetrik, ya'ni §2.1 ning butun xulosasi
+> o'zgarmaydi; faqat «erta» yorlig'i ostida kech kesimning javobi
+> turardi. Va aynan kech kesim poroglarni **erishuvchanroq**
+> ko'rsatadi (modul izohi, birinchi 🔴), ya'ni almashuv §12 ni o'zi
+> so'ragan tomonga og'dirardi. Endi o'lchov o'zini yasagan kesim
+> bilan **kalitlanadi**: `measured[cuts.early]`. Kalit ishonchli —
+> `cutoffs()` `until <= since` ni rad etadi.
+>
+> 🔴 **`min_trust_score` ↔ `min_account_age_min`** — ikkita `int`,
+> ikkovi ham `settings` dan: almashuv o'lchovning ikkala yarmini ham
+> jimgina siljitardi. Fikstyurada `TRUST = 77`, `AGE = 33` — ikkovi
+> ham sukut qiymatdan (`30`/`10`) va bir-biridan farq qiladi.
+>
+> 🔴 **Hisobot qurilmaganining ikkita sababi ajratilmagan edi:**
+> mavjud bo'lmagan mintaqa uchun sozlamani o'qigan mutant
+> «sozlanmagan» deb javob berardi. Sozlamaning ikkita nuqsoni
+> (`ConfigMissingError` ↔ `ConfigInvalidError`) esa bir xil rad
+> javobiga olib kelishi shart — bittasini tutmay qoldirgan mutant
+> odamga hisobot o'rniga `traceback` berardi.
+>
+> ⚠️ **`requires_db` ataylab ishlatilmadi:** sandboxda u `skip`
+> bo'ladi, ya'ni yozilgan da'vo o'lchamaydi, faqat o'lchagandek
+> ko'rinadi. O'rniga `session_scope()` soxta sessiyaga almashtiriladi,
+> **so'rovning o'zi saqlanadi** va tekshiruv SQL matnidan emas,
+> `compile().params` dan olinadi (`{"code_1": "jizzax"}` — kalitning
+> nomi ustundan yasaladi).
+>
+> **Qurilgani:** `collect()` da `measured: dict[datetime, ...]`;
+> testda yangi **10-bo'lim** — `Recorded`, `RecordingSession`,
+> `db_half()`, `invocation()`, `found()` va 10 test funksiyasi
+> (parametrlar bilan 12). **5057 passed, 409 skipped** (edi
+> 5045/409), `ruff` toza, migratsiya/sozlama/i18n/API yo'q.
+> **22 mutant — 22 KILLED**, va ikkinchi o'tishda **22 tasining
+> hammasi** 10-bo'limsiz omon qoladi.
+>
+> ⚠️ **Mutatsiya harnessi `python -u` bilan yuritilsin:** buferlangan
+> chiqish `timeout` da yo'qoladi va uzilgan partiya mutant faylni
+> nusxada qoldiradi (`M16`/`M19` shu sababdan `ANCHOR-MISSING` berdi;
+> repo toza qoldi, faqat `/tmp/r211` iflos edi).
+>
+> 👤 `make lint` ning `ruff format --check` qadami hamon qizil
+> (119-rundan beri ochiq savol). Tegilmadi.
+>
+> **Keyingi qadam.** (1) `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish; (2) 👤 `ruff format` darvozasi; (3) `tools/` dagi qolgan
+> asboblarning bazali yarmi (`recluster.py`, `simulate.py`,
+> `region_admin.py`) shu usul bilan o'lchanmagan.
+
+---
+
+
+> ✅ **210-run (2026-08-21) — §3 MAXRAJINING MANBASI ENDI JAVOBDA:
+> `source_line()`, IKKITA TOPILMA VA `Reason.ALL_BLOCKS_UNASSIGNED`.**
+>
+> 209 qoldirgan uchta qadamdan bloklanmagani — §12 ning
+> «Дополнительно» yarmi (`tzsource.BlockRegistry`). Birinchisi
+> (`ST_AsGeoJSON` ni PostGIS li bazada yurgizish) hamon qilinmadi:
+> disk endi to'siq emas (`/` da 3.2 GB), PostGIS ko'tarish alohida run.
+>
+> 🔴 **`BlockRegistry` ning docstringi chaqiruvchidan bitta narsani
+> talab qiladi** — «ular bo'sh emasligini chaqiruvchi **ko'rishi**
+> kerak, aks holda maxraj sababsiz kichrayadi» — va bu talab
+> 194-rundan beri bajarilmagan edi. Ikkita son (`blocks_unassigned`,
+> `blocks_straddling`) `city_context_line()` ning oxirida
+> **maxrajsiz, ulushsiz va hech qanday topilmasiz** chop etilardi:
+> kvartallarining yarmi tumanga tushmagan mintaqada asbob
+> `holat: clean — toza (chiqish kodi 0)` deb yozardi. `biriktirilmagan
+> kvartal 3` esa beshtadan uchtami yoki besh mingdan uchtami degan
+> savolga javob bermaydi.
+>
+> 🔴 **Yo'qotishning ishorasi barqaror emas va ikkita xato
+> bir-birini bekor qiladi.** Tumandan tashlangan kvartal uni
+> **erishilmasroq** ko'rsatadi (`n >= minimum` da `n` kichrayadi),
+> butun tuman ro'yxatdan chiqib ketsa esa shahar maxraji kichrayadi
+> va shahar **erishuvchanroq** chiqadi. Sonlarning ko'rinishi shu
+> sababdan tinch qolardi.
+>
+> 🔴 **Maxraj sanoqning o'zidan olinmaydi:** `blocks_seen =
+> blocks_counted + blocks_unassigned`. `blocks_counted` faqat §3 ga
+> **kirgan** kvartallarni sanaydi, ya'ni yo'qolganlar ta'rifi
+> bo'yicha unda yo'q va nisbat har doim `0` chiqardi.
+>
+> 🔴 **Ikkita ulushning maxraji ataylab har xil va qatorda
+> nomlangan:** biriktirilmagan kvartal maxrajdan chiqib ketadi
+> (maxraji — ko'rilganlar), chegaradagi katak esa unda **qoladi** va
+> faqat qaysi tumanga tushgani tanlanadi (maxraji — biriktirilganlar).
+> Bitta maxrajga keltirish ikkita boshqa nuqsonni bitta shkalada
+> o'qishga majbur qilardi.
+>
+> 🔴 **`UNKNOWN` javobning ikkita sababi ajratildi:**
+> `no_blocks_with_users` («o'lchaydigan narsa yo'q») va
+> `all_blocks_unassigned` («ma'lumot bor, uni biriktirish yo'qotdi»,
+> `05` §5.3). Bitta token ostida turganda hisobot foydalanuvchi yo'q
+> deb **yolg'on** javob berardi.
+>
+> ⚠️ **Topilmalar `coverage_measured` qorovulidan tashqarida.**
+> Sonlar `tzsource` ning to'g'ridan-to'g'ri sanog'i va verdiktga
+> bog'liq emas; qorovul ostida ular eng kerak bo'lgan hisobotda
+> (hamma kvartal biriktirilmagan) jim qolardi. Qoida shu bilan
+> aniqlashdi: u **sonning o'ziga** tegishli, bo'limga emas.
+>
+> **Qurilgani:** `Coverage.blocks_counted` / `blocks_seen` /
+> `unassigned_share` / `straddling_share`, `Reason.ALL_BLOCKS_UNASSIGNED`,
+> `summary()` ga uchta kalit; `tz_check.source_line()`,
+> `city_context_line()` endi `CityReach` oladi, `coverage_block()` ga
+> yangi qator, ikkita topilma. Yangi test fayli yo'q — ikkita yangi
+> bo'lim: `test_tz_check.py` §9 (10 test) va `test_tz_coverage.py` §8
+> (8 test). **5045 passed, 409 skipped** (edi 5027/409), `ruff` toza,
+> migratsiya/sozlama/i18n/API yo'q. **24 mutant — 24 KILLED**,
+> ikkinchi o'tishda **19 tasi faqat shu ikki bo'lim bilan** o'ladi.
+>
+> ⚠️ **Sandbox `/tmp` da 209-rundan tirik qoldi** — `micromamba`
+> qayta yuklanmadi, `/tmp/mamba/envs/py311` joyida. To'plam
+> `/tmp/r210` nusxasida 57 s.
+>
+> 👤 **`make lint` ning `ruff format --check` qadami hamon qizil**
+> (119-rundan beri ochiq savol): `tools/tz_check.py` da `render()`
+> va `tests/test_tz_check.py` da uchta joy. Tegilmadi — `argv = [...]`
+> bloki juftliklar bo'yicha ataylab formatlangan.
+>
+> **Keyingi qadam.** (1) `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish; (2) `run()` ning qolgan uchta SQL qatori uchun
+> `requires_db` testi; (3) 👤 `ruff format` darvozasi.
+
+---
+
+> ✅ **209-run (2026-08-21) — HISOBOTNI YETKAZISH BAZADAN AJRATILDI:
+> `plan()` / `run()` / `finish()` / `deliver()` / `emit()`.**
+>
+> 208 qoldirgan ikkita qadamdan bloklanmagani. Birinchisi
+> (`ST_AsGeoJSON` ni PostGIS li bazada yurgizish) hamon qilinmadi,
+> lekin uning sababi **o'zgardi**: sandbox yangi va `/` da 3.9 GB
+> bo'sh joy bor, ya'ni endi bu disk emas, alohida run ishi.
+>
+> 🔴 **Sakkiz run hisobotning shaklini qulfladi, chokini emas.**
+> 201–208 runlar matn hisobotining har qatorini, bloklarini va
+> ularning tartibini, so'ng `--json` ning to'rt bo'lagini qulfladi.
+> Hisobotning yana bitta yarmi bor: uni **chiqarish**. `--json`
+> bayrog'i qaysi chiqishni tanlashi va chiqish kodi `sh` ga qanday
+> yetishi — ikkala qator ham `run()` ning ichida,
+> `session_scope()` dan **keyin** turardi. `run()` bazasiz
+> chaqirilmaydi, ya'ni butun to'plamda o'sha ikki qatorni yuradigan
+> birorta test yo'q edi: bayroqni teskarisiga burgan yoki har doim
+> `0` qaytargan mutant **4997 testda omon qolardi**, va §12 ni
+> skriptdan yuritgan odam yashil javob olardi.
+>
+> 🔴 **Chiqish kodi endi bayroqdan mustaqil.** U `deliver()`
+> da bir marta olinadi, shoxlarning ichida emas: `--json` javobning
+> **shaklini** tanlaydi, javobning o'zini emas. Kodni ikkala shoxda
+> alohida hisoblagan variant bir xil bazada ikki xil verdikt
+> beradigan asbob yasardi — hisobotni o'qigan odam va uni
+> skriptdan yuritgan CI boshqa javob olardi.
+>
+> 🔴 **Bazaga bog'liq qism qarorsiz qoldirilishi kerak edi.**
+> Birinchi urinishda `deliver()` chaqiruvi `run()` ning oxirgi qatori
+> bo'lib qolgan edi va mutatsiya buni darhol ko'rsatdi: `run()` da
+> `as_json_output=True` ga qotirilgan mutant **omon qoldi**. Sabab
+> tuzatilmaydigan — sandboxda `run()` yurmaydi, ya'ni uning
+> ichiga qo'yilgan **har qanday** qaror o'lchovsiz bo'ladi. Shuning
+> uchun `run()` endi `Report | Delivery` qaytaradi va shakl haqida
+> hech narsa bilmaydi; o'lchanmaydigan qism uchta SQL qatoriga
+> qisqardi.
+>
+> ⚠️ **Ikkita `ast` qorovuli:** `print` faqat `emit()` da va
+> `EXIT_ERROR` ni faqat `failure()` yasaydi (matn qidiradigan qorovul
+> o'z izohiga ilinardi). Uchinchisi `run()` ga qaraydi — unda
+> `deliver`/`emit`/`finish`/`json_text`/`render` chaqiruvi va
+> `EXIT_CODE` ga murojaat bo'lmasligi kerak, ya'ni yetkazish u yerga
+> **qaytib kela olmaydi**.
+>
+> **Qurilgani:** `Delivery`, `failure()`, `json_text()`, `deliver()`,
+> `finish()`, `emit()`, `Invocation`, `plan()`; xato xabarlari
+> konstantaga chiqdi (`REGION_MISSING`, `REGION_UNCONFIGURED`,
+> `BAD_ARGUMENT`, `MIN_EPISODES_TOO_SMALL`). Testda yangi
+> **8-bo'lim** — 23 test funksiyasi (parametrlar bilan 30).
+> `main()` ning butun yo'li endi sandboxda ham yuriladi: bazaga
+> bog'liq yagona funksiya (`run`) `monkeypatch` bilan
+> almashtiriladi. **5027 passed, 409 skipped** (edi 4997/409),
+> `ruff` toza, migratsiya/sozlama/i18n/API yo'q. **19 mutant —
+> 19 KILLED**, ikkinchi o'tish (8-bo'lim `-k` bilan o'chirilgan
+> holda) **12 tasi faqat shu bo'lim bilan** o'lishini ko'rsatdi.
+>
+> ⚠️ **Sandbox noldan qurildi** — `/tmp` bo'sh edi.
+> `/sessions` da 123 MB, `/` da 3.9 GB, ya'ni hamma narsa `/tmp` da.
+> `micromamba` ni yuklab olish **~3 daqiqa** va bitta `bash`
+> chaqiruviga sig'maydi: birinchi urinish timeout bilan uzildi va
+> yarim yuklangan fayl `Segmentation fault` berdi — yuklab olish
+> va ochish **alohida** chaqiruvda. Qolgani tez: `python=3.11` 54 s,
+> `pip` uchta partiyada 45 s. `HOME=/tmp/h`, `TMPDIR=/tmp`,
+> `XDG_CACHE_HOME=/tmp/cache`, `CONDA_PKGS_DIRS=/tmp/mamba/pkgs`,
+> `MAMBA_ROOT_PREFIX=/tmp/mamba`. Nusxa `/tmp/r209` (16 MB), to'liq
+> to'plam 47 s.
+>
+> **Keyingi qadam.** (1) `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish — disk endi bor, PostGIS ko'tarish alohida run;
+> (2) §12 ning «Дополнительно» yarmi
+> (`tzsource.BlockRegistry`) javobga qo'shilsin; (3) `run()` ning
+> qolgan uchta SQL qatori uchun `requires_db` testi.
+
+---
+
+> ✅ **208-run (2026-08-21) — `--json` NING SKELETI BLOKLARGA BOG'LANDI:
+> `report_json_blocks()` — TO'RT BO'LAK, `report_blocks()` TARTIBIDA.**
+>
+> 207 qoldirgan ikkita qadamdan bloklanmagani. Birinchisi
+> (`ST_AsGeoJSON` ni PostGIS li bazada yurgizish) hamon bloklangan —
+> `/` da 53 MB, `/sessions` da 123 MB bo'sh joy.
+>
+> 🔴 **Hisobotning ikkinchi chiqishi o'lchovdan tashqarida qolgan edi.**
+> 201–207 runlar matn hisobotining shaklini ketma-ket qulfladi: har
+> qatorni ayri funksiyaga chiqarish, so'ng bloklarni va ularning
+> tartibini. Hisobotning esa **ikkita** chiqishi bor va ikkinchisi —
+> `as_json()` — o'sha yetti run davomida sakkizta kalitli yassi lug'at
+> bo'lib qoldi. Uning kalitlari hisobotning to'rt savoli bilan hech
+> qayerda solishtirilmagan: matnda bloki bor lekin JSON da kaliti yo'q
+> savol skriptga «bu savol berilmadi» degan **yolg'on javob** bo'lardi.
+>
+> 🔴 **`cutoff_decides` va `levels_in_dispute` umuman qulflanmagan
+> ikkita kalit edi.** Ularni tashlab ketgan yoki doim bo'sh qaytargan
+> mutant `--json` ni o'qiydigan skriptga «javob barqaror» deb
+> ko'rsatardi, holbuki butun asbob ikkita kesimni aynan shu farq uchun
+> yonma-yon o'lchaydi.
+>
+> 🔴 **`clean_report()` da ikkala kesim bitta obyekt.** Mavjud da'vo
+> `--json` ning ikkala yarmini modul `summary()` i bilan
+> solishtiradi, lekin fikstyurada `early` bilan `late` — aynan bitta
+> o'lchov, ya'ni ularni almashtirgan mutant o'sha testda ikkala tomonni
+> ham to'g'ri qoldirardi. Shart to'g'ri, uni ajratadigan holat yo'q.
+>
+> 🔴 **«Topilma yo'q» ni `--json` da o'chirib bo'lardi:** `findings` ni
+> har doim bo'sh qaytargan mutant butun to'plamda omon qolardi, chunki
+> yagona da'vo (`payload["findings"] == []`) **toza** hisobotda
+> o'lchanadi va o'z-o'zidan bajariladi.
+>
+> ⚠️ **Ikkita yangi qoida:** bo'lak hech qachon bo'sh emas (blokning
+> yo'qolmasligi bilan bir xil, faqat mashina tomonida) va kalit ikkita
+> bo'lakka tegishli bo'lmaydi — aks holda birlashtirish bittasini
+> jimgina yutardi va hisobot o'z sonini o'zi yo'qotardi.
+>
+> **Qurilgani:** `header_json()`, `reach_json()`, `coverage_json()`,
+> `findings_json()`, `report_json_blocks()`; `as_json()` da endi na
+> kalit, na tartib bor — u bo'laklarni bitta yassi lug'atga qo'shadi,
+> xuddi `render()` ning `BLOCK_SEPARATOR.join(...)` i kabi. Xulosa
+> (`cutoff_decides`, `levels_in_dispute`) ataylab §2.1 bo'lagida:
+> u ikkita o'lchovga tegishli, hisobotning verdiktiga emas (204-run).
+> Testda yangi «6d» bo'limi, `JSON_BLOCK_KEYS` **literal** jadval
+> (birinchi bo'lagi — `ARGUMENT_KEYS` ning o'zi), `every_shape()` —
+> hisobotning beshta shakli, va oltita test. **4997 passed, 409
+> skipped** (edi 4991/409), `ruff` toza, migratsiya/sozlama/i18n/API
+> yo'q. **16 mutant — 16 KILLED**, va ikkinchi o'tish (yangi bo'lim
+> `-k` bilan o'chirilgan holda) tekshirilgan o'ntadan **yettitasi**
+> faqat shu bo'lim bilan o'lishini ko'rsatdi.
+>
+> ⚠️ **Bu runda stekdan 194–206 yozuvlari beixtiyor o'chdi.**
+> Tepadagi yozuvni almashtirish uchun matn «bo'lim boshidan birinchi
+> `---` gacha» kesilgan, o'sha `---` esa 193-yozuvdan oldin turgan
+> ekan — yozuvlar orasida ajratgich yo'q. Mazmun yo'qolmadi (har
+> running sessiya fayli, INDEX qatori va `PROGRESS.md` dagi «Oldingi
+> run» qatori joyida), lekin bu ataylab qilingan tozalash emas —
+> `PROGRESS.md` ning «Ochiq savollar» iga 👤 bilan yozildi. Keyingi
+> agentga: kesim chegarasi keyingi yozuvning `> ✅ **NNN-run`
+> qatoridan olinsin.
+>
+> ⚠️ **Sandbox retsepti (207 dan o'zgarmadi):** `/dev/shm` har bash
+> chaqiruvida tozalanadi — nusxa, mutatsiya va o'lchov **bitta**
+> chaqiruvda. `.git`, `*.png` va `index (4).html` chiqarilgan repo
+> nusxasi + to'liq to'plam + `ruff` = 45 s. Muhit:
+> `/tmp/mamba/envs/py311`.
+>
+> **Keyingi qadam.** (1) ⛔ `ST_AsGeoJSON` yo'lini PostGIS li bazada
+> yurgizish (disk); (2) hisobotning **ikkala** chiqishi ham endi shakl
+> tomonidan qulflangan, lekin uni **yetkazish** qulflanmadi: `run()`
+> da `--json` bayrog'i qaysi chiqishni tanlashi va chiqish kodi `sh` ga
+> qanday yetishi bitta joyda ham o'lchanmagan (`run()` bazasiz
+> chaqirilmaydi, mavjud ikkita test faqat argument xatosining erta
+> yo'lini yuradi).
 ---
 
 > ✅ **193-run (2026-08-20) — §12 NING TEKSHIRUVI ENDI
@@ -7625,6 +8317,22 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 
 | # | Fayl | Session ID | Mavzu | Natija |
 |---|---|---|---|---|
+| 219 | [geo_api_tanasi](219_geo_api_tanasi_92875ffc.md) | `local_92875ffc` | `app/api/v1/geo.py` (446 q.) ning tanasi — 218 qoldirgan ikkita nomzoddan kattarog'i, va uning «PostGIS bilan bitta devor» ehtiyoti **tasdiqlanmadi**: `ST_AsGeoJSON` so'rov qatlamida, handler ga poligon satr bo'lib keladi. Bazasiz testlar bor edi, lekin ular ataylab **eshikni** o'lchardi (`test_geo_api.py` ning o'z izohi shuni yozadi); o'nta nom butun `tests/` da nol marta chaqirilardi. Qulflangani: `_tolerance_m` ning ikkala qirrasi (`0` — so'ralgan qiymat, `max` — hali yaroqli), `geometry=false` ning uchala ta'siri, ODbL atributsiyasining juftlanishi, `available` ning ikkinchi so'rovi faqat bo'sh kesimda, `registry` ning uchta soni, til `language_for` dan va `Vary` ning ikki endpointdagi farqi | ✅ `tests/test_geo_api_handlers.py` (82 test); kodga tegilmadi. 5650 passed, 410 skipped (edi 5568/410), ruff toza. **90 mutant — 90 KILLED** (6 survivor yopildi, 1 ekvivalent); ⚠️ `sveta/tools/_mut219.py` bo'shatildi, o'chirish 👤 da |
+| 218 | [tz_api_tanasi](218_tz_api_tanasi_52dd5433.md) | `local_52dd5433` | `app/api/v1/tz.py` (447 q.) ning tanasi — 217 qoldirgan ikkita nomzoddan kattarog'i (13/19 nom `tests/` da uchramaydi). Bazasiz yagona murojaatlar `403` eshigi edi: handler ning birinchi qatori ham bajarilmasdi, ma'lumot yo'li esa `requires_db` ostida. O'nta javob juftligi, to'rtta yig'indi, Т-4 ning yagona soati, §7 ning `_params` i va chaqiruvlarning tartibi qulflandi | ✅ `tests/test_tz_api_handlers.py` (88 test); kodga tegilmadi. 5568 passed, 410 skipped (edi 5480/410), ruff toza. **80 mutant — 80 KILLED** |
+| 217 | [stats_api_tanasi](217_stats_api_tanasi_b231f9ab.md) | `local_b231f9ab` | `app/api/v1/stats.py` (530 q.) ning tanasi — 216 qoldirgan ikkita nomzoddan kattarog'i. Modulning yagona to'liq testi `requires_db` ostida, ya'ni `03` §R1.2 ning butun vitrinasi (Coverage Index, chuqurlik, chegara versiyasi, mahalla qamrovi, davomiylik kesimi, CSV) bazasiz to'plamda bir marta ham qurilmagan edi. O'n to'rtta javob modelidagi o'n bir juft bir turdagi maydon jim almashardi; `mahallas.available` ni `truncated` ga ulagan mutant birinchi o'tishda omon qoldi (E17 gacha jadval bo'sh, ya'ni yolg'on har javobda ko'rinardi); `_bucket_out` ning `statuses()` ↔ xom `by_status` ajrimi; `_report` ning to'rt qadamli tartibi va analitikaning uchta qarori (`region` hisobotdan, filtrlar `None`, `period` hal qilingan oynadan). Usul 216 niki: handler FastAPI siz chaqiriladi, sakkizta modul chegarasi yozib oladigan o'rinbosarga almashadi. Yangi 🟡 savol: `/stats` va `/heatmap` bir xil buzuq so'rovga `404` va `422` beradi — tartib `05` §7.2 da yozilmagan, kod tegilmadi | ✅ `03` §R1.2 vitrinasi; 5480 test (+66), `requires_db` 410 (o'zgarmadi), migratsiyasiz, ruff yashil; 60 mutant — 60 KILLED |
+| 209 | [yetkazish](209_yetkazish_11608c91.md) | `local_11608c91` | 208 qoldirgan ikkita qadamdan bloklanmagani: hisobotning **shakli** sakkiz run davomida qulflangan, uni **yetkazish** esa umuman o'lchanmagan edi — `--json` bayrog'i qaysi chiqishni tanlashi va chiqish kodi `sh` ga qanday yetishi `session_scope()` dan keyingi qatorlarda turardi, ya'ni bazasiz yurilmaydigan joyda. Yo'l to'rtga bo'lindi: `plan()` (argumentlar → `Invocation` yoki xato, toza), `run()` (bazaga bog'liq **yagona** qism, endi `Report | Delivery` qaytaradi), `finish()`/`deliver()` (hisobot + bayroq → matn va kod) va `emit()` (yagona `print`). Chiqish kodi bayroqdan **mustaqil** — aks holda hisobotni o'qigan odam va uni skriptdan yuritgan CI bir xil bazada ikki xil verdikt olardi. Birinchi urinishda `deliver()` `run()` da qolgan edi va mutant omon qoldi: sandboxda `run()` yurmaydi, ya'ni undagi har qanday qaror o'lchovsiz. `main()` ning butun yo'li endi `run()` ni `monkeypatch` bilan almashtirib yuriladi. Ikkita `ast` qorovuli: `print` faqat `emit()` da, `EXIT_ERROR` faqat `failure()` da | ✅ §12 yetkazish; 5027 test (+30), `requires_db` o'zgarmadi, migratsiyasiz, ruff yashil; 19 mutant — 19 KILLED |
+| 208 | [json_skeleti](208_json_skeleti_8cf44101.md) | `local_8cf44101` | 207 qoldirgan ikkita qadamdan bloklanmagani: hisobotning **ikkinchi** chiqishi — `--json` — endi matn bloklariga bog'landi. 🔴 201–207 runlar matn shaklini ketma-ket qulflagan, `as_json()` esa o'sha yetti run davomida sakkizta kalitli yassi lug'at bo'lib qolgan va uning kalitlari hisobotning to'rt savoli bilan hech qayerda solishtirilmagan edi — matnda bloki bor lekin JSON da kaliti yo'q savol skriptga «bu savol berilmadi» degan yolg'on javob bo'lardi. 🔴 `cutoff_decides` va `levels_in_dispute` umuman qulflanmagan; 🔴 `clean_report()` da ikkala kesim **bitta obyekt** bo'lgani uchun `reach_early` ↔ `reach_late` almashuvi ko'rinmasdi; 🔴 `findings` ni doim bo'sh qaytargan mutant ham omon qolardi (yagona da'vo toza hisobotda o'lchanadi va o'z-o'zidan bajariladi). Ikkita yangi qoida: bo'lak hech qachon bo'sh emas va kalit ikkita bo'lakka tegishli bo'lmaydi (birlashtirish bittasini jimgina yutardi). Xulosa ataylab §2.1 bo'lagida — u o'lchovlarga tegishli, verdiktga emas (204-run). `header_json()`, `reach_json()`, `coverage_json()`, `findings_json()`, `report_json_blocks()`; testda «6d» bo'limi, `JSON_BLOCK_KEYS` literal jadval va `every_shape()` (beshta shakl) | ✅ `--json` ning shakli; 4997 test (+6), migratsiya/sozlama/i18n/API yo'q, ruff yashil; 16 mutant — 16 KILLED, o'ntadan yettitasi faqat yangi bo'lim bilan |
+| 207 | [hisobot_skeleti](207_hisobot_skeleti_5a4fc7f9.md) | `local_5a4fc7f9` | 206 qoldirgan ikkita qadamdan bloklanmagani: hisobotning **skeleti** jadvalga chiqdi — `report_blocks()` (to'rt blok, tartibda), `reach_block()`, `coverage_block()`, `BLOCK_SEPARATOR`; `render()` da endi na f-satr, na tartib qoldi. 🔴 Bloklarning tartibi `render()` ning tanasida yashardi va uni faqat uchta boshqa savol haqidagi da'vo qisman ushlardi; 🔴 ajratgich bo'sh qator uch joyda alohida yozilgan edi (biri `findings_lines()` ning ichida). Yagona ajratgichdan blokning ichida bo'sh qator bo'lmasligi qoidasi chiqdi — hisobot endi `split(BLOCK_SEPARATOR)` bilan o'qiladi | ✅ 4991 passed, 409 skipped (+7), migratsiyasiz, `ruff` yashil; **16 mutant — 16 KILLED**; ⛔ `ST_AsGeoJSON` hamon disk sababli bloklangan |
+| 206 | [sarlavha_bloki](206_sarlavha_bloki_e5cb9c83.md) | `local_e5cb9c83` | 205 qoldirgan ikkita qadamdan bloklanmagani (`ST_AsGeoJSON` hamon disksiz: `/` 62 MB, `/sessions` 124 MB). To'rtta 🔴: (1) **bitta o'lchovning ikkita mustaqil nusxasi** — yetti argument (`region`, `since`, `until`, `cutoff_early`, `cutoff_late`, `min_account_age_min`, `min_episodes`) ikkala chiqishda ham bor, lekin matn sarlavhasi ularni `render()` ning f-satrida, `--json` esa `as_json()` ning lug'atida yasardi va hech narsa ularni solishtirmasdi; matndagi `erta`/`kech` ni almashtirgan mutant JSON ni to'g'ri qoldiradi, ya'ni §12 ning javobi qaysi chiqishni o'qiganingga bog'liq bo'lardi. `Report.arguments` — yagona jadval, `as_json()` uni `**` bilan yoyadi, sarlavha qatorlari kalit bo'yicha o'qiydi; testdagi `ARGUMENT_KEYS` **literal** (jadvalni o'lchanayotgan koddan olish javobni har doim rost qilardi). (2) `verdikt:` **ikki savolga** javob berardi — §3 ning sarlavhasi va `DIFFER_LABEL` (204-run) bir xil prefiksda; `DECIDER_LABEL` ning `ulush` i (201) va `HIGH_LABEL` ning `ok` i (203) minasining uchinchi nusxasi → `COVERAGE_HEAD_LABEL = "zona"`. (3) 205 ning «birorta o'lchov f-satri qolmadi» xulosasi **noto'g'ri** edi: `  verdikt: {verdict} ({reason})` §3 ning butun yarmi haqidagi xulosani o'lchardi → `coverage_head_line()`, `reach_head_line()` ning juftligi; **endi** `render()` da haqiqatan birorta f-satr yo'q. (4) `erta`/`kech` uch joyda alohida yozilgan edi — bitta joydagi tahrir hisobotni o'zi bilan ziddiyatga solardi (tepada `erta {sana}`, pastda o'sha kesim `kech kesim` sarlavhasi ostida); `EARLY_WORD`/`LATE_WORD` yagona juftlik, sarlavhalar hosila. Yangi test har yorliqni butun hisobotda **aynan bir marta** deb sanaydi | ✅ `05` §12 asbobi; 4984 test (+10), `requires_db` o'zgarmadi, migratsiyasiz, ruff yashil; **22 mutant — 22 KILLED** |
+| 205 | [yakuniy_blok](205_yakuniy_blok_957e8981.md) | `local_957e8981` | 204 qoldirgan ikkita qadamdan bloklanmagani (`ST_AsGeoJSON` hamon disksiz). `render()` ning **yakuniy bloki** ayri funksiyalarga chiqdi — 201/202/203/204 naqshining beshinchi va oxirgi nusxasi; shundan keyin `render()` da o'lchov haqidagi birorta f-satr qolmadi. To'rtta 🔴: (1) `topilma yo'q` ikki xil narsani anglatardi — `Report.findings` o'lchanmagan yarmidan topilma chiqarmaydi, ya'ni bo'shlik «o'lchandi va toza» bilan «o'lchanmadi» ni ajratmasdi (`NO_FINDINGS_LINE` ↔ `NO_FINDINGS_UNMEASURED_LINE`); (2) bo'sh bo'lmagan ro'yxat ham to'liq ro'yxatdek chiqardi, holbuki u faqat o'lchangan yarmidan yig'ilgan (`FINDINGS_HEAD` ↔ `FINDINGS_PARTIAL_HEAD`); (3) to'liqlikni `Status` dan o'qib bo'lmaydi — qamrov qarzi holatni `UNMEASURED` qiladi, lekin ikkala yarmi ham o'lchangan bo'ladi, shuning uchun yangi `Report.findings_complete`; (4) `holat:` qatorining shakli qulflanmagan edi — yagona da'vo `Status.CLEAN.value in text`, chiqish kodi esa matnda umuman o'lchanmagan. `status_line()` uchala bo'lakni birga beradi (token → `grep`, `STATUS_LABEL` ning so'zi → odam, kod → `sh`); `STATUS_LABEL` — 204 olib tashlagan `True`/`False` literalining oxirgi nusxasi. Alohida test to'rtala sarlavha va uchala holat so'zi o'zaro «ichida» emasligini sanaydi — `!=` yetmaydi | ✅ `05` §12 asbobi; 4974 test (+11), `requires_db` o'zgarmadi, migratsiyasiz, ruff yashil; **20 mutant — 20 KILLED** |
+| 203 | [daraja_qatorining_shakli](203_daraja_qatorining_shakli_84d48019.md) | `local_84d48019` | 202 qoldirgan ikkita qadamdan bloklanmagani (`ST_AsGeoJSON` hamon disksiz). 🔴 `ok` **bitta hisobotda ikkita savolga** javob berardi: daraja qatori `'YUQORI' if looks_high else 'ok'` bilan tugardi, tuman qatori esa `'ok' if reachable` bilan — biri «porog yuqorimi», ikkinchisi «tuman erishuvchanmi». `"ok" in text` turidagi har qanday da'vo o'z-o'zidan bajarilardi va daraja verdiktini butunlay olib tashlagan mutant omon qolardi (201-run ning `ulush` minasining **ikkinchi nusxasi**). `HIGH_LABEL`: `porog: ok` ↔ `porog: YUQORI`. 🔴 Qatorning shakli umuman o'lchanmagan edi — yagona da'vo `"sonlar yo'q" in text`, ya'ni faqat *o'lchanmagan* holat; `reach_head_line()`/`level_line()`/`histogram_text()`/`reach_lines()` ajratildi, `NO_LEVELS_LINE` konstanta bo'ldi. 🔴 Sonlarning yorlig'i yo'q edi: `house 3/8 (44%)` `kvartal 5/9` va `qamrov: 44%` ga belgima-belgi o'xshardi — `yetdi` va `guvohlar` qo'shildi; bo'sh gistogramma `[]` emas, `-` (`{0: 8}` — o'lchangan javob, `{}` — o'lchov yo'q). 🔴 **Mutatsiya haqiqiy survivor topdi:** `render()` da erta va kech kesimni almashtirgan mutant hech qanday da'voni yiqitmadi, chunki hamma `render` testi ikkala kesimga ham **bir xil** `Reachability` berardi — fikstyura ajratmasa, qulf yo'q. Ikkinchi survivor (`.rstrip()`) **ekvivalent** bo'lib chiqdi va ro'yxatdan olindi. 🔴 `one_level()` ning teskari holatida `window_only == 0` edi va verdiktni oyna qarzidan olgan mutant omon qolardi — `reached_ever=8` qilindi | ✅ 4951 test (+10), `ruff` toza, migratsiya/sozlama/i18n/API yo'q, 20 mutant — 20 KILLED |
+| 202 | [shahar_satri](202_shahar_satri_9e1f4092.md) | `local_9e1f4092` | 201 qoldirgan ikkita qadamdan bloklanmagani (`ST_AsGeoJSON` hamon disksiz). 🔴 Bir xil savolga **ikkita daraja ikki xil to'liqlikda** javob berardi: tuman qatori `kerak 4 (ulush 3) qaror: eng-kam-son` deydi, shahar satri esa faqat `kerak 3` derdi — `CityReach.share_part` na matnda, na `tzcoverage.summary()` da bor edi, ya'ni javob faqat `coverage.minimum_decides:city` topilmasida, **bayroq shaklida va sonsiz** qolardi. 🔴 Sababi — shakl chaqiruvchida: shahar kalitlari `summary()` ning ichida yasalardi. `city_summary()` ajratildi, `summary()` uni `**` bilan oladi va kalitlar **eski nomi** bilan qoladi; ichma-ich `"city": {...}` varianti rad etildi (bitta mapping ichida bir xil sonning ikkita nomi). 🔴 `city.coverage` `--json` da yo'q edi, `over_capacity` esa hech qayerda yo'q edi — endi ikkovi ham kesimda va matnda qamrov soni yonida `OVER_CAPACITY_LABEL` turadi; yangi **topilma** qo'shilmadi, chunki `coverage.unknown_district` kuchliroq. 🔴 «Hamma javobi bo'yicha teskari» — yetarli shart emas: ikkala fikstyurada ham `minimum_decides == reachable` bo'lib chiqdi va yorliqni erishuvchanlikdan olgan mutant omon qoldi; `render` da'vosi ham `known=True/False` bo'yicha parametrlandi (yorliq bo'sh bo'lganda eski f-satr yangi funksiya bilan bir xil chiqadi) | ✅ 4941 test (+12), `ruff` toza, migratsiya/sozlama/i18n/API yo'q, 16 mutant — 16 KILLED |
+| 201 | [tuman_qatorining_shakli](201_tuman_qatorining_shakli_b383b877.md) | `local_b383b877` | 200 qoldirgan ikkita qadamdan bloklanmagani (`ST_AsGeoJSON` hamon disksiz). 🔴 Bitta qatorda `ulush` **ikki xil savolga** javob berardi: `kerak 4 (ulush 4) ulush` — birinchisi `share_part` ning nomi, ikkinchisi `minimum_decides` ning verdikti. Na odam, na `grep` ajratmasdi, va verdiktni o'lchaydigan har qanday da'vo (`"ulush" in text`) sonning yorlig'i tufayli o'z-o'zidan bajarilardi — verdiktni butunlay olib tashlagan mutant omon qolardi. `DECIDER_LABEL` literal jadvali (`qaror: ulush` ↔ `qaror: eng-kam-son`), prefiks `CONTAINMENT_LABEL` nikiga juft. 🔴 Qatorning shakli o'lchanmagan edi — `render()` ichidagi to'qqiz bo'lakli f-satr; yagona da'vo turi «butun hisobotdan bo'lak qidirish» bo'lakning **borligini** o'lchaydi, qaysi maydondan kelganini emas. `district_line()` ajratildi (`district_summary()` ning odam o'qiydigan tomoni), chekinish ham funksiya ichida. 🔴 Fikstyura maydonlarni bir-birining nusxasi qiladi (200-run M6 ning minasi, ikkinchi juftlikda): `districts={name: name}` → `district_id == code`, sakkiz kvartalda `need == share_part`. Yangi `one_district()` `DistrictReach` ni to'g'ridan-to'g'ri yasaydi, ikkita qator to'liq `==` bilan qulflandi. ⚠️ 200-run arxiv faylini yaratmagan edi — `local_07da1a4c` topildi va tiklandi | ✅ 4929 test (+5), `ruff` toza, migratsiya/sozlama/i18n/API yo'q, 13 mutant — 13 KILLED |
+| 200 | [tuman_kesimi_json](200_tuman_kesimi_json_07da1a4c.md) | `local_07da1a4c` | ⚠️ Qayta tiklangan qisqa qayd (200-run arxiv yaratmagan). `tz_check --json` da tuman qatori umuman yo'q edi: yig'ma ro'yxatlar tumanning **nomini** beradi va sonini bermaydi. 🔴 Ikkinchi topilma: `capacity_conflict` — bayroqning **sababi** va `over_capacity` yonmaganda `NONE`, ya'ni poligoni umuman o'qilmagan, lekin qamrovi joyida bo'lgan tumanda `kvartal 8/12` qatori o'lchangan `67 %` dek o'qilardi. `containment` endi qatorda ham, matn hisobotining har satrida ham shartsiz. Qator ro'yxatni almashtirmaydi (ro'yxat — javob, qator — dalil); shakl modulniki (`tzcoverage.district_summary()`, `as_json` da bitta ham satr o'zgarmadi). M6 sakkiz kvartalli fikstyurada omon qolgan — teskari tuman qo'shildi | ✅ 4924 test (+8), `ruff` toza, migratsiyasiz, 16 mutant — 16 KILLED |
+| 199 | [hisobot_topshiriqni_aytadi](199_hisobot_topshiriqni_aytadi_f1c6e61c.md) | `local_f1c6e61c` | 198 qoldirgan ikkita qadamdan **bloklanmagani** (birinchisi — `ST_AsGeoJSON` ni PostGIS li bazada yurgizish — hamon ⛔, `/` da 90 MB, `/sessions` da 126 MB bo'sh). 198-run jurnalga **ikkita ayrim** hodisa qo'ygan edi (`coverage.cells_estimated` — poligonning o'zi yo'q, ish chegara reyestrida; `coverage.cells_not_upper_bound` — poligon bor, `overlap` sanog'i yo'q, ish `h3` ning eksperimental API sida) va ularni ataylab qo'shmagan edi. `tz_check` esa ikkovini bitta yorliq va bitta topilma bilan chiqarardi — odam jurnaldagi ikkita qatorni hisobotdagi bitta bayroq bilan solishtira olmasdi va **qaysi ishni qilish kerakligi hisobotdan umuman o'qilmasdi**. 🔴 **Bitta shart ikkita qarzni ajratmaydi:** ikkalasida ham `is_upper_bound_safe` `False`, ajratuvchi — ikkinchi savol `cellfit.is_counted`; yangi qoida yozilmadi, `capacity_conflict` ikkala mavjud funksiyani ham chaqiradi. 🔴 **`containment is None` `ESTIMATED` tomonga tushadi** — ma'nosi noma'lum son sanoq deb o'qilsa, qarz `h3` ga ag'darilib chegara reyestridagi ish ko'rinmas bo'lardi. 🔴 **Ro'yxatlar qo'shilmadi** (uchtasi ayrim qoladi), **holat esa bitta**: `has_capacity_debt` — «hammasi o'lchandimi» degan savol qarzning turini so'ramaydi. 🔴 **Nomlar tashqi kontrakt:** enum qiymatlari jurnalning hodisalari bilan bir xil atalgan va literal jadval bilan qulflangan, yorliqlar ham (198-run M7 aynan shu joyda omon qolgan edi). ⚠️ Mount da `rm` ishlamaydi, shu sababdan mutatsiya harnessi repoda qoldi va umumiy holga keltirildi (`scripts/mut199.py`, jadval repo tashqarisidagi JSON dan) | ✅ E14 hisoboti; 4916 test (+5), migratsiya/sozlama/i18n/API yo'q, ruff yashil; 14 mutant — 14 KILLED |
+| 198 | [maxraj_nuqsonlari](198_maxraj_nuqsonlari_60b05e47.md) | `local_60b05e47` | 197 qoldirgan ikkita qadamdan **bloklanmagani** (birinchisi — `ST_AsGeoJSON` ni PostGIS li bazada yurgizish — hamon ⛔, disk 99 % to'la). Bitta `Containment` ustidan ikkita har xil savol so'ralardi va har biri o'z shartini o'zi yozgan edi: `refresh_coverage` jurnali `containment is ESTIMATE` («poligon o'qildimi»), `tzcoverage.capacity_conflict` esa `cellfit.is_upper_bound_safe` («maxraj ishonchli tepa chegarami», faqat `OVERLAP`). Ularning **orasiga** `Containment.CENTER` tushardi va jimgina o'tardi: jurnalda hech narsa yo'q, `territory_stats.populated_cells` ga esa markazi tashqarida qolgan chekka katakni tashlagan maxraj yozilardi — `cells_with_reports` o'sha katakni sanashi mumkin, ya'ni `06` §5.3 nisbati birdan oshadi va `tz_check` `DENOMINATOR_NOT_UPPER_BOUND` bayrog'ini **izsiz** ko'taradi. Qaror: `cellfit.is_counted()` — ikkinchi qoida modul funksiyasiga (197 bilan bir xil sabab: chaqiruvchi `containment` ni sonidan ayri olib yuradi, bu safar `TerritoryGeometryFacts`), `CellCount.exact` unga bog'landi; test ikkala qoidaning `CENTER` da **ajralishini** ochiq da'vo qiladi. Jurnalda ikkita ayrim hodisa (`coverage.cells_estimated` ↔ `coverage.cells_not_upper_bound`) — qo'shilsa o'lchov qarzining sababi yo'qolardi: birinchisi chegara reyestrini, ikkinchisi `h3` ning `overlap` sanog'ini talab qiladi. Mutatsiya M7 (ikkala nomni tenglashtirish) birinchi o'tishda **survivor** edi — testlar konstantaga murojaat qiladi, nomlar endi literal jadval bilan qulflangan | ✅ E14 jurnali; 4911 test (+3), migratsiya/i18n/API yo'q, ruff yashil; 13 mutant — 13 KILLED |
+| 197 | [qamrov_ziddiyatining_sababi](197_qamrov_ziddiyatining_sababi_7e9ef87e.md) | `local_7e9ef87e` | 196 qoldirgan ikkita qadamdan **bloklanmagani**: `over_capacity` bitta bayroq ostida ikkita boshqa narsani anglatardi. 196-run maxrajni sanaydigan qildi va bayroqni «kvartallar poligondan tashqarida» deb o'qishga ruxsat berdi, lekin **poligoni o'qilgan** hududda; o'qilmaganda maxraj yuzadan baholanadi va mahalla o'lchamida bir necha barobar kichik chiqadi, ya'ni bayroq o'lchov nuqsonidan yonadi — hisobot esa odamni mavjud bo'lmagan ziddiyatni qidirishga yuborardi. 🔴 **Ajratuvchi belgi `exact` emas, `is_upper_bound_safe`:** `Containment.CENTER` ham sanoq (`exact is True`), lekin chekka katakni tashlab ketadi — `exact` bo'yicha ajratgan kod uni topilma deb o'qirdi; qoida `CellCount` xossasidan modul funksiyasiga chiqarildi (yangi chaqiruvchi `containment` ni **sonidan ayri** olib yuradi). 🔴 **Bayroq sababdan mustaqil qoldi** — sababni `over_capacity` shartiga qo'shish o'lchanmagan hududda bayroqni o'chirardi; `capacity_conflict` avval sonni, keyin ma'noni qaraydi. 🔴 **Sukut qiymat berilmadi** (`blocks_containment` bo'sh bo'lsa hamma hudud «o'lchanmagan» bo'lardi) va shu bilan bir xil mina `to_facts` da ham bor edi: `geometry` — `Iterable`, undan endi ikkita xarita quriladi, generator ikkinchi o'tishda bo'sh bo'lardi (`list(geometry)`). 🔴 **«O'lchanmadi» «o'tdi» emas:** `coverage.capacity_unmeasured` `Status.UNMEASURED` beradi (kod `3`), `FINDINGS` emas; geometriyasi umuman yo'q tuman esa ikkala ro'yxatga ham kirmaydi. `CapacityConflict` (3 qiymat), `Coverage.districts_outside_polygon`/`districts_capacity_unmeasured`, `tz_check.CONFLICT_LABEL` + ikkita `Finding` | ✅ 196 ning 2-qadami; 4907 test (+9), `requires_db` o'zgarmadi, migratsiyasiz, ruff yashil; 12 mutant — 12 KILLED; ⛔ PostGIS (`/` 99 % to'la) |
+| 196 | [h3_qoplama_sanogi](196_h3_qoplama_sanogi_bef56bc3.md) | `local_bef56bc3` | 195 qoldirgan ish: `geo.queries._geometry_facts` ning taxminiy qamrovi. Son `territory_stats.populated_cells` ga yoziladi va u yerdan `06` §5.3 ning `cell_coverage_ratio` iga, masshtab narvoniga, Coverage Index ga va `01` §16 ning mahalla indeksiga boradi — ya'ni o'lchanmagan taxmin tasdiqlashning maxraji edi. O'lchandi (Samarqand kengligi, r9, `overlap`): xato **ishorasini o'lchamga qarab o'zgartiradi** — 0.04 km² da taxmin/sanoq `0.33`, 0.95 km² da `0.60`, 23.7 km² da `1.00`, 94.8 km² da `1.09`. Ikki mustaqil sabab: perimetr (kichik hududda ustun, maxrajni kichraytiradi → **optimistik**) va global o'rtacha katak maydoni (Samarqandda haqiqiysidan ~18 % kichik → ehtiyotkor). Ular bir-birini qisman bekor qilgani uchun formula «ishlayotgandek» ko'rinardi. Qaror: kengaytma bazada yo'q, lekin `h3` **Python tomonda bor** va poligon `ST_AsGeoJSON` bilan olib kelinadi — yangi toza `app/geo/cellfit.py` (`Containment`/`CellCount`/`Fit`, `contain='overlap'`, chunki chekkadagi xabarning katagi markazi bilan tashqarida bo'lishi mumkin). `data_quality` **ko'tarilmadi**: aniqlashgani maxraj, bino ma'lumoti emas. `refresh_coverage` baho qolgan hududni `coverage.cells_estimated` bilan yozadi. `over_capacity` endi «taxmin noto'g'ri» emas, «kvartallar poligondan tashqarida» (`tz_check` yorlig'i ham) | ✅ `06` §3.1 maxraji; 4898 test (+26), ruff yashil, migratsiyasiz; ⚠️ `ST_AsGeoJSON` bazada yurgizilmadi |
 | 195 | [TZ12_chaqiruvchi](195_TZ12_chaqiruvchi_b7df5db9.md) | `local_b7df5db9` | §12 ning ikkala yarmi ham chaqiruvchiga ega bo'ldi — `tools/tz_check.py`. 193/194 ning modullariga `app/` da birorta chaqiruv yo'q edi. Asosiy qaror: **kesim sanasi javobni tanlaydi**, shuning uchun o'lchov ikki marta yuritiladi (erta/kech) va farq `reach.cutoff_decides` bilan nomlanadi — rad etilgani: bittasini tanlab izohda yozib qo'yish (yozilgan og'ish baribir og'ish) va `tzreach.load()` ni har hodisa uchun o'z kesimini hisoblaydigan qilib qayta yozish (mahsulot bilan «bir xil so'rov» kafolatiga tegadi — alohida ish). Ikkinchi qaror: **«o'lchanmadi» «o'tdi» emas** — to'rtta chiqish kodi va `3 > 2` ustunligi. Skript hech narsa yozmaydi; `--min-episodes` ning sukut qiymati yo'q; zonasiz sana UTC. `tzreach.summary()` qo'shildi — shakl modulda yashaydi. Mutatsiya ikkita o'lchanmagan qorovulni ochdi (bo'sh `levels` himoya qilardi; `levels_that_look_high` `levels` dan ajratilmagan edi) | ✅ §12 kod tomondan tugadi; 5279 test (+42), `requires_db` 408 (o'zgarmadi), migratsiyasiz, ruff yashil; 14 mutant — 14 KILLED |
 | 194 | [tz_qamrov](194_tz_qamrov_eloquent.md) | `local_eloquent-affectionate-rubin` | §12 ning «Дополнительно» yarmi — §3 ning poroglari bugungi reyestrlardan erishuvchanmi. Uchta qaror: 🔴 shaharning porogi tumanlarning **natijasidan** yig'iladi, ya'ni foydalanuvchisi bor lekin `district_block_min` dan kichik tuman maxrajni ko'taradi va sanoqqa hech qachon kira olmaydi — bir xil uchta yaxshi tuman qo'shnilarining soniga qarab shaharni tasdiqlaydi (3/3) yoki tasdiqlamaydi (3 dan 4 kerak); tepa chegara `districts_reachable`, farqi `dead_weight`. 🔴 Ikkita maxraj almashtirilmaydi: §3 niki `reports` dan, qamrovniki `geo` dan — qamrovni o'ziga bo'lish har doim 100 % berardi, §3 ni geo dan hisoblash «считаем от 12» ni bekor qilardi; yopilgan chegara versiyasi qamrovdan chiqadi, kvartallari §3 da qoladi (`unknown_districts`). 🔴 Ulush erishuvchanlikni to'smaydi (`share_need(n) <= n`, qorovul `(0, 1]`) — `0.40` va uchta bilan `n <= 5` da §3 ning ulushi umuman ishlamaydi va qarorni mutlaq eng kam son qabul qiladi. `need` `tzscale.share_need()` dan, sanaladigan narsa kvartallar (odamlar emas), taxminiy qamrov kesilmaydi (`over_capacity` — taxmin noto'g'ri degani). Yangi toza modul `app/clustering/tzcoverage.py` | ✅ §12 «Дополнительно»; 5237 test (+79), `requires_db` 408 (+4), migratsiyasiz, ruff yashil; 13 mutant → 13 KILLED |
 | 192 | [tz_kam_odamli_zona](192_tz_kam_odamli_zona_6cc59179.md) | `local_6cc59179` | §2.3 ning maxraji manbaga ega bo'ldi (`2.3-source`) — 👤 ulash tartibining **uchinchi** bandi. Teshikning shakli uchinchi marta bir xil: 191-run `tzwitness.load()` ning `active_users` ini sukut qiymatisiz qoldirgan, ammo javobni topadigan yo'l repoda yo'q edi. Narxi jim edi — bo'sh xarita bilan `threshold()` §2.1 ning bazaviy porogini qoldiradi, ya'ni §2.3 **umuman ishlamaydi** va «частный сектор не подтвердят ничего никогда» so'zma-so'z bajarilib turardi. Uchta `GROUP BY` bitta `UNION ALL` da: Python dagi yig'ish bitta odamni kvartal darajasida ikki marta sanab, maxrajni shishirib §2.3 ni o'chirardi. Oyna ataylab yo'q (§7 da bunday son yo'q; oyna maxrajni kichraytirib qoidani ishga tushirar va porogni yozilmagan son bilan tushirardi) va filtr faqat `is_blocked` — maxrajning filtri sanoqnikidan kuchli bo'lsa `active_users < have` bo'lardi. Yangi: `reports.queries.zone_users`, `app/clustering/tzactive.py`. ⬜ Topilma: §2.3 «Нужно человек» ni tushiradi, «Дополнительно» ni emas — `block_min_cells` (3) > `sparse_floor_users` (2), ya'ni kam odamli **kvartal** baribir `SPREAD` da to'xtaydi; kodga tegilmadi. 🟡 `text("resolution")` xom SQL qorovulini qizartirdi → `column(...)` | ✅ 5115 passed, 2 skipped (haqiqiy baza; edi 5080/2); 32 yangi test, `requires_db` 398 (+10); migratsiyasiz, ruff yashil; 13 mutant — 11 KILLED, 2 survivor (`set` tartibi va ekvivalent mutant). ⬜ 3-band uchun **qarz qolmadi**, faqat 👤 savol: qaysi zonaning verdikti hodisani tasdiqlaydi |
@@ -7793,6 +8501,15 @@ eski `deploy` stekini o'chirish, `init_tls.sh`, polling → webhook.
 | 186 | [tz_bildirishnoma_yoli](186_tz_bildirishnoma_yoli_1728b9c3.md) | `local_1728b9c3` | §10 ning bildirishnoma o'qi: ТС-214…ТС-217 endi bitta testda yuriladi (`tests/test_tz_walk_notice.py`), reyestrda 12 band `WALKED` (edi 8). Yo'lning choki modulda emas — chokda: `tzoutage` va `tzrestored` bir-birini chaqirmaydi, ular orasida Т-9 ning jurnali turadi va har modul `Ledger` ni **tayyor** oladi. Ikkita o'lchanmagan da'vo topildi va ikkalasi ham mutatsiya bilan tasdiqlandi. (1) §6.2/4 ning ertalabki svodkasi bildirishnoma turini **nomlamaydi** — qoida odam haqida; ikkala modulning svodka testi bir turdagi yetkazishlar ustida yurardi, ya'ni tunda tasdiqlangan uzilish va o'sha tunda qaytgan svet bitta odamga ikkita xabar bo'lib chiqishi tekshirilmasdi. (2) `record()` faqat `SEND` ni jurnalga yozishi — `HOLD` ni ham yozgan mutant sutkalik limitni ketmagan xabar bilan to'ldirardi va §6.4 ning tuzatishini xato olmagan odamga yuborardi. ТС-216 ning yagona haqiqiy ko'rinishi ham topildi: bitta bildirishnoma turi bilan sutkada beshtaga yetib bo'lmaydi (§6.2/5 + §6.1). Mahsulot kodi o'zgarmadi; `per_module > walked` nisbati teskari bo'lgani uchun qolgan bandlar ro'yxati nomma-nom qulflandi | ✅ `TZ` §10 ТС-214…ТС-217; 4595 test (+24), `requires_db` 371 (o'zgarmadi), migratsiyasiz, ruff yashil |
 | 28 | [T10_teshigining_kengligi](28_T10_teshigining_kengligi_ba282a64.md) | `local_ba282a64` | Т-10 ning teshigi (`RECLUSTER_GUC`) kengligi birinchi marta o'lchandi. Mavjud tripwire faqat **ikkinchi eshik qurilmasligini** qulflaydi (bayroqning nomi bitta modulda) — uch yo'l undan o'tardi. 🔴 `SET LOCAL` tranzaksiya bilan o'ladi, ya'ni bayroq `delete_outages` qaytgandan keyin ham o'sha tranzaksiyaning qolgan hamma so'rovi uchun Т-10 ni o'chirib turardi, va `tools/recluster.py` aynan shu chaqiruvdan keyin oynani o'sha tranzaksiyada qaytadan quradi — bayroq endi `DELETE` dan keyin yopiladi. 🟢 Bor eshikdan yurish bayroqning nomiga tegmaydi (`delete_outages` ni import qilgan istalgan modul), docstringning «faqat recluster dan chaqiriladi» da'vosi o'lchanmagan edi — endi chaqiruvchi `ast.Call` bilan sanaladi. 🟢 `ast.Constant` qidiruvidan f-satr o'tib ketardi — bayroqni qo'yish ham **chaqiruv** bo'yicha (`set_config`). ⬜ `MODERATOR_TARGETS` ga `CONFIRMED` qo'shilsa hodisa Т-10 dan tashqarida qolardi (👤 savol). ТС-218 ataylab `PER_MODULE` qoldirildi: yo'lni yuradigan test `requires_db` bo'lardi va bugun yurmasdi | ✅ ТС-218 chuqurlashtirildi; 4643 test (+6 bazasiz), `requires_db` 373 (+2), migratsiyasiz, ruff yashil; 4/4 mutant KILLED; ⚠️ DB qismi yurmadi |
 | 193 | [TZ12_erishuvchanlik](193_TZ12_erishuvchanlik_4b3a0aac.md) | `local_4b3a0aac` | TZ §12 — «Что проверить до начала», TZ ning **yagona majburiy** tekshiruvi, hech qachon o'tkazilmagan. 👤 qarori (2026-08-19) Toshkent tarixini rad etgan, lekin qaror bajarilmas edi: repoda javobni **biror** tarixdan hisoblaydigan yo'l yo'q edi. Yangi toza modul `app/clustering/tzreach.py` (+`load()`) va `repository.reach_candidates`; sanoq qayta yozilmaydi — `tzcount.evaluate_levels()` chaqiriladi. Uchta 🔴 qaror: maxraj tasdiqlangan hodisalardan olinmaydi (u har doim 100 % berardi — maxraj faqat `layer='official'`, mustaqil dalili yo'q bo'lsa `UNKNOWN`), §2.3 o'lchov paytida **o'chiq** (qutqaruv qoidasi o'lchanayotgan nosozlikni yamardi), zonalar qo'shilmaydi. Ikkita son (`reached_in_first_window` ↔ `reached_ever`, farqi — oyna aybdorligi) va `people_histogram`. Т-1: xulosa ham sonsiz (`missed > reached`), `min_episodes` sukut qiymatisiz, `SPEC` ataylab yo'q | ✅ TZ §12 ning asbobi; 5154 test (+39), `requires_db` 404 (+6), migratsiyasiz, ruff yashil; 9 mutant → 9 KILLED |
+| 204 | [kesim_xulosasi](204_kesim_xulosasi_be3260ae.md) | `local_be3260ae` | `render()` ning oxirgi ichki f-satri — `cutoff_decides` qatori — ayri funksiyalarga chiqdi (`disputed_levels_text`, `cutoff_head`, `cutoff_line`); 201/202/203 naqshining to'rtinchi va oxirgi nusxasi. Uchta 🔴: (1) qator faqat ziddiyatda chiqardi, ya'ni jimlik «o'lchandi va rozi» bilan «ikkala tomon ham son bermadi» ni ajratmasdi — uchta sarlavha ajratildi va tartib qulflandi (`cutoff_decides` birinchi: «erta o'lchandi, kech o'lchanmadi» ham kesimning qarori); (2) `darajalar: -` «rozi» bilan «solishtirib bo'lmadi» ni ajratmasdi; (3) `verdikt farqi True/False` — hisobotdagi yagona Python literali, `DIFFER_LABEL` bo'ldi. Fikstyura: haqiqiy `measure()` uchala darajani birga o'zgartiradi, shuning uchun `one_reach()`/`flip()`. Rad etilgani: sababni (`Reason`) qatorga ko'chirish (u bitta o'lchovniki, joyi `reach_head_line()`) va `cutoff_decides` ni `reason` ga sezgir qilish (javob o'zgarmagan — ikkalasi ham «bilmayman») | ✅ 4963 passed, 409 skipped (edi 4951/409); ruff toza; migratsiyasiz; 19 mutant — 19 KILLED |
+| 210 | [maxraj_manbasi](210_maxraj_manbasi_ee52773d.md) | `local_ee52773d` | §12 ning «Дополнительно» yarmi — `tzsource.BlockRegistry` ning ikkita nuqsoni (`blocks_unassigned`, `blocks_straddling`) 194-rundan beri hisobotda **son** bo'lib turardi: maxrajsiz, ulushsiz va topilmasiz. 🔴 Yo'qotishning ishorasi barqaror emas — tumandan tashlangan kvartal tumanni erishilmasroq, butun tuman ro'yxatdan chiqsa esa shaharni erishuvchanroq qiladi va ikkita xato bir-birini bekor qiladi. Maxraj sanoqning o'zidan olinmaydi (`blocks_seen = counted + unassigned`), ikkita ulushning maxraji ataylab har xil (`ko'rilgandan` ↔ `biriktirilgandan`) chunki biriktirilmagan kvartal maxrajdan chiqib ketadi, chegaradagi katak esa unda qoladi. `UNKNOWN` ning ikkita sababi ajratildi (`all_blocks_unassigned` — `05` §5.3 defekti). Topilmalar `coverage_measured` qorovulidan **tashqarida**: qoida sonning o'ziga tegishli, bo'limga emas. `source_line()`, `city_context_line()` endi `CityReach` oladi | ✅ 5045 test (+18), migratsiyasiz, ruff yashil; 24 mutant — 24 KILLED (19 tasi faqat yangi bo'limlar bilan) |
+| 211 | [bazali_yarim](211_bazali_yarim_2af371d2.md) | `local_2af371d2` | TZ §12 ning bazaga bog'liq yarmi — `tz_check.run()` va `collect()` — birinchi marta o'lchandi. 209-run uni «uchta qatorlik SQL» deb yozib yopilgan deb hisoblagan edi; so'rovlarning **atrofida** to'rtta qaror qolgan va birortasi ham 5045 testda o'lchanmasdi. Asosiy topilma — `ReachPair(early=pair[0], late=pair[1])`: ro'yxatning tartibi bilan maydonning nomi bog'lanmagan, almashuv esa jim (hamma simmetrik xossa o'zgarmaydi) va aynan kech kesim poroglarni erishuvchanroq ko'rsatgani uchun §12 ni o'zi so'ragan tomonga og'diradi; endi `measured[cuts.early]`. Yana uchta chok: `min_trust_score` ↔ `min_account_age_min` (ikkita `int`, bitta manba), hisobotga kod emas `id` tushishi, va ikkita rad javobining ajratilmagani (mavjud bo'lmagan mintaqa uchun sozlama o'qilishi). `requires_db` ataylab ishlatilmadi — sandboxda `skip` o'lchamaydi; o'rniga so'rovni yozib oladigan fikstyura va `compile().params` | ✅ TZ §12 bazali yarmi; 5057 test (+12), migratsiyasiz, ruff yashil; 22 mutant — 22 KILLED, hammasi 10-bo'limsiz omon qoladi |
+| 212 | [region_admin_olchov](212_region_admin_olchov_7c9cb9b5.md) | `local_7c9cb9b5` | `tools/region_admin.py` — 478 qator, oltita buyruq, birorta o'z testi yo'q edi (yagona murojaatlar manba matnini grep qiladigan kontrakt testlari). 211-run usuli: `session_scope()` o'rniga yozib oladigan sessiya, tekshiruv `compile().params` dan; javob so'rovning **shakliga** qarab tanlanadi (`column_descriptions`), navbat bo'yicha emas. 🔴 Bitta savolga ikkita jadval: seed `seed_defaults()` dan (17), qorovul va ro'yxat yorlig'i `DEFAULTS` dan (15) — asbob o'zi seed qilgan `notify.*` ni rad etardi, holbuki `01` §19 aynan o'sha qiymatni alohida kalibrlashni talab qiladi; qolgan yo'l qo'lda `UPDATE`, ya'ni `audit_log` siz (BR-024). `known_keys()` — yagona manba, `DEFAULTS` tegilmadi. 🔴 `--seed` `--key` ni jim yutardi. 🔴 Omon qolgan mutant `Region.code` → `Region.name_uz`: da'vo qiymatni tekshirardi, kalit nomini emas | ✅ E19 `region_admin`; 5119 test (+62), `requires_db` 409 (o'zgarmadi), migratsiyasiz, ruff yashil; 30 mutant — 30 KILLED |
+| 213 | [adr08_openfreemap](213_adr08_openfreemap_7c9cb9b5.md) | `local_7c9cb9b5` (212 bilan **bitta sessiya**) | 👤 to'rtta qaror: ADR-08 yopildi — xarita foni OpenFreeMap Liberty, **ikkita alohida** sozlama (`MAP_STYLE_URL` stil, ustun; `MAP_TILE_URL` rastr, muqobil), tanlov serverda; uchta jim nuqson (banner `hasBase()` siz fon bor xaritada «sozlanmagan» derdi, atributsiya stil yo'lida ekranga chiqmasdi, `deploy.sh` bo'sh qiymatga OSM ni yozib odamning tanlovini almashtirardi); E13-a va E8-b kechiktirildi; mahalla poligonlarining manbasi **o'lchandi va yaramadi** (20 poligon, nomsiz, litsenziyasiz) | ✅ 5127 test (+8), ruff toza; ⚠️ **`INDEX.md` yangilanmasdan uzilgan — bu fayl 214-runda tiklandi** |
+| 214 | [recluster_bazali_yarim](214_recluster_bazali_yarim_7e90892b.md) | `local_7e90892b` | 213 qoldirgan uchta qadamdan bloklanmagani (3-si). `tools/recluster.py` (946 q.) ning bazali yarmi — `_scope`, `recluster()`, `_one_run`, `_effective_value` va `cmd_recluster` ning uchta yurish yo'li — bazasiz o'lchandi (211/212 usuli). 🔴 **Bu modulda tartibning o'zi qoida edi, lekin tartib o'lchanmasdi:** bildirishnoma qorovulini o'chirishdan keyin ko'chirgan mutant bir xil matn va bir xil chiqish kodini berardi, oyna esa buzilgan bo'lardi. 🔴 Ikkita `outage_ids_started_in` bir xil emas (eski ↔ yangi hodisalar). 🔴 Hisobotdagi mintaqa kodi bazadan, `args.region` dan emas | ✅ `tests/test_recluster_db_half.py` (75 test); 5202 passed / 410 skipped, ruff toza, **kod o'zgarmadi**; 36 mutant — 35 KILLED, bittasi ekvivalent va endi test bilan isbotlangan |
+| 215 | [simulate_bazali_yarim](215_simulate_bazali_yarim_55bd1916.md) | `local_55bd1916` | 214 qoldirgan uchta qadamdan bloklanmagani (1-si) — `tools/` dagi **oxirgi** o'lchanmagan asbob. `tools/simulate.py` (948 q.) ning bazali yarmi — `transaction`, `ensure_writable`, `ensure_users`, `run()` va `cmd_run` — bazasiz o'lchandi. 🔴 **`cmd_run` ga butun `tests/` bo'ylab nol murojaat bor edi:** chiqish kodlari, `--apply` qorovulining o'rni va quruq yurish xabari hech qayerda yozilmagan. 🔴 **`ensure_writable` ning ikkinchi to'sig'i — faol obuna — hech qachon otilib ko'rilmagan** (eski test faqat «haqiqiy xabar» sababini tekshiradi), va aynan u sun'iy hodisa tasdiqlanganda haqiqiy odamga ketadigan bildirishnomani to'sadi; u mintaqa bo'yicha emas, **global** sanaladi. 🔴 Tartibning o'zi qoida: qorovulni `run()` dan keyin ko'chirgan mutant bir xil chiqish kodini berardi, lekin butun sun'iy oqim haqiqiy ma'lumot bilan bitta jadvalda yozilgan bo'lardi; `geo.resolve` `check_rate_limit` dan oldin, `flush` izdan oldin. 🔴 Maxfiylik jim buzilishi mumkin edi — aniq va ommaviy koordinata almashsa birorta son o'zgarmasdi | ✅ `tests/test_simulate_db_half.py` (53 test); 5255 passed / 410 skipped, ruff toza, **kod o'zgarmadi**; 39 mutant — 38 KILLED, bittasi ekvivalent va to'liq to'plam bilan isbotlangan |
+| 216 | [admin_api_tanasi](216_admin_api_tanasi_35aa7e66.md) | `local_3fa026bd` | 215 qoldirgan uchta qadamdan bloklanmagani (3-si: `tools/` tugadi, `app/` ga qaytish). Nishon — `app/api/v1/admin.py` (620 q.): bazasiz yagona test faylining (`test_admin_api.py`, 11 test) **hamma** holati ruxsat tekshiruvida to'xtaydi, ya'ni handler ning birinchi qatori ham bajarilmaydi; ma'lumot yo'li esa `test_admin_moderation_db.py` da (15 test, butunlay `requires_db`) va u API ni emas, `app/admin/service.py` ni o'lchaydi. 🔴 Javobning shakli jim buzilardi: `lat`/`lon`, `distinct_users`/`independent_reporters`, `started_at`/`last_report_at`, `district_id`/`mahalla_id`, `before`/`after`, `outage_id`/`merged_into`, `summary_key`/`blocks_key`, `closed`/`total` — bir turdagi juftliklar, almashuv birorta testni yiqitmasdi. 🔴 `needs_review` ning `>=` chegarasi hech qachon otilmagan edi, holbuki E5 radiusni aynan `max_radius` da kesadi: `>` bo'lsa moderator navbati doim bo'sh qolardi. 🔴 Tartib ham qoida: `get_digest` da sana tekshiruvi mintaqani izlashdan oldin, to'rtala yozish endpointida `commit` xizmat chaqiruvidan keyin, `read_registries` da ruxsat diskdagi hujjat skanidan oldin. 🔴 `get_user` ning ruxsati ataylab `USER_BLOCK` (`viewer` kartani ko'rmasin). Handler lar FastAPI siz, to'g'ridan-to'g'ri chaqiriladi; `RecordingActor` haqiqiy `Actor` dan meros oladi, ulash qatlami chaqiruvlarni bitta umumiy jurnalga tartibi bilan yozadi | ✅ 5414 passed, 410 skipped (+159), migratsiya/sozlama/i18n/API/kod o'zgarishi yo'q, ruff yashil; **65 mutant — 64 KILLED** (yagonasi ekvivalent: `i18n.pick_language` sof funksiya, to'liq to'plam mutant bilan ham yashil) |
+| 220 | [map_api_tanasi](220_map_api_tanasi_b63bf07d.md) | `local_b63bf07d` | 219 qoldirgan to'rtta qadamdan bloklanmagani — oxirgi nomzod modul (`app/api/v1/map.py`, 237 q.). Bazasiz mavjud test o'z izohida bo'shliqni yozib qo'ygan edi: `/map` va `/map/config` ning testlari `requires_db` ostidagi ikkita faylga ko'chirilgan, ya'ni yettita nomning tanasi bajarilmasdi. **Topilgan defekt:** `api_requirements.py` ning X-1 sharti `app.core.etag:matches` ga binds qilingan va `geo.py`/`heatmap.py`/`regions.py` uni chaqiradi, `/map` esa (E9 dagi eng eski keshlanadigan endpoint) `if_none_match.strip() == etag` bilan o'zi taqqoslardi — `If-None-Match: *`, `W/` va vergulli ro'yxat uchtasida `304`, `/map` da to'liq tana; tuzatildi (ikki qator, ustto'plam). Qolgan o'lchovlar: `/map` kodni `.lower()` qilmasligi (`/map/config` qiladi), `stale` ning `is_missing` dan olinishi, payload ning nusxalanishi (`ETag` barqarorligi), `zoom` ning ikkala sharti, markazning `(lat, lon)` tartibi, ADR-08 ning `style_url` ↔ `tile_url` juftligi, hujjatdagi `OutageFeature` ning `snapshot._feature` bilan mosligi, `/map/i18n` ning mintaqani to'ldirmasligi va oq ro'yxatning har bir prefiksi tirikligi | ✅ `05` §7.1 X-1; 5742 test (+92), `requires_db` 410 (o'zgarmadi), migratsiyasiz, ruff yashil; 48 mutant — 47 KILLED (1 ekvivalent) |
 | 27 | [geo_mahallas](27_geo_mahallas_5b817a67.md) | `local_5b817a67` | `01` §16 ning `GET /geo/mahallas` endpointi — to'rtta sessiya qoldirgan nomzod. Asosiy qaror: jadval E17 gacha bo'sh, ya'ni **bo'sh javob normal, lekin jim bo'lmasligi kerak** (FR-S-802 degradatsiyasi ko'rinishi shart). Bo'shlikning ikki sababi ajratildi — spravochnik yo'q ↔ `?at=` bilan so'ralgan sanada yo'q; `available` alohida so'rovdan (`region_has_mahallas`, davr filtrisiz) va faqat kesim bo'sh bo'lganda. Javob shakli `districts` niki emas: `code`/`source_ref`/`license` ustunlari yo'q → `sources` + doimiy `geo.disclaimer.mahalla_source` (bo'sh `licenses` yolg'on bo'lardi), mahalla `(district_id, name_uz)` bo'yicha sanaladi, tartib `(tuman kodi, nomi, davr boshi)`. Toza `app/geo/mahallas.py` (`MahallaFact` → `summarize` → `MahallaRegistry`, versiya — sana), `geo.queries.mahalla_boundaries`/`region_has_mahallas`/`region_has_district_code`, ikki endpoint uchun umumiy `_period_filter`; birlashmada tumanning davri **tekshirilmaydi** (bekor qilingan tumanning mahallalari yo'qolmasin), noma'lum `?district=` → `404`, `Vary: Accept-Language`. `0009` — `ix_mahallas_district_id`: NFR-S-02 ning **`region_id` ustunisiz** ko'rinishi, `0008` ni qulflagan testga ilinmagan edi | ✅ `01` §16; 771 test (+14), `requires_db` 186 (+19), `0009` migratsiya, ruff yashil |
 | 26 | [region_indekslari](26_region_indekslari_2a0beb89.md) | `local_2a0beb89` | `01` §10, §11, §13–§16, §19, §20 birinchi marta kod bilan solishtirildi. NFR-S-02 buzilgan: talabning **so'rov** yarmi bajarilgan, **indeks** yarmi yo'q edi — `reports` va `outages` da `region_id` bilan boshlanadigan birorta indeks yo'q; `ix_reports_created_at` ga barcha oyna so'rovlari tushardi va mintaqani ajratmasdi, `ix_outages_status_region_id_open` esa qisman va tarixiy so'rovlarga yaramaydi. `0008` — `(region_id, created_at DESC)`, `(region_id, started_at DESC)` va qisman `(region_id, confirmed_at)`; `ix_reports_created_at` **qoldirildi** (`purge_exact_geom` ataylab mintaqasiz), `users.region_id` ga indeks **qo'shilmadi** (so'rov o'lchovi emas). Ikkita kontrakt testi: `region_id` li har bir jadval indekslanganmi (istisnolar sabab matni bilan) va model↔migratsiya indekslari bir xil to'plammi (17 ta). Topilgan, lekin qilinmagani: `GET /geo/mahallas` (§16, keyingi run), `outage.read_exact_geo` (§20 — `05` §7.3 ga zid, ochiq savol) | ✅ `01` NFR-S-02; 757 test (+11), `requires_db` 167 (o'zgarmadi), `0008` migratsiya, ruff yashil |
 | 25 | [chegara_versiyasi](25_chegara_versiyasi_f221c459.md) | `local_f221c459` | `01` §8 (FR) va §9 (User Story) birinchi marta kod bilan solishtirildi. FR-S-803 (P0) buzilgan: statistika **joriy** chegaralardan qurilardi va bekor qilingan tuman nomsiz qoldiq chelakka aylanardi; javobda spravochnik versiyasi yo'q edi (US-S5 esa uni eksportda talab qiladi). `geo.queries.districts_for_period` + `DistrictVersionRow` (davr kesishuvi, nuqta emas), toza `app/stats/boundaries.py` (`BoundaryFact` → `summarize` → `BoundarySet`; versiya — sana; bo'sh reyestrda `None`; `changed_in_period` ochilish **yoki** yopilishdan), `StatsOut.boundaries` + `DistrictOut.valid_from/valid_to`, yopilgan versiyada qamrov `unknown`, `stats.warning.boundaries_changed` UZ/RU, CSV da ikki daraja, `/heatmap` ga ataylab qo'shilmadi (H3 chegaralarga bog'liq emas). ⚠️ i18n kataloglari `git show HEAD:` tufayli E8 holatiga qaytdi va koddan qayta tiklandi | ✅ `01` FR-S-803 va US-S5; 746 test (+12), `requires_db` 167 (+3), migratsiyasiz, ruff yashil; ⚠️ `HEAD` E8 da — push shoshilinch |

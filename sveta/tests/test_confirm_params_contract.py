@@ -195,10 +195,13 @@ def test_no_key_is_missing_from_the_code() -> None:
 def test_no_key_is_invented_by_the_code() -> None:
     """Kodda bor, hujjatda yo'q — `06` §9 ro'yxati yopiq.
 
-    `tools/region_admin.py` aynan shu yopiqlikka tayanib noma'lum kalitni
-    bloklaydi (`EXIT_USAGE`); `notify.*` shuning uchun alohida manbada
-    (`app/notifications/params.py`) va `tests/test_notify_params.py`
-    ikkala to'plamning kesishmasi bo'shligini tekshiradi.
+    `tools/region_admin.py` shu yopiqlikka tayanib noma'lum kalitni
+    bloklaydi (`EXIT_USAGE`) — 212-rundan beri `DEFAULTS` dan emas,
+    `known_keys()` dan, ya'ni `DEFAULTS` + `notify.*` birlashmasidan:
+    asbob o'zi seed qilgan kalitni rad etardi. `notify.*` baribir
+    alohida manbada (`app/notifications/params.py`) va
+    `tests/test_notify_params.py` ikkala to'plamning kesishmasi
+    bo'shligini tekshiradi.
     """
     extra = sorted(set(p.DEFAULTS) - set(_spec_params()))
     assert extra == [], f"`DEFAULTS` da bor, `06` §9 da yo'q: {extra}"

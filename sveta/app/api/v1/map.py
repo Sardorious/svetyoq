@@ -8,7 +8,11 @@ bajariladi (`05` §7.1).
 Kesh shartnomasi:
 
 * `ETag` — payload mazmunidan (`snapshot.compute_etag`);
-* `If-None-Match` mos kelsa — `304`, tanasiz;
+* `If-None-Match` mos kelsa — `304`, tanasiz; taqqoslash `app.core.etag`
+  ning yagona `matches()` i bilan (`RFC 9110` §13.1.2: `*`, `W/` va
+  vergulli ro'yxat) — `api_requirements.py` ning X-1 sharti aynan shu
+  funksiyaga bog'langan va to'rtala keshlanadigan endpoint uni bir xil
+  bajaradi;
 * `Cache-Control: public, max-age=<MAP_SNAPSHOT_TTL_S>`.
 
 `region` — majburiy emas, standart qiymati `DEFAULT_REGION_CODE`; lekin
@@ -31,6 +35,7 @@ from app.api.v1.regions import summary as _summary
 from app.clustering import snapshot
 from app.core.config import settings
 from app.core.errors import NotFoundError
+from app.core.etag import matches
 from app.core.i18n import all_keys, normalize_language, t
 from app.geo import pipeline as geo
 from app.geo import registry
@@ -123,7 +128,7 @@ async def get_map(
         raise NotFoundError("error.not_found", region=code)
     snap = await snapshot.read(session, region_id=row.id, region_code=code)
     headers = _cache_headers(snap.etag)
-    if if_none_match and if_none_match.strip() == snap.etag:
+    if matches(if_none_match, snap.etag):
         return Response(status_code=304, headers=headers)
     body = dict(snap.payload)
     # `built_at` payload dan tashqarida saqlanadi — u `ETag` ga kirmasligi
@@ -148,8 +153,16 @@ class MapConfig(BaseModel):
     #: Sahifa buni `/map/i18n?locale=` ga uzatadi, aks holda ikki so'rov
     #: ikki xil tilda javob berardi.
     language: str
-    #: `MAP_TILE_URL` bo'sh bo'lsa fon ko'rsatilmaydi — ADR-08 (litsenziya)
-    #: hal bo'lmagunicha xarita taylini o'zboshimchalik bilan tanlab bo'lmaydi.
+    #: Vektor style JSON ning manzili (👤 ADR-08, 2026-08-21 —
+    #: OpenFreeMap Liberty). Sahifa buni MapLibre ga **satr** bo'lib
+    #: uzatadi. `tile_url` dan **ustun**: ikkovi ham to'ldirilgan
+    #: bo'lsa tanlov bir joyda, sahifada emas, hal bo'lishi kerak —
+    #: aks holda ikkita chiqish ikki xil fon ko'rsatardi.
+    style_url: str
+    #: `{z}/{x}/{y}` shablonli rastr manba — style siz muqobil yo'l.
+    #: Ikkovi ham bo'sh bo'lsa fon ko'rsatilmaydi va sahifa
+    #: `map.tiles_missing` bannerini chiqaradi; bu **degradatsiya**,
+    #: xato emas.
     tile_url: str
     tile_attribution: str
     center_lat: float
@@ -184,6 +197,7 @@ async def get_map_config(
     return MapConfig(
         region=code,
         language=lang,
+        style_url=settings.map_style_url,
         tile_url=settings.map_tile_url,
         tile_attribution=settings.map_tile_attribution,
         center_lat=center_lat,

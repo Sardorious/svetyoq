@@ -443,6 +443,9 @@ def test_the_js_reader_finds_every_function(functions: dict[str, str]) -> None:
         "banner",
         "qs",
         "getJson",
+        # ADR-08 (2026-08-21): «fon bormi» savoli `baseStyle` dan
+        # ayrildi — unga banner ham murojaat qiladi.
+        "hasBase",
         "baseStyle",
         "addLayers",
         "shortTime",

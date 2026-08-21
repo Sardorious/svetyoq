@@ -84,7 +84,7 @@
        xavfsiz: shart har chaqiruvda bir xil javob beradi. Shu sababdan
        `baseStyle()` endi bannerga umuman yozmaydi va sof funksiya
        bo'lib qoladi. */
-    banner("tiles", config && !config.tile_url ? t("map.tiles_missing") : "");
+    banner("tiles", config && !hasBase(config) ? t("map.tiles_missing") : "");
   }
 
   /* Bannerda ekranda bitta joy bor, unga yozadigan **mustaqil** manba esa
@@ -147,7 +147,33 @@
   /* Fon rasmi bo'lmasa ham xarita ishlaydi: bo'sh (rasmsiz) style.
      Tushuntirish bannerga bu yerdan emas, `applyStrings()` dan
      yoziladi — sabab o'sha funksiyaning izohida. */
+  /* Fon bormi. `baseStyle()` dan AYRI, chunki bir xil savolga ikkita
+     joyda javob berilardi: banner `!cfg.tile_url` ni o'zi tekshirardi
+     va `style_url` qo'shilgan kunda u fon bor bo'lgan xaritada
+     `map.tiles_missing` deb yozib qo'yardi. Endi ikkovi ham shundan
+     o'qiydi. */
+  function hasBase(cfg) {
+    return Boolean(cfg.style_url || cfg.tile_url);
+  }
+
   function baseStyle(cfg) {
+    /* Uchta holat, va ularning TARTIBI ma'noli:
+
+       1. `style_url` — tayyor vektor stil (👤 ADR-08, 2026-08-21:
+          OpenFreeMap Liberty). MapLibre `style` ga **satr** ni ham
+          qabul qiladi va stilni o'zi yuklaydi; uni quyidagi rastr
+          obyektiga o'rab bo'lmaydi, chunki style JSON `{z}/{x}/{y}`
+          shabloni emas — ya'ni bu ikkita alohida yo'l, bitta
+          sozlamaning ikki qiymati emas.
+       2. `tile_url` — rastr shablon; style ni shu funksiya yasaydi.
+       3. ikkovi ham bo'sh — bo'sh (rasmsiz) style.
+
+       Ustunlik `style_url` da va u SERVERDA hal bo'ladi (`/map/config`
+       ikkala maydonni ham beradi): tanlovni sahifaga qoldirish ikkita
+       chiqishni (sahifa va sozlama) ikki xil javobga ajratardi. */
+    if (cfg.style_url) {
+      return cfg.style_url;
+    }
     if (!cfg.tile_url) {
       return { version: 8, sources: {}, layers: [] };
     }
@@ -491,6 +517,16 @@
           style: baseStyle(config),
           center: [config.center_lon, config.center_lat],
           zoom: config.zoom,
+          /* Atributsiya rastr yo'lida manbaning o'zida turadi
+             (`baseStyle` dagi `attribution`), stil yo'lida esa uni
+             faqat stilning ichidagi qiymat berardi — ya'ni bizning
+             `MAP_TILE_ATTRIBUTION` imiz ekranga umuman chiqmasdi.
+             Litsenziya talabi esa sozlamada yozilgan matnga tegishli,
+             shuning uchun u stil yo'lida ochiq qo'shiladi. Rastr
+             yo'lida qo'shilmaydi — ikki marta chiqardi. */
+          attributionControl: config.style_url
+            ? { customAttribution: config.tile_attribution || "" }
+            : undefined,
         });
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         map.on("load", function () {

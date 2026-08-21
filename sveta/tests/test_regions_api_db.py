@@ -183,11 +183,38 @@ async def test_map_config_unknown_region_falls_back_to_country_view(client) -> N
 
 
 async def test_map_config_without_tiles_is_still_usable(client, monkeypatch) -> None:
-    """ADR-08 hal bo'lmagunicha tayl manbasi bo'sh — bu xato emas."""
+    """Fon manbasi bo'sh bo'lishi mumkin — bu xato emas, degradatsiya.
+
+    Ikkala maydon ham bo'shatiladi: faqat bittasini bo'shatgan test
+    ADR-08 yopilgandan keyin `map_style_url` sukut qiymatidan javob
+    olib, «bo'sh fon» yo'lini umuman o'lchamay qo'yardi.
+    """
+    monkeypatch.setattr(settings, "map_style_url", "")
     monkeypatch.setattr(settings, "map_tile_url", "")
     response = await client.get("/api/v1/map/config")
     assert response.status_code == 200
-    assert response.json()["tile_url"] == ""
+    body = response.json()
+    assert body["style_url"] == ""
+    assert body["tile_url"] == ""
+
+
+async def test_map_config_passes_both_sources_through_unchanged(client, monkeypatch) -> None:
+    """👤 ADR-08 (2026-08-21): stil va rastr — ikkita ALOHIDA maydon.
+
+    Ikkovi ham ataylab to'ldiriladi va qiymatlari bir-biriga
+    o'xshamaydi: bittasini ikkinchisining o'rniga qo'ygan yoki
+    ikkovini bitta maydonga birlashtirgan mutant shu yerda yiqiladi.
+    Tanlovni server qilishi kerak (sahifa emas), lekin **tanlov
+    ma'lumotini** javob ikkalasini ham berib turadi — sahifa qaysi
+    yo'ldan ketganini banner uchun bilishi kerak.
+    """
+    monkeypatch.setattr(settings, "map_style_url", "https://example.test/styles/liberty")
+    monkeypatch.setattr(settings, "map_tile_url", "https://example.test/{z}/{x}/{y}.png")
+    monkeypatch.setattr(settings, "map_tile_attribution", "OpenFreeMap")
+    body = (await client.get("/api/v1/map/config")).json()
+    assert body["style_url"] == "https://example.test/styles/liberty"
+    assert body["tile_url"] == "https://example.test/{z}/{x}/{y}.png"
+    assert body["tile_attribution"] == "OpenFreeMap"
 
 
 async def test_registry_cache_is_invalidated_explicitly(two_regions) -> None:

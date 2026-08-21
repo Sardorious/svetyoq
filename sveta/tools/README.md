@@ -72,7 +72,7 @@ python -m tools.recluster --from 2026-08-01 --to 2026-08-08 --params scenario.js
   o'tkazib yuborilsa, asbob bazaviy yurishni ikki marta bajarib «farq yo'q»
   deb yozardi — E11 da bu «parametr ta'sir qilmaydi» degan soxta xulosa.
 - **Ikkala yurish ham quruq**, shuning uchun `--set` bilan `--apply` birga
-  berilmaydi. Tartib: ssenariyni ko'ring → `region_admin config --set` →
+  berilmaydi. Tartib: ssenariyni ko'ring → `region_admin config --key` →
   keyin `--apply` bilan tarixni qayta quring.
 - Hisobotda `changed` bor: u **izga** (`fingerprint`) qaraydi, kesimga emas.
   Bir xil sondagi va bir xil statusdagi hodisalar boshqa joyda turgan
@@ -108,6 +108,32 @@ python -m tools.recluster --from 2026-08-01 --to 2026-08-08 \
 - Chiqish kodi: `0` — muvaffaqiyat, `2` — bildirishnoma tufayli bloklandi,
   `3` — sweep o'zini barqaror deb ko'rsata olmadi, `64` — parametr yoki
   oyna xatosi.
+
+---
+
+## `region_admin.py`
+
+Yangi shaharni ishga tushirish yo'li (E19 ning chiqish mezoni: «deploysiz»).
+Tartib va sabablar — faylning o'z docstringida; bu yerda faqat operator
+adashadigan ikkita joy.
+
+- **Mintaqa o'chirilgan holda yaratiladi**, `activate` — ataylab alohida
+  qadam: orada chegara importi va uni ko'zdan kechirish turadi. `activate`
+  bbox siz mintaqani **bloklaydi** — bbox siz mintaqa nuqta bo'yicha hech
+  qachon tanlanmaydi, ya'ni «faol» bo'lsa ham xabar qabul qilmasdi.
+- **`config --key` ro'yxati** — `06` §9 jadvali **va** `notify.*`
+  (`app/notifications/params.py`), ya'ni asbob seed qiladigan to'plamning
+  aynan o'zi (`known_keys()`). 212-rungacha qorovul faqat `06` §9 ni
+  bilardi va asbob o'zi seed qilgan `notify.default_radius_m` ni noma'lum
+  deb rad etardi — holbuki `01` §19 aynan shu qiymatni mintaqa uchun
+  alohida kalibrlashni talab qiladi.
+- **`--seed` va `--key` birga berilmaydi** (`64`). Ilgari `--seed` yutardi
+  va `--key` jim tashlab ketilardi: javob `0`, qiymat esa o'zgarmasdi.
+- Har bir o'zgarish `audit_log` da, o'zgarish bilan **bitta
+  tranzaksiyada** (BR-024). Holat allaqachon so'ralgandek bo'lsa qator
+  yozilmaydi: jurnal — o'zgarishlar tarixi, buyruqlar tarixi emas.
+- Chiqish kodlari: `0` — bajarildi, `2` — bloklandi (mintaqa yo'q, kod
+  band, bbox yo'q), `64` — buyruq argumentlari xato.
 
 ---
 
@@ -181,6 +207,18 @@ Eslatmalar:
 - **«O'lchanmadi» «o'tdi» emas.** Bugungi bazada `tzreach`
   `UNKNOWN`/`NO_INDEPENDENT_TRUTH` qaytaradi (sanoqdan mustaqil dalili bor
   hodisa yo'q) — bu holat alohida chiqish kodiga ega.
+- **Maxrajning manbasi hisobotda va topilmalarda** (210-run). §3 ning
+  maxraji `tzsource.BlockRegistry` dan keladi va uning ikkita nuqsoni bor:
+  tumanga biriktirilmagan kvartal (`05` §5.3 — nuqta birorta poligonga
+  tushmagan) maxrajdan **chiqib ketadi**, chegaradagi katak esa unda
+  qoladi va faqat qaysi tumanga tushgani tanlanadi. `manba:` qatori
+  ikkala sonni ham **o'z maxraji bilan** chiqaradi (biriktirilmaganniki
+  — ko'rilganlar, chegaradaginiki — biriktirilganlar) va nol bo'lmagan
+  har biri `coverage.blocks_unassigned` / `coverage.blocks_straddling`
+  topilmasini beradi, ya'ni chiqish kodiga ta'sir qiladi.
+- **«Kvartal yo'q» ↔ «kvartal bor, biriktirilmagan».** Ikkovi ham §3 ni
+  o'lchanmagan qoldiradi, lekin sabablari qarama-qarshi va endi ikkita
+  token: `no_blocks_with_users` va `all_blocks_unassigned`.
 - Chiqish kodi: `0` — ikkala yarmi ham o'lchandi va topilma yo'q,
   `1` — hisobot qurilmadi (mintaqa yo'q, sozlanmagan, argument xatosi),
   `2` — o'lchandi va topilma bor, `3` — kamida bitta yarmi o'lchanmadi.

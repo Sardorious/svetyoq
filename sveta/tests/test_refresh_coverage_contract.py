@@ -40,6 +40,7 @@ import pytest
 
 from app.clustering.scale import QUALITY_ESTIMATED
 from app.core.config import settings
+from app.geo import cellfit
 from app.geo import queries as geo_q
 from app.jobs import refresh_coverage
 
@@ -103,9 +104,24 @@ def logs(monkeypatch) -> _Recorder:
     return recorder
 
 
-def _facts(*ids: uuid.UUID) -> list[geo_q.TerritoryGeometryFacts]:
+def _facts(
+    *ids: uuid.UUID,
+    containment: cellfit.Containment = cellfit.Containment.OVERLAP,
+) -> list[geo_q.TerritoryGeometryFacts]:
+    """Faktlar — **sanalgan** holatda, mahsulot yo'lidagidek.
+
+    Sukut `OVERLAP`: bazada poligon bor, ya'ni `_geometry_facts` kataklarni
+    sanaydi. `ESTIMATE` ni sukut qilish har bir ssenariyga «poligon
+    o'qilmadi» degan ogohlantirishni qo'shib qo'yardi va u boshqa
+    tekshiruvlarning shovqiniga aylanardi.
+    """
     return [
-        geo_q.TerritoryGeometryFacts(territory_id=i, area_km2=AREA_KM2, covering_cells=CELLS)
+        geo_q.TerritoryGeometryFacts(
+            territory_id=i,
+            area_km2=AREA_KM2,
+            covering_cells=CELLS,
+            containment=containment,
+        )
         for i in ids
     ]
 
@@ -373,6 +389,130 @@ async def test_without_orphans_nothing_is_logged(
         facts=_facts(territory_id),
         active={territory_id: 5},
         orphans_are_defect=orphans_are_defect,
+    )
+
+    await _refresh(level)
+
+    assert logs.records == []
+
+
+async def test_estimated_cells_are_logged_as_a_warning(upserts, logs) -> None:
+    """Poligon o'qilmay maxraj **baholanganda** jurnal jim qolmaydi.
+
+    Baho mahalla o'lchamida qoplaydigan kataklarni 2-3 barobar kam
+    ko'rsatadi (`app.geo.cellfit` modul izohidagi o'lchov), ya'ni
+    `cell_coverage_ratio` va Coverage Index dalilsiz ko'tariladi. Nosozlik
+    xatosiz kechadi va sonlari joyida ko'rinadi — shuning uchun uning
+    yagona izi shu qator.
+    """
+    counted, estimated = uuid.uuid4(), uuid.uuid4()
+    facts = _facts(counted) + _facts(estimated, containment=cellfit.Containment.ESTIMATE)
+    level, _ = _level(
+        level=refresh_coverage.TERRITORY_LEVEL_MAHALLA,
+        facts=facts,
+        active={counted: 5, estimated: 5},
+        orphans_are_defect=False,
+    )
+
+    await _refresh(level)
+
+    assert [(r.level, r.event) for r in logs.records] == [("warning", "coverage.cells_estimated")]
+    assert logs.records[0].extra["territories"] == 1
+    assert logs.records[0].extra["of"] == 2
+
+
+def test_the_two_denominator_events_have_distinct_literal_names() -> None:
+    """Hodisa nomlari literal jadval bilan qulflanadi va **bir xil emas**.
+
+    Testlar konstantaga murojaat qiladi, ya'ni ikkala nomni bitta
+    satrga tenglashtirish (mutatsiya bilan o'lchangan) hech qayerda
+    yiqilmasdi: qatorlar chiqaverardi, lekin jurnalni o'qigan odam
+    «poligon yo'q» ni «`overlap` sanog'i yo'q» dan ajrata olmasdi va
+    ikkovi bitta grafada qo'shilib ketardi. Nomlar tashqi kontrakt —
+    ular jurnal yig'uvchisida filtr bo'lib yuradi.
+    """
+    assert refresh_coverage.EVENT_CELLS_ESTIMATED == "coverage.cells_estimated"
+    assert refresh_coverage.EVENT_CELLS_NOT_UPPER_BOUND == "coverage.cells_not_upper_bound"
+
+
+async def test_center_counted_cells_are_logged_separately(upserts, logs) -> None:
+    """Sanalgan, lekin tepa chegara bo'lmagan maxraj ham ko'rinadi.
+
+    198-run: bu yerda shart `containment is ESTIMATE` edi,
+    `app.clustering.tzcoverage` da esa `cellfit.is_upper_bound_safe`
+    (faqat `OVERLAP`). Ikkovining orasiga `CENTER` tushardi va
+    jimgina o'tardi — `territory_stats.populated_cells` ga ishonchsiz
+    maxraj yozilardi, `tz_check` esa keyinroq o'sha hududda
+    `DENOMINATOR_NOT_UPPER_BOUND` bayrog'ini **izsiz** ko'tarardi.
+
+    Hodisa `cells_estimated` dan ajratilgan: tuzatishi ham boshqa —
+    poligon bor va o'qilgan, yetishmayotgani `h3` ning `overlap`
+    sanog'i.
+    """
+    counted, loose = uuid.uuid4(), uuid.uuid4()
+    facts = _facts(counted) + _facts(loose, containment=cellfit.Containment.CENTER)
+    level, _ = _level(
+        level=refresh_coverage.TERRITORY_LEVEL_DISTRICT,
+        facts=facts,
+        active={counted: 5, loose: 5},
+        orphans_are_defect=True,
+    )
+
+    await _refresh(level)
+
+    assert [(r.level, r.event) for r in logs.records] == [
+        ("warning", refresh_coverage.EVENT_CELLS_NOT_UPPER_BOUND)
+    ]
+    assert logs.records[0].extra["territories"] == 1
+    assert logs.records[0].extra["of"] == 2
+    assert logs.records[0].extra["region"] == REGION_CODE
+
+
+async def test_the_two_denominator_defects_are_never_merged(upserts, logs) -> None:
+    """Ikkala nuqson bir vaqtda bo'lsa — ikkita ayrim qator.
+
+    Bittasini ikkinchisining ichiga qo'shish (masalan «ishonchli
+    emas» degan yagona hodisa) o'lchov qarzining **sababini**
+    yo'qotardi: poligon yo'qmi yoki `overlap` sanog'i yo'qmi — bu
+    ikki xil ish, va ularning sanoqlari ham qo'shilib ketmasligi
+    kerak.
+    """
+    ok, guessed, loose = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    facts = (
+        _facts(ok)
+        + _facts(guessed, containment=cellfit.Containment.ESTIMATE)
+        + _facts(loose, containment=cellfit.Containment.CENTER)
+    )
+    level, _ = _level(
+        level=refresh_coverage.TERRITORY_LEVEL_MAHALLA,
+        facts=facts,
+        active={ok: 1, guessed: 1, loose: 1},
+        orphans_are_defect=False,
+    )
+
+    await _refresh(level)
+
+    assert [r.event for r in logs.records] == [
+        refresh_coverage.EVENT_CELLS_ESTIMATED,
+        refresh_coverage.EVENT_CELLS_NOT_UPPER_BOUND,
+    ]
+    assert [r.extra["territories"] for r in logs.records] == [1, 1]
+    assert [r.extra["of"] for r in logs.records] == [3, 3]
+
+
+async def test_counted_cells_are_not_logged(upserts, logs) -> None:
+    """Hammasi sanalgan bo'lsa — hech qanday yozuv.
+
+    Doimiy ogohlantirish signalni o'ldiradi: `estimated` har safar
+    chiqaversa, uni o'qish to'xtaydi va haqiqiy o'lchanmagan hudud
+    ko'rinmay qoladi.
+    """
+    territory_id = uuid.uuid4()
+    level, _ = _level(
+        level=refresh_coverage.TERRITORY_LEVEL_DISTRICT,
+        facts=_facts(territory_id),
+        active={territory_id: 5},
+        orphans_are_defect=True,
     )
 
     await _refresh(level)

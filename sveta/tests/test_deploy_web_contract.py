@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCATIONS = ROOT / "deploy/nginx.locations.conf"
@@ -445,6 +445,115 @@ def test_the_migration_container_is_not_cut_off_from_the_project_network() -> No
         assert "--no-deps" not in call, (
             f"`run` da `--no-deps` qaytib kelgan — konteyner tarmoqsiz qoladi: {call}"
         )
+
+
+# --------------------------------------------------------------------------
+# ADR-08 — xarita foni (👤 qaror, 2026-08-21)
+# --------------------------------------------------------------------------
+#
+# Bitta qaror TO'RTTA faylda e'lon qilinadi: `.env.example` (namuna),
+# `app/core/config.py` (sozlama), `scripts/deploy.sh` (serverda
+# to'ldirish) va `web/app.js` (ishlatish). Ular ajralib ketsa nosozlik
+# aynan shu qatlamning o'z sinfida bo'ladi — «konfiguratsiya kodga
+# ishora qiladi, kod esa boshqa joyda».
+
+ENV_EXAMPLE = ROOT / ".env.example"
+APP_JS = ROOT / "web/app.js"
+
+#: 👤 qaror, so'zma-so'z. Testda literal, `settings` dan olinmaydi:
+#: o'lchanayotgan qiymatdan olingan maxraj javobni har doim rost
+#: qilardi.
+STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+
+
+def _env_value(key: str) -> str:
+    for line in _read(ENV_EXAMPLE).splitlines():
+        if line.startswith(f"{key}="):
+            return line.split("=", 1)[1].strip()
+    raise AssertionError(f"`.env.example` da `{key}` qatori yo'q")
+
+
+def test_the_env_example_carries_the_decided_style_source() -> None:
+    """Namuna faylda qaror bor, ya'ni yangi o'rnatma fonsiz qolmaydi."""
+    assert _env_value("MAP_STYLE_URL") == STYLE_URL
+    assert _env_value("MAP_TILE_ATTRIBUTION").startswith("OpenFreeMap")
+
+
+def test_the_settings_know_both_kinds_of_source() -> None:
+    """Ikkita maydon — ikkita boshqa narsa (style JSON ↔ rastr shablon)."""
+    assert "map_style_url" in Settings.model_fields
+    assert "map_tile_url" in Settings.model_fields
+    # Sukut qiymat bo'sh: tashqi xizmatga murojaat testlarda ham,
+    # sozlanmagan ilovada ham o'z-o'zidan paydo bo'lmasin.
+    assert Settings.model_fields["map_style_url"].default == ""
+
+
+def test_deploy_no_longer_writes_the_osm_raster_source() -> None:
+    """Eski qaror (2026-08-11, OSM rastr) skriptdan olib tashlandi.
+
+    U qolib ketsa deploy odam tanlagan stilni jimgina OSM ga
+    almashtirardi — OSM Tile Usage Policy esa ommaviy og'ir trafikni
+    taqiqlaydi, ya'ni zarar E12 da, eng ko'p yuk paytida ko'rinardi.
+    """
+    body = _read(DEPLOY_SH)
+    assert "tile.openstreetmap.org" not in body
+    assert STYLE_URL in body
+
+
+def test_deploy_adds_the_style_line_before_filling_it() -> None:
+    """Eski `.env` da `MAP_STYLE_URL` qatori umuman yo'q.
+
+    Faqat qiymatni yozadigan `sed` bo'lmagan qatorni jimgina o'tkazib
+    yuborardi va deploy fonsiz xarita bilan tugardi.
+    """
+    body = _read(DEPLOY_SH)
+    assert ">> .env" in body, "yo'q qator qo'shilmaydi"
+    assert body.index("MAP_STYLE_URL=' >> .env") < body.index(f"MAP_STYLE_URL={STYLE_URL}")
+
+
+def test_deploy_does_not_overwrite_an_explicit_raster_choice() -> None:
+    """Rastr manbasi ochiq berilgan `.env` ga stil yozilmaydi.
+
+    2026-08-21 gacha o'sha faylga OSM yozilar edi va qiymat hamon
+    turibdi; ustidan yozish odamning tanlovini jimgina bekor qilardi.
+    """
+    body = _read(DEPLOY_SH)
+    assert "grep -qE '^MAP_STYLE_URL=$' .env && grep -qE '^MAP_TILE_URL=$' .env" in body
+
+
+def test_the_page_prefers_the_style_over_the_raster_source() -> None:
+    """Ustunlik `web/app.js` da ham o'sha tartibda.
+
+    Ikkovi ham to'ldirilgan `.env` da sahifa rastrga tushib qolsa,
+    server bergan javob (`style_url`) va ekrandagi fon ikkita boshqa
+    haqiqatga ajralardi.
+    """
+    body = _read(APP_JS)
+    assert body.index("if (cfg.style_url)") < body.index("if (!cfg.tile_url)")
+
+
+def test_the_missing_background_banner_asks_one_function() -> None:
+    """Banner `hasBase()` dan o'qiydi, `tile_url` ni o'zi tekshirmaydi.
+
+    Ilgari bir xil savolga ikkita joyda javob berilardi va `style_url`
+    qo'shilgan kunda banner fon **bor** bo'lgan xaritada
+    `map.tiles_missing` deb yozib qo'yardi.
+    """
+    body = _read(APP_JS)
+    assert 'banner("tiles", config && !hasBase(config)' in body
+    assert "cfg.style_url || cfg.tile_url" in body
+
+
+def test_the_style_path_states_the_attribution_explicitly() -> None:
+    """Litsenziya matni sozlamadan keladi, stilning ichidan emas.
+
+    Stil yo'lida MapLibre faqat stilning o'z atributsiyasini
+    ko'rsatadi, ya'ni `MAP_TILE_ATTRIBUTION` ekranga umuman
+    chiqmasdi — huquqiy talab esa aynan o'sha matnga tegishli.
+    """
+    body = _read(APP_JS)
+    assert "customAttribution" in body
+    assert "config.tile_attribution" in body
 
 
 def test_a_migration_that_lies_about_success_stops_the_deploy() -> None:

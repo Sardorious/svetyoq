@@ -4,13 +4,16 @@
 #
 # Nima qiladi:
 #   1. .env ni tekshiradi (yo'q bo'lsa .env.example dan yaratadi);
-#   2. MAP_TILE_URL bo'sh bo'lsa OSM qiymatini yozadi (👤 ADR-08, 2026-08-11);
+#   2. xarita foni bo'sh bo'lsa OpenFreeMap Liberty ni yozadi (👤 ADR-08,
+#      2026-08-21);
 #   3. git pull (--no-git bilan o'chiriladi);
 #   4. rasmlarni yig'adi;
 #   5. `db` ni KO'TARADI, LEKIN QAYTA YARATMAYDI (sozlamasi o'zgarmagan
 #      bo'lsa compose ishlab turgan konteynerga umuman tegmaydi);
 #   6. migratsiyani FAQAT KERAK BO'LSA yurgizadi — bazadagi
-#      `alembic_version` repodagi head dan farq qilganda;
+#      `alembic_version` repodagi head dan farq qilganda; migratsiyadan
+#      oldin `db` nomining resolve bo'lishini O'LCHAYDI va ko'rinmasa
+#      `db` ni bir marta qayta yaratib qayta o'lchaydi (195-run);
 #   7. ilova konteynerlarini (`api`, `jobs`, `web`) HAR DOIM o'chirib,
 #      yangisini yaratadi (`--force-recreate`);
 #   8. sog'liqni tekshiradi (API /api/v1/health/live va web).
@@ -76,14 +79,26 @@ if [[ ! -f .env ]]; then
     echo "⚠️  Sirlarni (TELEGRAM_BOT_TOKEN, ADMIN_* va h.k.) qo'lda to'ldiring!"
 fi
 
-# --- 2. ADR-08: MAP_TILE_URL bo'sh bo'lsa OSM (👤 qaror 2026-08-11) ---
-if grep -qE '^MAP_TILE_URL=$' .env; then
-    sed -i 's|^MAP_TILE_URL=$|MAP_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png|' .env
-    echo "MAP_TILE_URL: OSM qiymati yozildi (ADR-08)."
+# --- 2. ADR-08: fon manbasi bo'sh bo'lsa to'ldiriladi (👤 qaror 2026-08-21) ---
+#
+# Eski .env larda MAP_STYLE_URL qatori umuman yo'q, shuning uchun avval
+# qator BORLIGI ta'minlanadi, keyin QIYMATI. Faqat qiymatni yozadigan
+# `sed` bo'lmagan qatorni jimgina o'tkazib yuborardi va deploy fonsiz
+# xarita bilan tugardi.
+if ! grep -qE '^MAP_STYLE_URL=' .env; then
+    echo 'MAP_STYLE_URL=' >> .env
+    echo "MAP_STYLE_URL: qator yo'q edi, qo'shildi."
+fi
+# Rastr manbasi ochiq berilgan bo'lsa tegilmaydi: 2026-08-21 gacha
+# bu yerga OSM yozilar edi va o'sha .env larda qiymat allaqachon turibdi.
+# Stilni ustidan yozish odamning tanlovini jimgina bekor qilardi.
+if grep -qE '^MAP_STYLE_URL=$' .env && grep -qE '^MAP_TILE_URL=$' .env; then
+    sed -i 's|^MAP_STYLE_URL=$|MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty|' .env
+    echo "MAP_STYLE_URL: OpenFreeMap Liberty yozildi (ADR-08)."
 fi
 if grep -qE '^MAP_TILE_ATTRIBUTION=$' .env; then
-    sed -i 's|^MAP_TILE_ATTRIBUTION=$|MAP_TILE_ATTRIBUTION=© OpenStreetMap contributors|' .env
-    echo "MAP_TILE_ATTRIBUTION: OSM attributsiyasi yozildi."
+    sed -i 's|^MAP_TILE_ATTRIBUTION=$|MAP_TILE_ATTRIBUTION=OpenFreeMap (c) OpenMapTiles Data from OpenStreetMap|' .env
+    echo "MAP_TILE_ATTRIBUTION: atributsiya yozildi."
 fi
 
 env_value() {
@@ -186,20 +201,64 @@ elif [[ "$REPO_HEAD" != "$DB_HEAD" ]]; then
 fi
 
 if [[ "$NEED_MIGRATE" -eq 1 ]]; then
-    echo "-- alembic upgrade head --"
-    # ⚠️ Bu yerda `--no-deps` YO'Q va bo'lmasligi kerak (193-run, serverda
-    # o'lchandi). `docker compose run --no-deps` bilan yaratilgan bir
-    # martalik konteyner loyiha tarmog'iga **ulanmaydi**, ya'ni `db`
-    # nomi umuman resolve bo'lmaydi:
+    # --- 6a. `db` nomi resolve bo'ladimi — TAXMIN EMAS, O'LCHOV ---
+    #
+    # Nosozlikning shakli aldamchi: u `Connection refused` EMAS
     #
     #     socket.gaierror: [Errno -2] Name or service not known
     #
-    # Nosozlikning shakli aldamchi — u `Connection refused` EMAS, ya'ni
-    # baza o'chgandek ko'rinmaydi, DNS xatosi bo'lib chiqadi va odam
-    # `DATABASE_URL` ni qidira boshlaydi. `--no-deps` siz esa compose
-    # `depends_on` ni tekshiradi (`db` allaqachon `healthy` — hech
-    # narsa qilinmaydi, konteyner QAYTA YARATILMAYDI) va bir martalik
-    # konteynerni tarmoqqa to'g'ri ulaydi.
+    # ya'ni baza o'chgandek ko'rinmaydi, DNS xatosi bo'lib chiqadi va
+    # odam `DATABASE_URL` ni qidira boshlaydi. Qidirmasin: `DATABASE_URL`
+    # `docker-compose.yml` ning `environment:` blokidan keladi (u
+    # `env_file:` dan ustun) va xosti har doim `db`; `.dockerignore` esa
+    # `.env` ni rasmga tushirmaydi, ya'ni konteyner ichida boshqa manba
+    # yo'q. Demak savol bitta: `db` nomi shu konteynerdan ko'rinadimi.
+    #
+    # ⚠️ 193-run buni `--no-deps` ga yozgan edi, LEKIN 195-runda ayni shu
+    # xato `--no-deps` SIZ takrorlandi (logda `db Waiting -> Healthy`
+    # bor, ya'ni `depends_on` hurmat qilingan). Ya'ni o'sha tushuntirish
+    # to'liq emas. Ehtimoliy sabab: `up -d db` ishlab turgan konteynerga
+    # ATAYLAB tegmaydi (5-qadam), shuning uchun `db` eski/o'chirilgan
+    # tarmoqda qolib ketishi mumkin, bir martalik konteyner esa joriy
+    # `sveta_default` ga ulanadi — `getent` NXDOMAIN beradi.
+    #
+    # Skript endi sababni taxmin qilmaydi: nomni o'lchaydi, ko'rinmasa
+    # dalilni chop etadi va `db` ni BIR MARTA qayta yaratib qayta
+    # o'lchaydi. Ma'lumot `pgdata` volume da qoladi.
+    db_name_resolves() {
+        docker compose run --rm -T --entrypoint sh migrate \
+            -c 'getent hosts db >/dev/null' >/dev/null 2>&1
+    }
+
+    if ! db_name_resolves; then
+        echo "⚠️  db nomi bir martalik konteynerdan resolve bo'lmadi."
+        echo "   db konteynerining tarmoqlari:"
+        docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}     {{$k}}{{"\n"}}{{end}}' \
+            "$(docker compose ps -q db)" 2>/dev/null || echo "     (aniqlanmadi)"
+        echo "   loyihaning tarmoqlari:"
+        docker network ls --filter 'name=sveta' --format '     {{.Name}} ({{.ID}})' || true
+        echo "   -> db BIR MARTA qayta yaratilmoqda (pgdata volume tegilmaydi)"
+        docker compose up -d --force-recreate db
+        for i in $(seq 1 30); do
+            if docker compose exec -T db pg_isready -h 127.0.0.1 -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; then
+                break
+            fi
+            [[ "$i" -eq 30 ]] && { echo "❌ qayta yaratilgan baza javob bermadi"; exit 1; }
+            sleep 2
+        done
+        if ! db_name_resolves; then
+            echo "❌ db nomi qayta yaratishdan keyin ham resolve bo'lmadi."
+            echo "   Sabab tarmoqda emas — quyidagilarni qo'lda ko'ring:"
+            echo "   docker compose config migrate | grep -i DATABASE_URL"
+            echo "   docker compose run --rm -T --entrypoint sh migrate -c 'cat /etc/resolv.conf; getent hosts db'"
+            exit 1
+        fi
+        echo "   OK: db nomi endi ko'rinadi."
+    fi
+
+    echo "-- alembic upgrade head --"
+    # ⚠️ Bu yerda `--no-deps` YO'Q: usiz compose `depends_on` ni tekshiradi
+    # (`db` allaqachon `healthy` — konteyner QAYTA YARATILMAYDI).
     if ! docker compose run --rm -T migrate; then
         echo
         echo "❌ Migratsiya yiqildi. Tekshiring:"

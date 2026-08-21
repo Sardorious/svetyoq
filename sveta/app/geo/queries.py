@@ -19,7 +19,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.geo import h3_cells
+from app.geo import cellfit
 from app.geo.models import TERRITORY_LEVELS as TERRITORY_LEVELS
 from app.geo.models import District, Mahalla, Region, RegionConfig, TerritoryStats
 
@@ -302,6 +302,14 @@ async def load_territory_stats_many(
     }
 
 
+#: `ST_AsGeoJSON` uchun kasr xonalari soni. `6` daraja ≈ 0.11 m, r9
+#: katagining qirrasi esa ≈ 174 m — ya'ni bu aniqlik katak sanog'iga
+#: umuman ta'sir qilmaydi, javob hajmini esa sezilarli kichraytiradi.
+#: Katta qilish narxni oshiradi va hech narsa qo'shmaydi; kichik qilish
+#: (masalan `4` ≈ 11 m) chekkadagi katakni yo'qotishi mumkin.
+GEOJSON_PRECISION = 6
+
+
 @dataclass(frozen=True)
 class TerritoryGeometryFacts:
     """Poligondan hisoblanadigan faktlar (`06` §3.1).
@@ -320,26 +328,43 @@ class TerritoryGeometryFacts:
     #: ma'lumoti yo'q joyda **barcha katakchalar** `populated_cells` deb
     #: olinadi — bu `cell_coverage_ratio` ni pasaytiradi, ya'ni xato
     #: ehtiyotkorlik tomonga ketadi.
+    #:
+    #: Son **sanaladi**, baholanmaydi: `app.geo.cellfit` poligonni
+    #: `h3` bilan qoplaydi. Yuzadan baholash faqat poligon o'qilmaganda
+    #: qoladi va o'shanda `containment` `estimate` bo'ladi.
     covering_cells: int
+    #: Yuqoridagi son nimani sanagani. Sonning yonidan ajralmaydi:
+    #: `estimate` bo'lsa maxraj mahalla darajasida ~2-3 barobar
+    #: kichrayishi mumkin (`cellfit` modul izohi).
+    containment: cellfit.Containment = cellfit.Containment.ESTIMATE
 
 
 def _geometry_facts(rows: Sequence[Any]) -> list[TerritoryGeometryFacts]:
-    """`(id, area_m2)` qatorlaridan faktlar.
+    """`(id, area_m2, geojson)` qatorlaridan faktlar.
 
-    `h3` kengaytmasi bazada yo'q (`05` §Stek), shuning uchun aniq polyfill
-    o'rniga `ST_Area / bitta katakcha maydoni` ishlatiladi. Taxminiy
-    bo'lgani uchun chaqiruvchi natijani `data_quality = 'estimated'` bilan
-    yozadi (`06` §3.2).
+    Uchinchi ustun ixtiyoriy: u bo'lmasa (yoki `NULL` bo'lsa) son yuzadan
+    baholanadi. Ilgari **har doim** shunday edi — `h3` kengaytmasi bazada
+    yo'q (`05` Stek) va boshqa yo'l ko'rinmasdi. Kengaytma hamon yo'q,
+    lekin `h3` kutubxonasi Python tomonda bor va poligonni `ST_AsGeoJSON`
+    bilan olib kelish mumkin, ya'ni sanoq bazasiz ham bajariladi
+    (`app.geo.cellfit`, o'lchangan xato jadvali o'sha yerda).
+
+    `data_quality` baribir `estimated` bo'lib qoladi (`06` §3.2): sanoq
+    **qoplaydigan** kataklarni beradi, `populated_cells` esa aholi
+    yashaydiganini so'raydi va bino ma'lumoti hamon yo'q. Aniqlashgani —
+    maxraj, taxminning sifati emas.
     """
-    cell_area_m2 = h3_cells.cell_area_m2()
     out: list[TerritoryGeometryFacts] = []
     for row in rows:
         area = float(row[1] or 0.0)
+        geojson = row[2] if len(row) > 2 else None
+        count = cellfit.covering_cells(area, geojson)
         out.append(
             TerritoryGeometryFacts(
                 territory_id=row[0],
                 area_km2=round(area / 1_000_000, 2),
-                covering_cells=max(1, int(area / cell_area_m2)) if area > 0 else 0,
+                covering_cells=count.cells,
+                containment=count.containment,
             )
         )
     return out
@@ -348,10 +373,15 @@ def _geometry_facts(rows: Sequence[Any]) -> list[TerritoryGeometryFacts]:
 async def district_geometry_facts(
     session: AsyncSession, region_id: uuid.UUID
 ) -> list[TerritoryGeometryFacts]:
-    """Joriy tumanlarning maydoni va H3 qoplamasi."""
+    """Joriy tumanlarning maydoni va H3 qoplamasi.
+
+    Poligon ham olib kelinadi (`GEOJSON_PRECISION`): kataklar endi
+    sanaladi, yuzadan baholanmaydi (`_geometry_facts`).
+    """
     area_m2 = func.ST_Area(func.geography(District.geom))
+    geojson = func.ST_AsGeoJSON(District.geom, GEOJSON_PRECISION)
     stmt = (
-        select(District.id, area_m2)
+        select(District.id, area_m2, geojson)
         .where(District.region_id == region_id, District.valid_to.is_(None))
         .order_by(District.code.asc())
     )
@@ -389,8 +419,9 @@ async def mahalla_geometry_facts(
     kichikroq hajmda takrorlardi.
     """
     area_m2 = func.ST_Area(func.geography(Mahalla.geom))
+    geojson = func.ST_AsGeoJSON(Mahalla.geom, GEOJSON_PRECISION)
     stmt = (
-        select(Mahalla.id, area_m2)
+        select(Mahalla.id, area_m2, geojson)
         .join(District, Mahalla.district_id == District.id)
         .where(District.region_id == region_id, Mahalla.valid_to.is_(None))
         .order_by(District.code.asc(), Mahalla.name_uz.asc())

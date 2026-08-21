@@ -34,10 +34,19 @@ satr `data-i18n` kaliti orqali serverdagi katalogdan olinadi.
 
 ## Ochiq narsalar
 
-* **ADR-08 — xarita tayl manbasi.** `MAP_TILE_URL` bo'sh bo'lsa sahifa fon
-  rasmisiz, faqat uzilish nuqtalari bilan ochiladi va `map.tiles_missing`
-  ogohlantirishini ko'rsatadi. Litsenziya tanlangach `.env` ga qiymat va
-  `MAP_TILE_ATTRIBUTION` qo'yiladi.
+* ✅ **ADR-08 — xarita foni. YOPILDI (👤 2026-08-21): OpenFreeMap Liberty**
+  (`MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty`,
+  `MAP_TILE_ATTRIBUTION=OpenFreeMap © OpenMapTiles Data from OpenStreetMap`).
+  Ikkita manba turi bor va ular bir-birini almashtirmaydi: `MAP_STYLE_URL`
+  — tayyor **vektor style JSON** (MapLibre ga satr bo'lib uzatiladi),
+  `MAP_TILE_URL` — `{z}/{x}/{y}` shablonli **rastr** tayl (style ni sahifa
+  o'zi yasaydi). Ikkovi berilsa **style ustun**, va tanlov serverda
+  (`/map/config`) hal bo'ladi. Ikkovi ham bo'sh bo'lsa sahifa fon rasmisiz,
+  faqat uzilish nuqtalari bilan ochiladi va `map.tiles_missing`
+  ogohlantirishini ko'rsatadi — bu **degradatsiya**, xato emas.
+  ⚠️ Atributsiya stil yo'lida `attributionControl.customAttribution` orqali
+  qo'shiladi: stilning ichidagi qiymat bizning sozlamamizni ekranga
+  chiqarmasdi.
 * **React.** `05` §1 «React + MapLibre» deydi. Bu run React ni kiritmadi:
   u npm/vite build zanjirini talab qiladi, sandboxda esa tashqi tarmoq yo'q,
   ya'ni build ni tekshirib bo'lmasdi. Sahifa ataylab kichik — ko'chirish
